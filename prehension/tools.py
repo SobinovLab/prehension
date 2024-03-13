@@ -6,13 +6,10 @@ import warnings
 import logging
 import datetime
 import time
-import argparse
-from shutil import copy
 import numpy as np
 import scipy
 import scipy.signal
 import scipy.interpolate
-import matplotlib
 import matplotlib.pyplot as plt
 import uuid
 import atexit

@@ -1,22 +1,8 @@
-#!python3
+#!python3.12
 import os
 import csv
-import glob
 import re
-import warnings
-import copy
-import xml.etree.ElementTree as ET
-import multiprocessing
-import time
-
-import tqdm
 import numpy as np
-import scipy
-import scipy.signal
-import scipy.interpolate
-import matplotlib
-import matplotlib.pyplot as plt
-
 import tsm
 import ncams
 
