@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import uuid
 import atexit
 import shutil
+from . import io_tools
+import pdb
 
 # matching geom or body
 DIGITS = {
@@ -405,6 +407,7 @@ def setup_logging(temp, sessions_dir=None):
     timestamp_long = start_time.strftime('%Y.%m.%d-%H:%M:%S')
     logging_filename = os.path.join(temp, f'{timestamp}_{exec_fname}_{random_hash}.log')
     logging.basicConfig(filename=logging_filename, level=logging.INFO)
+    logging.info('')
 
     # Define the cleanup action as upload to sessions_log dir
     if sessions_dir is not None:
@@ -506,6 +509,13 @@ def add_default_arguments(parser, arguments):
             action='store_true',
             help='Makes some inspection figures. Run with --processes 1.')
 
+    if 'debug' in arguments:
+        parser.add_argument(
+            '--debug',
+            action='store_true',
+            help='Run script in debug mode'
+        )
+
 
 def add_default_kwargument(parser, k, v):
     if k == 'server':
@@ -556,3 +566,67 @@ def match_yaxes_ranges(axs):
         ymin, ymax = ax.get_ylim()
         ymid = ymin + (ymax - ymin) / 2
         ax.set_ylim((ymid - yhrange, ymid + yhrange))
+
+
+def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
+
+    # ---- ----- ---- ---- #
+
+    # Handle different start/end times
+    # load time and ps data for each file
+    ps_times1, ps_matrices1 = io_tools.import_tsm_matrix(tsm1_file) #io_tools.import_matrices(tsm1_file)
+    ps_times2, ps_matrices2 = io_tools.import_tsm_matrix(tsm2_file) #io_tools.import_matrices(tsm2_file)
+
+    # Get the sums at each timestep
+    ps_sum1 = np.sum(ps_matrices1, axis=(1, 2))
+    ps_sum2 = np.sum(ps_matrices2, axis=(1, 2))
+
+    # MEM ISSUE FIX
+    ps_matrices1 = None
+    ps_matrices2 = None
+
+    # Sanity check that time and pressure data are the same size
+    if ps_times1.size != ps_sum1.size:
+        raise ValueError("Size of tsm1 time and pressure data not equal")
+    if ps_times2.size != ps_sum2.size:
+        raise ValueError("Size of tsm2 time and pressure data not equal")
+
+    # find smallest common time range
+    tmin = max([ps_times1[0], ps_times2[0]])
+    tmax = min([ps_times1[-1], ps_times2[-1]])
+
+    # trim both datasets to that range
+    valid_idx1 = (ps_times1 >= tmin) & (ps_times1 <= tmax)
+    ps_times1 = np.array(ps_times1[valid_idx1])
+    ps_sum1 = np.array(ps_sum1[valid_idx1])
+
+    valid_idx2 = (ps_times2 >= tmin) & (ps_times2 <= tmax)
+    ps_times2 = np.array(ps_times2[valid_idx2])
+    ps_sum2 = np.array(ps_sum2[valid_idx2])
+
+    # Take union of times to get all common times
+    U_times = np.union1d(ps_times1, ps_times2)
+    max_size = max(ps_times1.size, ps_times2.size)
+    added_times_pct = abs(U_times.size - max_size) / max_size
+    if added_times_pct > 0.05:
+        if verbose:
+            ws(f"Times union size is greater 5% of the max \
+            ps_times array: pct diff = ({added_times_pct})")
+
+    # Interp the missing sums
+    ps_sum1_fill = np.interp(U_times, ps_times1, ps_sum1)
+    ps_sum2_fill = np.interp(U_times, ps_times2, ps_sum2)
+
+    if ps_sum1_fill.size != ps_sum2_fill.size:
+        raise ValueError(
+            f"Len of ps sum 1 and 2 not equal "
+            f"({ps_sum1_fill.size} / {ps_sum2_fill.size})"
+        )
+
+    # Left/Right force sums
+    fss_total = np.sum([ps_sum1_fill, ps_sum2_fill], axis=0)
+
+    return (
+        U_times,
+        fss_total
+    )

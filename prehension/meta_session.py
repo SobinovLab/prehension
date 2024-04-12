@@ -113,8 +113,8 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
         if len(auto_log) > 1:
             # sort them
             def order(v):
-                if re.match('.*\([0-9]+\).csv$', v) is not None:
-                    return int(re.findall('\([0-9]+\)', v)[-1][1:-1])
+                if re.match(r'.*\([0-9]+\).csv$', v) is not None:
+                    return int(re.findall(r'\([0-9]+\)', v)[-1][1:-1])
                 return -1
 
             auto_log.sort(key=order)
