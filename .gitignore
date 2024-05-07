@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Don't include the actual presets
+preset.py
+
 # Distribution / packaging
 .Python
 build/

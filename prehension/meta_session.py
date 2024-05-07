@@ -1,13 +1,10 @@
 #!python3
 import os
-import sys
 import re
 import glob
 import warnings
 import json
 import ncams
-import pdb
-
 
 SENSOR_SERIAL1 = '00110-2743'
 SENSOR_SERIAL2 = '00110-2746'
