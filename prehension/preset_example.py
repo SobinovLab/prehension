@@ -25,13 +25,6 @@ import os
 import sys
 import copy
 
-# Make some stumps!
-raw_stump = os.path.join(r'\\192.170.210.120', 'RawData', 'ProjectFolders',
-                          'Prehension', 'Data')
-dlc_stump = os.path.join(r'\\192.170.210.120', 'RawData', 'ProjectFolders',
-                          'Prehension', 'DeepLabCut')
-proc_stump = os.path.join(r'\\192.170.210.120', 'ProcessedData', 'ProjectFolders',
-                           'Prehension', 'ProcessedData')
 
 CURRENT_PRESET = 'mojito_left_hemisphere'
 PRESETS = {
@@ -43,11 +36,11 @@ PRESETS = {
         # The hand used in the experiment 'left' or 'right'
         'hand': 'right',
         # The server containing the raw data to be processed, see https://github.com/nishbo/stereo_inverse_kinematics for details on our directory structure
-        'default_server': os.path.join(raw_stump, 'MojitoLeftHemisphere', 'training_sessions_k1', 'sessions'),
+        'default_server': os.path.join(r'\\localhost', 'MojitoLeftHemisphere', 'training_sessions_k1', 'sessions'),
         # The server to write the data to
-        'processed_server': os.path.join(proc_stump, 'MojitoLeftHemisphere', 'training_sessions_k1', 'sessions'),
+        'processed_server': os.path.join(r'\\localhost', 'MojitoLeftHemisphere', 'training_sessions_k1', 'sessions'),
         # The path to the deep lab cut configuration yaml file
-        'dlc_config_path': os.path.join(dlc_stump, 'MojitoJune2021', 'Mojito-CMG-2021-06-27', 'config.yaml'),
+        'dlc_config_path': os.path.join(r'\\localhost', 'MojitoJune2021', 'Mojito-CMG-2021-06-27', 'config.yaml'),
         'labeling': {
             'sessions': ('2021_04_08', '2021_04_29'),
             'labelers': ('CMG', 'AS', 'LO', 'NS'),
