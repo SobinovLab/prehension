@@ -5,6 +5,7 @@ import glob
 import warnings
 import json
 import ncams
+import pdb
 
 SENSOR_SERIAL1 = '00110-2743'
 SENSOR_SERIAL2 = '00110-2746'
@@ -151,7 +152,6 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
     mstruct['mujoco_model_sensorized'] = '{}_Tessellated_{}.xml'.format(
         mstruct['mujoco_model'][:-4], session)
 
-    # identify cameras
     if os.path.exists(os.path.join(dirname, mstruct['videos_dir'])):
         # TODO suboptimal
         _cameras = glob.glob(os.path.join(dirname, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
@@ -191,7 +191,7 @@ def import_meta_structure(raw_dir, proc_dir):
     # on processed server
     pth_2_resolve_proc = (
         'timepoint_plots_dir', 'timepoint_csv_filename',
-        'videos_dir', 'images_dir', 'markers_2D_dir', 'markers_2D_video_dir', 'markers_3D_dir',
+        'markers_2D_dir', 'markers_2D_video_dir', 'markers_3D_dir',
         'pre_ja_dir', 'post_ja_dir',
         'transformed_ps_dir', 'pre_ps_dir', 'post_ps_dir',
         'matched_contacts_dir', 'manually_labelled_forces_dir', 'scaling_dir',
@@ -255,6 +255,7 @@ def import_meta_structure(raw_dir, proc_dir):
     if default_server in mstruct['videos_dir']:
         mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
 
+    pdb.set_trace()
     return mstruct
 
 
