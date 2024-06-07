@@ -527,14 +527,14 @@ class TrialInfo():
         return True
 
     # VIDEOS IN PROCESSED FOLDER
-    def do_proc_videos_files_exist(self):
-        for d in self.videos_processed.values():
-            if not os.path.exists(d):
-                return False
-        for f in self.videos_logs_processed.values():
-            if not os.path.exists(f):
-                return False
-        return True
+    # def do_proc_videos_files_exist(self):
+    #     for d in self.videos_processed.values():
+    #         if not os.path.exists(d):
+    #             return False
+    #     for f in self.videos_logs_processed.values():
+    #         if not os.path.exists(f):
+    #             return False
+    #     return True
 
     # DLC files
     @staticmethod
