@@ -15,7 +15,6 @@ import uuid
 import atexit
 import shutil
 from . import io_tools
-import pdb
 
 # matching geom or body
 DIGITS = {
@@ -658,7 +657,6 @@ def load_forces(mstruct, trial):
                              mask_based_diff_per_sensor['lateral_sensor'])
     trial.unclaimed_force = (unclaimed_force['medial_sensor'] +
                              unclaimed_force['lateral_sensor'])
-
 
 
 def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):

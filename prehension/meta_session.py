@@ -5,7 +5,6 @@ import glob
 import warnings
 import json
 import ncams
-import pdb
 
 SENSOR_SERIAL1 = '00110-2743'
 SENSOR_SERIAL2 = '00110-2746'
@@ -53,6 +52,7 @@ def get_default_meta_structure():
         'manual_log': '',
         'videos_dir': 'camera_videos',
         'images_dir': 'cameras',
+        #'proc_videos_dir': 'camera_videos',
         'cameras': {
             # 19194005: 'cam19194005',  # now handled by fill_meta_structure
             # 19194008: 'cam19194008',
@@ -102,7 +102,7 @@ def get_default_meta_structure():
     }
 
 # meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
-def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
+def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='behavior'):
     '''If the meta structure dictionary has empty auto_log and manual_log, script searches for them.
     Replacement is done in place.
 
@@ -113,7 +113,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
     if len(mstruct['auto_log']) == 0:
         # search automatically
         auto_log = glob.glob(os.path.join(
-            dirname, log_rel_dir, 'session_*.csv'))
+            raw_dir, log_rel_dir, 'session_*.csv'))
         if len(auto_log) > 1:
             # sort them
             def order(v):
@@ -125,7 +125,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
 
             warnings.warn('Several session log filenames found: {}'.format(auto_log))
         elif len(auto_log) == 0:
-            raise ValueError('Could not find auto log session filenames in {}.'.format(dirname))
+            raise ValueError('Could not find auto log session filenames in {}.'.format(raw_dir))
 
         mstruct['auto_log'] = auto_log ### SWITCH TO FULL PATH
 
@@ -133,17 +133,17 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
     if len(mstruct['manual_log']) == 0:
         # search automatically
         manual_log = glob.glob(os.path.join(
-            dirname, log_rel_dir, '*Daily experiment log - trials*.csv'))
+            raw_dir, log_rel_dir, '*Daily experiment log - trials*.csv'))
         if len(manual_log) == 0:
             manual_log = glob.glob(os.path.join(
-                dirname, log_rel_dir, 'Manual_*.csv'))
+                raw_dir, log_rel_dir, 'Manual_*.csv'))
         if len(manual_log) > 1:
             warnings.warn(
                 'Too many manual session log filenames found: {}. Using first one.'.format(
                     manual_log))
             mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
         elif len(manual_log) == 0:
-            warnings.warn('Could not find manual session log filenames in {}.'.format(dirname))
+            warnings.warn('Could not find manual session log filenames in {}.'.format(raw_dir))
         else:
             mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
 
@@ -152,9 +152,9 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
     mstruct['mujoco_model_sensorized'] = '{}_Tessellated_{}.xml'.format(
         mstruct['mujoco_model'][:-4], session)
 
-    if os.path.exists(os.path.join(dirname, mstruct['videos_dir'])):
+    if os.path.exists(os.path.join(raw_dir, mstruct['videos_dir'])):
         # TODO suboptimal
-        _cameras = glob.glob(os.path.join(dirname, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
+        _cameras = glob.glob(os.path.join(raw_dir, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
@@ -164,7 +164,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
                 continue
             _cameras_dict[serial] = camera[:-4]
     else:
-        _cameras = glob.glob(os.path.join(dirname, mstruct['images_dir'], 'cam*'))
+        _cameras = glob.glob(os.path.join(raw_dir, mstruct['images_dir'], 'cam*'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
@@ -173,6 +173,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
             except Exception as e:
                 continue
             _cameras_dict[serial] = camera
+
     mstruct['cameras'] = _cameras_dict
 
 
@@ -196,15 +197,16 @@ def import_meta_structure(raw_dir, proc_dir):
         'transformed_ps_dir', 'pre_ps_dir', 'post_ps_dir',
         'matched_contacts_dir', 'manually_labelled_forces_dir', 'scaling_dir',
         'digit_forces_dir', 'segment_forces_dir',
-        'mujoco_videos_dir'
+        'mujoco_videos_dir',
+        #'proc_videos_dir'
     )
 
     pth_2_resolve_raw = (
         'auto_log', 'manual_log', 'ps_log_filename',
-        'videos_dir', 'images_dir',
         'opensim_model', 'opensim_model_locked_base',
         'mujoco_model', 'mujoco_model_sensorized',
         'calibration','raw_ps_dir',
+        'images_dir', 'videos_dir'
     )
 
     def add_key(ptr, dir):
@@ -226,6 +228,7 @@ def import_meta_structure(raw_dir, proc_dir):
     ###############################################################################################
     # should only work for *_camera_copy presets
     # mojito lhem
+
     default_server = os.path.join(
         r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data', 'Spring_2021',
         'Recording_sessions', 'Mojito')
@@ -255,7 +258,6 @@ def import_meta_structure(raw_dir, proc_dir):
     if default_server in mstruct['videos_dir']:
         mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
 
-    pdb.set_trace()
     return mstruct
 
 
@@ -347,6 +349,13 @@ class TrialInfo():
 
         self.videos_logs = {k: form_cam_fname(mstruct['videos_dir'], trial_name, v, '.csv')
                             for k, v in mstruct['cameras'].items()}
+
+        # Same as above but for processed
+        # self.videos_processed = {k: form_cam_fname(mstruct['proc_videos_dir'], trial_name, v, '.mp4')
+        #                 for k, v in mstruct['cameras'].items()}
+
+        # self.videos_logs_processed = {k: form_cam_fname(mstruct['proc_videos_dir'], trial_name, v, '.csv')
+        #                 for k, v in mstruct['cameras'].items()}
 
         inverted_dir_structure = mstruct['videos_dir'] == mstruct['images_dir']
         if inverted_dir_structure:
@@ -513,6 +522,16 @@ class TrialInfo():
             if not os.path.exists(d):
                 return False
         for f in self.videos_logs.values():
+            if not os.path.exists(f):
+                return False
+        return True
+
+    # VIDEOS IN PROCESSED FOLDER
+    def do_proc_videos_files_exist(self):
+        for d in self.videos_processed.values():
+            if not os.path.exists(d):
+                return False
+        for f in self.videos_logs_processed.values():
             if not os.path.exists(f):
                 return False
         return True
@@ -720,8 +739,9 @@ def _column_pop(k, column_names, values):
     return answ
 
 
-def load_meta_information(raw_dir, proc_dir, trial_subset=None, only_successful_trials=False,
+def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
                           check_manual_log=False, session=None):
+
     # find the session name if it was None
     if session is None:
         session = os.path.basename(raw_dir)
