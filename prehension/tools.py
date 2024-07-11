@@ -367,9 +367,8 @@ def reduce_force_matrices(matrices, reduction=np.sum):
         red.append(reduction(matrix))
     return red
 
+
 # @https://stackoverflow.com/questions/7632963/numpy-find-first-index-of-value-fast
-
-
 def find_first(x):
     idx = x.view(bool).argmax() // x.itemsize
     return idx if x[idx] else -1
@@ -523,6 +522,13 @@ def add_default_kwargument(parser, k, v):
             '--server',
             type=str, default=v,
             help='Folder where the sessions are located. Default: {}'.format(v))
+        return
+
+    if k == 'processed_server':
+        parser.add_argument(
+            '--processed_server',
+            type=str, default=v,
+            help='Folder where the processed data from sessions are located. Default: {}'.format(v))
         return
 
     raise ValueError('Unknown keyword argument for parser: {}'.format(k))

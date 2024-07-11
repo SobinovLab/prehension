@@ -176,7 +176,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
     mstruct['cameras'] = _cameras_dict
 
 
-def normpath(dirname, p):
+def normjoinpath(dirname, p):
     if len(p) == 0:
         return None
     return os.path.normpath(os.path.join(dirname, p))
@@ -191,7 +191,8 @@ def import_meta_structure(raw_dir, proc_dir):
     # on processed server
     pth_2_resolve_proc = (
         'timepoint_plots_dir', 'timepoint_csv_filename',
-        'videos_dir', 'images_dir', 'markers_2D_dir', 'markers_2D_video_dir', 'markers_3D_dir',
+        # 'videos_dir', 'images_dir',
+        'markers_2D_dir', 'markers_2D_video_dir', 'markers_3D_dir',
         'pre_ja_dir', 'post_ja_dir',
         'transformed_ps_dir', 'pre_ps_dir', 'post_ps_dir',
         'matched_contacts_dir', 'manually_labelled_forces_dir', 'scaling_dir',
@@ -204,21 +205,23 @@ def import_meta_structure(raw_dir, proc_dir):
         'videos_dir', 'images_dir',
         'opensim_model', 'opensim_model_locked_base',
         'mujoco_model', 'mujoco_model_sensorized',
-        'calibration','raw_ps_dir',
+        'calibration', 'raw_ps_dir',
     )
 
-    def add_key(ptr, dir):
+    def add_key(ptr, d):
         if ptr not in mstruct.keys():
             return
         # in case one has multiple elements
         if isinstance(mstruct[ptr], (list, tuple)):
-            mstruct[ptr] = [normpath(dir, p) for p in mstruct[ptr]]
+            mstruct[ptr] = [normjoinpath(d, p) for p in mstruct[ptr]]
         else:
-            mstruct[ptr] = normpath(dir, mstruct[ptr])
+            mstruct[ptr] = normjoinpath(d, mstruct[ptr])
 
     for ptr in pth_2_resolve_proc:
         add_key(ptr, proc_dir)
     for ptr in pth_2_resolve_raw:
+        if ptr in pth_2_resolve_proc:
+            raise Exception(f'Attempting to resolve path for {ptr} twice.')
         add_key(ptr, raw_dir)
 
     ###############################################################################################
@@ -304,10 +307,16 @@ def import_manual_log(filename):
 
 
 def form_cam_fname(vid_dir, trial_name, cam_id, ext):
+    fn1 = os.path.join(vid_dir, trial_name, cam_id + '.avi')
+    if os.path.exists(fn1):
+        return fn1
     return os.path.join(vid_dir, trial_name, cam_id + ext)
 
 
 def form_cam_inverted_fname(vid_dir, trial_name, cam_id, ext):
+    fn1 = os.path.join(vid_dir, cam_id, trial_name, cam_id + '.avi')
+    if os.path.exists(fn1):
+        return fn1
     return os.path.join(vid_dir, cam_id, trial_name, cam_id + ext)
 
 
@@ -341,18 +350,23 @@ class TrialInfo():
         }
 
         # recorded videos
-        self.videos = {k: form_cam_fname(mstruct['videos_dir'], trial_name, v, '.mp4')
-                        for k, v in mstruct['cameras'].items()}
+        if mstruct['videos_dir'] != mstruct['images_dir']:
+            # old style structure - different folders for images and videos
+            self.videos = {
+                k: form_cam_fname(mstruct['videos_dir'], trial_name, v, '.mp4')
+                for k, v in mstruct['cameras'].items()}
 
-        self.videos_logs = {k: form_cam_fname(mstruct['videos_dir'], trial_name, v, '.csv')
-                            for k, v in mstruct['cameras'].items()}
-
-        inverted_dir_structure = mstruct['videos_dir'] == mstruct['images_dir']
-        if inverted_dir_structure:
-            self.videos = {k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.mp4')
-                           for k, v in mstruct['cameras'].items()}
-            self.videos_logs = {k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.csv')
-                                 for k, v in mstruct['cameras'].items()}
+            self.videos_logs = {
+                k: form_cam_fname(mstruct['videos_dir'], trial_name, v, '.csv')
+                for k, v in mstruct['cameras'].items()}
+        else:
+            # inverted_dir_structure
+            self.videos = {
+                k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.mp4')
+                for k, v in mstruct['cameras'].items()}
+            self.videos_logs = {
+                k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.csv')
+                for k, v in mstruct['cameras'].items()}
 
         # directory with 2D labelled CSVs
         self.markers_2D_dirname = os.path.join(
@@ -381,6 +395,8 @@ class TrialInfo():
             mstruct['scaling_dir'], trial_name + '.mot')
 
         # add .csv or .trc depending on use
+        self.markers_3D_filename_jarvis_csv = os.path.join(
+            mstruct['markers_3D_dir'], trial_name + '_jarvis.csv')
         self.markers_3D_filename_csv = os.path.join(
             mstruct['markers_3D_dir'], trial_name + '.csv')
         self.markers_3D_filename_trc = os.path.join(
