@@ -100,8 +100,9 @@ def get_default_meta_structure():
             'pos_translation_z(mm)', 'pos_tilt(deg)', 'pos_aperture(mm)')
     }
 
+
 # meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
-def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
+def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='behavior'):
     '''If the meta structure dictionary has empty auto_log and manual_log, script searches for them.
     Replacement is done in place.
 
@@ -112,7 +113,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
     if len(mstruct['auto_log']) == 0:
         # search automatically
         auto_log = glob.glob(os.path.join(
-            dirname, log_rel_dir, 'session_*.csv'))
+            raw_dir, log_rel_dir, 'session_*.csv'))
         if len(auto_log) > 1:
             # sort them
             def order(v):
@@ -124,7 +125,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
 
             warnings.warn('Several session log filenames found: {}'.format(auto_log))
         elif len(auto_log) == 0:
-            raise ValueError('Could not find auto log session filenames in {}.'.format(dirname))
+            raise ValueError('Could not find auto log session filenames in {}.'.format(raw_dir))
 
         mstruct['auto_log'] = auto_log ### SWITCH TO FULL PATH
 
@@ -132,10 +133,10 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
     if len(mstruct['manual_log']) == 0:
         # search automatically
         manual_log = glob.glob(os.path.join(
-            dirname, log_rel_dir, '*Daily experiment log - trials*.csv'))
+            raw_dir, log_rel_dir, '*Daily experiment log - trials*.csv'))
         if len(manual_log) == 0:
             manual_log = glob.glob(os.path.join(
-                dirname, log_rel_dir, 'Manual_*.csv'))
+                raw_dir, log_rel_dir, 'Manual_*.csv'))
         if len(manual_log) > 1:
             warnings.warn(
                 'Too many manual session log filenames found: {}. Using first one.'.format(
@@ -152,9 +153,9 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
         mstruct['mujoco_model'][:-4], session)
 
     # identify cameras
-    if os.path.exists(os.path.join(dirname, mstruct['videos_dir'])):
+    if os.path.exists(os.path.join(raw_dir, mstruct['videos_dir'])):
         # TODO suboptimal
-        _cameras = glob.glob(os.path.join(dirname, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
+        _cameras = glob.glob(os.path.join(raw_dir, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
@@ -164,7 +165,7 @@ def fill_meta_structure(mstruct, dirname, session, log_rel_dir='behavior'):
                 continue
             _cameras_dict[serial] = camera[:-4]
     else:
-        _cameras = glob.glob(os.path.join(dirname, mstruct['images_dir'], 'cam*'))
+        _cameras = glob.glob(os.path.join(raw_dir, mstruct['images_dir'], 'cam*'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
@@ -735,7 +736,7 @@ def _column_pop(k, column_names, values):
     return answ
 
 
-def load_meta_information(raw_dir, proc_dir, trial_subset=None, only_successful_trials=False,
+def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
                           check_manual_log=False, session=None):
     # find the session name if it was None
     if session is None:

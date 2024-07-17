@@ -15,7 +15,6 @@ import uuid
 import atexit
 import shutil
 from . import io_tools
-import pdb
 
 # matching geom or body
 DIGITS = {
