@@ -67,6 +67,8 @@ def get_default_meta_structure():
         'markers_2D_dir': 'markers_2D',
         'markers_2D_video_dir': 'markers_2D_videos',
         'markers_3D_dir': 'markers_3D',
+        'markers_3D_jarvis_dir': 'markers_3D_jarvis',
+        'jarvis_video_dir': 'jarvis_videos',
         'pre_ja_dir': 'joint_angles',
         'post_ja_dir': 'aligned_joint_angles',
         'raw_ps_dir': 'sensors',
@@ -193,7 +195,8 @@ def import_meta_structure(raw_dir, proc_dir):
     pth_2_resolve_proc = (
         'timepoint_plots_dir', 'timepoint_csv_filename',
         # 'videos_dir', 'images_dir',
-        'markers_2D_dir', 'markers_2D_video_dir', 'markers_3D_dir',
+        'markers_2D_dir', 'markers_2D_video_dir', 'markers_3D_dir', 'markers_3D_jarvis_dir',
+        'jarvis_video_dir',
         'pre_ja_dir', 'post_ja_dir',
         'transformed_ps_dir', 'pre_ps_dir', 'post_ps_dir',
         'matched_contacts_dir', 'manually_labelled_forces_dir', 'scaling_dir',
@@ -369,6 +372,12 @@ class TrialInfo():
                 k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.csv')
                 for k, v in mstruct['cameras'].items()}
 
+        self.jarvis_video_dir = os.path.join(mstruct['jarvis_video_dir'], trial_name)
+        self.jarvis_videos = {
+            k: os.path.join(self.jarvis_video_dir, v + '.mp4')
+            for k, v in mstruct['cameras'].items()
+        }
+
         # directory with 2D labelled CSVs
         self.markers_2D_dirname = os.path.join(
             mstruct['markers_2D_dir'], trial_name)
@@ -397,7 +406,7 @@ class TrialInfo():
 
         # add .csv or .trc depending on use
         self.markers_3D_filename_jarvis_csv = os.path.join(
-            mstruct['markers_3D_dir'], trial_name + '_jarvis.csv')
+            mstruct['markers_3D_jarvis_dir'], trial_name + '.csv')
         self.markers_3D_filename_csv = os.path.join(
             mstruct['markers_3D_dir'], trial_name + '.csv')
         self.markers_3D_filename_trc = os.path.join(
