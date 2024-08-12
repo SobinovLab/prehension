@@ -6,9 +6,6 @@ __pycache__/
 # C extensions
 *.so
 
-# Don't include the actual presets
-preset.py
-
 # Don't include install helper file
 cr_install.bat
 
