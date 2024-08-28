@@ -4,7 +4,8 @@ import re
 import glob
 import warnings
 import json
-import ncams
+
+from io_tools.common import import_csv
 
 SENSOR_SERIAL1 = '00110-2743'
 SENSOR_SERIAL2 = '00110-2746'
@@ -267,7 +268,7 @@ def import_meta_structure(raw_dir, proc_dir):
 
 def import_meta_object(dirname):
     filename = os.path.join(dirname, 'meta_object.csv')
-    column_names, values = ncams.io_utils.import_csv(filename)
+    column_names, values = import_csv(filename)
     object_ids = values[column_names.index('id')]
     object_def_columns = [v for v in column_names if v != 'id']
 
@@ -286,7 +287,7 @@ def import_meta_object(dirname):
 
 def import_meta_dof(dirname):
     filename = os.path.join(dirname, 'meta_dof.csv')
-    column_names, values = ncams.io_utils.import_csv(filename)
+    column_names, values = import_csv(filename)
 
     i_dofname = column_names.index('dof_name')
     i_rmin = column_names.index('range_min')
@@ -302,7 +303,7 @@ def import_meta_dof(dirname):
 
 
 def import_manual_log(filename):
-    column_names, values = ncams.io_utils.import_csv(filename, cast=str)
+    column_names, values = import_csv(filename, cast=str)
     mlog = {int(trial_number): code.split(',')
             for trial_number, code in zip(values[column_names.index('Trial')],
                                           values[column_names.index('Code')])}
@@ -757,7 +758,7 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
 
     # meta session
     meta_session_filename = os.path.join(proc_dir, 'meta_session.csv')
-    column_names, values = ncams.io_utils.import_csv(meta_session_filename)
+    column_names, values = import_csv(meta_session_filename)
 
     # essential trial parameters
     trial_numbers = _column_pop('trial_number', column_names, values)
@@ -797,7 +798,7 @@ def import_adjustment_trials(dirname):
     if not os.path.exists(os.path.join(dirname, 'adjustment_files.csv')):
         return {}
 
-    column_names, values = ncams.io_utils.import_csv(os.path.join(dirname, 'adjustment_files.csv'))
+    column_names, values = import_csv(os.path.join(dirname, 'adjustment_files.csv'))
 
     trial_numbers = [int(v) for v in values[column_names.index('trial_number')]]
     adjustment_trials = [int(v) for v in values[column_names.index('adjustment_trial')]]
@@ -818,7 +819,7 @@ def get_trial_log_info(mstruct, trial_number, column_names):
     if not isinstance(column_names, (list, tuple)):
         column_names = [column_names]
 
-    sy_column_names, sy_data = ncams.utils.import_csv(mstruct['auto_log'][0])
+    sy_column_names, sy_data = import_csv(mstruct['auto_log'][0])
     # sy_data = np.array(sy_data).transpose()
 
     # TODO check if the trial not in the list
