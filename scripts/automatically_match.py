@@ -1,16 +1,15 @@
 #!python3.7
-import os
 import argparse
+import os
 import time
+
 import tqdm
 from reporting_pool import ReportingPool
 
-# New version: use prehension library
+from prehension import meta_session
 from prehension import preset
 from prehension import tools
 from prehension.tools import rs, ws
-from prehension import io_tools
-from prehension import meta_session
 
 
 # to be run in parallel
