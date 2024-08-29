@@ -1,39 +1,19 @@
 #!python3.8
 '''On AS computer runs in py 3.8 environ
 '''
+import argparse
+import datetime
 import os
 import sys
-import inspect
-import re
-import argparse
-import uuid
-import glob
-import shutil
-import warnings
-import logging
 import time
-import datetime
-import tqdm
+
 import deeplabcut
+import tqdm
 
-from reporting_pool import ReportingPool
-
-# include local library functions - TB included in NCams
-# currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-# parentdir = os.path.dirname(currentdir)
-# sys.path.insert(0, parentdir)
-# from common import preset
-# from common import tools
-# from common.tools import rs, ws
-# from common import io_tools
-# from common import meta_session
-
-# New version: use prehension library
+from prehension import meta_session
 from prehension import preset
 from prehension import tools
 from prehension.tools import rs, ws
-from prehension import io_tools
-from prehension import meta_session
 
 
 # Disable
