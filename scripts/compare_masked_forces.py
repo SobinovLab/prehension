@@ -25,12 +25,12 @@ UNCLAIMED_INDEX = tools.UNCLAIMED_INDEX
 def load_maps(trial):
     if os.path.exists(trial.lps_map_filename):
         lps_digit_mask = np.array(
-            io_tools.import_one_csv_matrix(trial.lps_map_filename, dtype=int))
+            io_tools.common.import_one_csv_matrix(trial.lps_map_filename, dtype=int))
     else:
         raise ValueError('Map does not exist.')
     if os.path.exists(trial.rps_map_filename):
         rps_digit_mask = np.array(
-            io_tools.import_one_csv_matrix(trial.rps_map_filename, dtype=int))
+            io_tools.common.import_one_csv_matrix(trial.rps_map_filename, dtype=int))
     else:
         raise ValueError('Map does not exist.')
     return lps_digit_mask, rps_digit_mask
@@ -41,9 +41,9 @@ def load_forces(mstruct, trial):
     matched_contacts = {}
     segments_set = set()
     for ps_name in mstruct['ps_dic'].keys():
-        ps_times, ps_matrices[ps_name] = io_tools.import_matrices(
+        ps_times, ps_matrices[ps_name] = io_tools.common.import_matrices(
             trial.get_post_ps_filenames()[ps_name])
-        matched_contacts[ps_name] = io_tools.import_matched_contacts(
+        matched_contacts[ps_name] = io_tools.common.import_matched_contacts(
             trial.matched_contacts_filenames[ps_name])
 
     # some basic force parameters

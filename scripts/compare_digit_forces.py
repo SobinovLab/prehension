@@ -13,7 +13,6 @@ import scipy
 import scipy.stats
 import ncams
 
-# New version: use prehension library
 from prehension import preset
 from prehension import tools
 from prehension.tools import rs, ws
@@ -38,9 +37,9 @@ def calculate_digit_forces(mstruct, trial):
     matched_contacts = {}
     segments_set = set()
     for ps_name in mstruct['ps_dic'].keys():
-        ps_times, ps_matrices[ps_name] = io_tools.import_matrices(
+        ps_times, ps_matrices[ps_name] = io_tools.common.import_matrices(
             trial.get_post_ps_filenames()[ps_name])
-        matched_contacts[ps_name] = io_tools.import_matched_contacts(
+        matched_contacts[ps_name] = io_tools.common.import_matched_contacts(
             trial.matched_contacts_filenames[ps_name])
         for mc in matched_contacts[ps_name]:
             segments_set = segments_set.union(list(mc.keys()))

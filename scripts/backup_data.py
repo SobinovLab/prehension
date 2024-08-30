@@ -1,16 +1,15 @@
 #!python3.7
 
-# New version: use prehension library
-from prehension import tools
-
+import datetime
+import inspect
 import os
 import re
 import sys
+import time
+
 import tqdm
 
-import time
-import datetime
-import inspect
+from prehension import tools
 
 # Not sure we need this, leave for now tho ...
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))

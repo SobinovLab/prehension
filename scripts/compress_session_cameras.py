@@ -11,11 +11,9 @@ import tqdm
 import ncams
 from reporting_pool import ReportingPool
 
-# New version: use prehension library
 from prehension import preset
 from prehension import tools
 from prehension.tools import rs, ws
-from prehension import io_tools
 from prehension import meta_session
 
 def new_make_video(frame_filenames, filename_ou, rate):

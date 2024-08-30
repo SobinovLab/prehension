@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 from prehension import preset
 from prehension import tools
 from prehension.tools import rs, ws
-from prehension import io_tools
 from prehension import meta_session
 
 
