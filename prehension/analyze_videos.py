@@ -6,9 +6,9 @@ import os
 import deeplabcut
 import tqdm
 
-from prehension import meta_session
-from prehension import tools
-from prehension.tools import rs, ws
+from . import meta_session
+from . import tools
+from .tools import rs, ws
 
 
 def analyze_videos(server, sessions, trials_sel, temp, overwrite,

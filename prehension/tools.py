@@ -14,7 +14,9 @@ import matplotlib.pyplot as plt
 import uuid
 import atexit
 import shutil
-import io_tools
+
+from . import io_tools
+
 
 # matching geom or body
 DIGITS = {
