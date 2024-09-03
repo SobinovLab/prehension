@@ -5,7 +5,7 @@ import glob
 import warnings
 import json
 
-from .io_tools.common import import_csv
+from .io_tools import import_csv
 
 SENSOR_SERIAL1 = '00110-2743'
 SENSOR_SERIAL2 = '00110-2746'
