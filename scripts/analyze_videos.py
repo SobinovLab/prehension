@@ -9,6 +9,7 @@ from prehension import preset
 from prehension import tools
 from prehension.analyze_videos import analyze_videos
 
+
 if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
