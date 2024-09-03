@@ -25,7 +25,8 @@ setup(
         'pyyaml',
         'easygui',
         'astropy',
-        'tqdm'
+        'tqdm',
+        'pandas'
     ],
     author='Anton R Sobinov, Caleb A Raman, Charles M Greenspon',
     author_email='an.sobinov@gmail.com',
