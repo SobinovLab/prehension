@@ -12,7 +12,7 @@
 
 `ffmpegio` - only for video compression (`compress_session_cameras`)
 
-`opensim` for opensim usage
+`opensim` for opensim usage (`inverse_kinematics`, `execute_opensim_ik.py`)
 
 `ncams` from https://github.com/CMGreenspon/NCams (only for `calibration`, `create_scaling_files`)
 
