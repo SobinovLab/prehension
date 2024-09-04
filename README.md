@@ -17,9 +17,9 @@
 `ncams` from https://github.com/CMGreenspon/NCams (only for `calibration`, `create_scaling_files`, `mark_base`, 
     `triangulate`, `predict_points_jarvis`)
 
-`jarvis` for new video analyses (`predict_points_jarvis`)
+`jarvis` for new video analyses (`predict_points_jarvis`, `train_jarvis`)
 
-`torch` for (`predict_points_jarvis`)
+`torch` for (`predict_points_jarvis`, `train_jarvis`)
 
 `pythonnet` for `preprocess_pressure_sensors`
 
