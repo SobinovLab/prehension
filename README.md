@@ -21,6 +21,7 @@
 
 `torch` for (`predict_points_jarvis`)
 
+`pythonnet` for `preprocess_pressure_sensors`
 
 ## Installation
 
