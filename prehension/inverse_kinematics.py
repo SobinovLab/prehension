@@ -25,7 +25,18 @@ def run_ik_f(ik_file, log_file):
 
 
 def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite, base):
+    """Runs the inverse kinematics OpenSim tool.
 
+    Arguments:
+        server {str} --- Folder where the sessions are located.
+        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        temp {str} --- Folder for local temporary storage.
+        processes {int} --- Number of parallel processes in the pool.
+        overwrite {bool} --- Overwrites the created files if they exist.
+        base {bool} --- Runs inverse kinematics on the most proximal markers
+            that can be used to estimate the default static thorax position.
+    """
     tools.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
