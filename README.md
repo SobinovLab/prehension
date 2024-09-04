@@ -14,7 +14,8 @@
 
 `opensim` for opensim usage (`inverse_kinematics`, `execute_opensim_ik.py`)
 
-`ncams` from https://github.com/CMGreenspon/NCams (only for `calibration`, `create_scaling_files`)
+`ncams` from https://github.com/CMGreenspon/NCams (only for `calibration`, `create_scaling_files`, `mark_base`, 
+    `triangulate`)
 
 ## Installation
 
