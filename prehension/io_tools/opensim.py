@@ -35,6 +35,34 @@ def import_mot(fname):
     return dof_names, times, dofs
 
 
+def export_mot(fname, dof_names, times, dofs):
+    '''Exports python structures into a motion file for OpenSim.
+
+    Arguments:
+        fname {str} -- filename of the mot file to output into.
+        dof_names {list of str} -- each element is the DOF string name.
+        times {list of numbers} -- time series.
+        dofs {list} -- each item corresponds to values for that DOF for each frame.
+    '''
+    with open(fname, 'w', newline='') as f:
+        wrr = csv.writer(f, dialect='excel-tab')
+
+        wrr.writerow(['Coordinates'])
+        wrr.writerow(['version=1'])
+        wrr.writerow(['nRows={}'.format(len(times))])
+        wrr.writerow(['nColumns={}'.format(len(dof_names)+1)])
+        wrr.writerow(['inDegrees=yes'])
+        wrr.writerow([])
+        wrr.writerow(['Units are S.I. units (second, meters, Newtons, ...)'])
+        wrr.writerow(['Angles are in degrees.'])
+        wrr.writerow([])
+        wrr.writerow(['endheader'])
+        wrr.writerow(['time'] + dof_names)
+
+        for itime, time in enumerate(times):
+            wrr.writerow([time] + [dof_vals[itime] for dof_vals in dofs])
+
+
 def set_opensim_model_default_position(osim_model_in, osim_model_ou, positions, lock=False):
     tree = ET.parse(osim_model_in)
     root = tree.getroot()
