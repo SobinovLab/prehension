@@ -26,7 +26,8 @@ setup(
         'easygui',
         'astropy',
         'tqdm',
-        'pandas'
+        'pandas',
+        'joblib'
     ],
     author='Anton R Sobinov, Caleb A Raman, Charles M Greenspon',
     author_email='an.sobinov@gmail.com',
