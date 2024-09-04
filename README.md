@@ -23,6 +23,9 @@
 
 `pythonnet` for `preprocess_pressure_sensors`
 
+`O2MConverter` for `transform_osim_model`
+
+
 ## Installation
 
 `py -3.11 -m pip install -e .`
