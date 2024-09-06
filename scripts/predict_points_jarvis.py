@@ -1,11 +1,4 @@
-# ================================================ #
-# This file should provide functions to perform    #
-# Triangulation and marker prediction              #
-# Input: camera_videos                             #
-# Output: markers_3D                               #
-# Note: for testing use DRH
-# ================================================ #
-
+#!python3.11
 import argparse
 import datetime
 import time

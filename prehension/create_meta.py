@@ -33,7 +33,7 @@ def get_object_sets(sy_column_names, sy_data, object_def_columns):
     u_objects = np.unique(sy_data[:, object_def_column_ids], axis=0)
 
     object_ids = np.zeros((np.shape(sy_data)[0], ), dtype=int)
-    object_ids.fill(np.nan)
+    object_ids.fill(-1)
 
     rs('\tFound {} unique objects:'.format(np.shape(u_objects)[0]))
     rs('|'.join('{:>25}'.format(v) for v in ['id'] + list(odcs)))
@@ -271,6 +271,7 @@ def export_meta_structure(dirname, mstruct):
     filename = os.path.join(dirname, 'meta_structure.json')
     with open(filename, 'w') as f:
         json.dump(mstruct, f, sort_keys=True, indent=4)
+
 
 # @https://stackoverflow.com/questions/4697006/python-split-string-by-list-of-separators
 def split(txt, seps):

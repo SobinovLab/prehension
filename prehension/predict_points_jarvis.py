@@ -1,11 +1,4 @@
-# ================================================ #
-# This file should provide functions to perform    #
-# Triangulation and marker prediction              #
-# Input: camera_videos                             #
-# Output: markers_3D                               #
-# Note: for testing use DRH
-# ================================================ #
-
+#!python3.11
 import copy
 import csv
 import glob
@@ -32,15 +25,10 @@ from . import meta_session
 from .tools import rs, ws
 
 
-def validate_pth_file(fp):
-    assert os.path.isfile(fp)
-    assert os.path.splitext(fp)[1] == '.pth'
-
-
 def get_calibrations(mstruct):
     calib_paths = {}
     for camid in mstruct['cameras']:
-        calib_path = os.path.join(mstruct['calibration'], f'calib_*_{camid}.yaml')
+        calib_path = os.path.join(mstruct['calibration'], f'calib_*{camid}.yaml')
         calib_path = glob.glob(calib_path)
         if len(calib_path) < 1:
             raise ValueError(f'Calibration for camera {camid} in {mstruct["calibration"]} not'
