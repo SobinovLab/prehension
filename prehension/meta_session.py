@@ -146,7 +146,7 @@ def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='b
                     manual_log))
             mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
         elif len(manual_log) == 0:
-            warnings.warn('Could not find manual session log filenames in {}.'.format(dirname))
+            warnings.warn('Could not find manual session log filenames in {}.'.format(log_rel_dir))
         else:
             mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
 
