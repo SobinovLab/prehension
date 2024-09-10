@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension import tools
-from prehension.compare_masked_forces import compare_masked_forces
+from prehension.validation.compare_masked_forces import compare_masked_forces
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.rename_folders import rename_folders
+from prehension.pressure_sensors.rename_folders import rename_folders
 
 
 if __name__ == '__main__':

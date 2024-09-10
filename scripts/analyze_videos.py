@@ -7,7 +7,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.analyze_videos import analyze_videos
+from prehension.kinematics.analyze_videos import analyze_videos
 
 
 if __name__ == '__main__':

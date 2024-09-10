@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.automatically_match import automatically_match
+from prehension.matching.automatically_match import automatically_match
 from prehension.tools import rs
 
 

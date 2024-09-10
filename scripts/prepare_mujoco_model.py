@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.prepare_mujoco_model import prepare_mujoco_model
+from prehension.matching.prepare_mujoco_model import prepare_mujoco_model
 
 
 if __name__ == '__main__':

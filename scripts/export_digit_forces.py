@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension import tools
-from prehension.export_digit_forces import export_digit_forces
+from prehension.matching.export_digit_forces import export_digit_forces
 
 
 if __name__ == '__main__':

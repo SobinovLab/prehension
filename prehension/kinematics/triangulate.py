@@ -7,12 +7,11 @@ import tqdm
 from reporting_pool import ReportingPool
 from scipy.spatial.transform import Rotation as R
 
-from . import inverse_kinematics
-from . import io_tools
-from . import meta_session
-from . import reconstruction
-from . import tools
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..kinematics import inverse_kinematics, reconstruction
+from ..tools import rs, ws
 
 THORAX_BOUND_MARKERS = ('M_SternumTop', 'M_SternumBot')
 PROXIMAL_MARKERS = ('M_SternumTop', 'M_SternumBot', 'M_RScapulaAnt', 'M_RScapulaPost')

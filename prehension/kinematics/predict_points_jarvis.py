@@ -20,11 +20,10 @@ from jarvis.utils.paramClasses import Predict3DParams
 from jarvis.utils.reprojection import ReprojectionTool
 from jarvis.utils.skeleton import get_skeleton
 
-from . import inverse_kinematics
-from . import io_tools
-from . import meta_session
-from . import reconstruction
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from ..kinematics import inverse_kinematics, reconstruction
+from ..tools import rs, ws
 
 
 def get_calibrations(mstruct):

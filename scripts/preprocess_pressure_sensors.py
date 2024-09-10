@@ -12,7 +12,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.preprocess_pressure_sensors import preprocess_pressure_sensors
+from prehension.pressure_sensors.preprocess_pressure_sensors import preprocess_pressure_sensors
 from prehension.tools import rs
 
 

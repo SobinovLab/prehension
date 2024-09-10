@@ -8,10 +8,10 @@ import scipy
 import tqdm
 from reporting_pool import ReportingPool
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 JA_FREQUENCY = 50
 JA_TIME_PERIOD_MS = 1000 / JA_FREQUENCY

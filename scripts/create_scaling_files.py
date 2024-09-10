@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension import tools
-from prehension.create_scaling_files import create_scaling_files
+from prehension.matching.create_scaling_files import create_scaling_files
 from prehension.tools import rs
 
 

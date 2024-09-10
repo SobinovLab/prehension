@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension import tools
-from prehension.calibration import calibration
+from prehension.kinematics.calibration import calibration
 
 
 if __name__ == '__main__':

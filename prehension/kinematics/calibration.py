@@ -6,9 +6,9 @@ import shutil
 import tqdm
 
 import ncams
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 
 def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calibration):

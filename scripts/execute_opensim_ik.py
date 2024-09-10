@@ -3,6 +3,7 @@ import os
 import sys
 import opensim
 
+
 def run_ik_f(ik_file, log_file):
     # if log file exists, remove it
     if os.path.exists(log_file):

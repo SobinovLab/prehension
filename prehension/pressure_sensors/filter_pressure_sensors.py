@@ -8,10 +8,10 @@ import scipy.ndimage
 import tqdm
 from reporting_pool import ReportingPool
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 
 # to be run in parallel

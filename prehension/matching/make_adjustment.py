@@ -1,9 +1,9 @@
 #!python3.7
 import os
 
-from . import meta_session
-from . import tools
-from .tools import rs
+from .. import meta_session
+from .. import tools
+from ..tools import rs
 
 
 def make_adjustment(server, session, trial_number, temp, overwrite, executable_filename):

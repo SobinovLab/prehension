@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.find_event_onsets import find_event_onsets
+from prehension.kinematics.find_event_onsets import find_event_onsets
 from prehension.tools import rs
 
 # ============================================ Notes ============================================= #

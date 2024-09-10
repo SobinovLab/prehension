@@ -11,15 +11,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
-from . import inverse_kinematics
-from . import io_tools
-from . import meta_session
-from . import preset
-from . import reconstruction
-from . import tools
-from .materialsio_colors import materialsio_colors_rgb as micolors
-from .tools import rs, ws
-from .triangulate import rotation_vector
+from .. import io_tools
+from .. import meta_session
+from .. import preset
+from .. import tools
+from ..kinematics import inverse_kinematics, reconstruction
+from ..kinematics.triangulate import rotation_vector
+from ..materialsio_colors import materialsio_colors_rgb as micolors
+from ..tools import rs, ws
 
 MARKERS = (
     'left_clavicle_distal', 'left_clavicle_proximal',

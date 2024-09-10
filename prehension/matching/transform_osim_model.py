@@ -4,7 +4,7 @@ import warnings
 
 import O2MConverter
 
-from . import meta_session
+from .. import meta_session
 
 
 def convert_osim_model(osim_model, geometry_folder, output_folder):

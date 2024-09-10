@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.inverse_kinematics import inverse_kinematics
+from prehension.kinematics.inverse_kinematics import inverse_kinematics
 
 
 if __name__ == '__main__':

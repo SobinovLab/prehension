@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.compare_digit_forces import compare_digit_forces
+from prehension.validation import compare_digit_forces
 
 
 if __name__ == '__main__':

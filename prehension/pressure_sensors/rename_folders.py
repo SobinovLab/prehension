@@ -3,9 +3,9 @@ import os
 
 import tqdm
 
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 RENAMES = {
     'processed_sensors': 'transformed_sensors',

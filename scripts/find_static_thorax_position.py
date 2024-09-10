@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.find_static_thorax_position import find_static_thorax_position
+from prehension.kinematics.find_static_thorax_position import find_static_thorax_position
 
 
 if __name__ == '__main__':

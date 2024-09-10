@@ -4,7 +4,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.manually_label_forces import manually_label_forces
+from prehension.validation.manually_label_forces import manually_label_forces
 from prehension.tools import rs
 
 

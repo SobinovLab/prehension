@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.make_adjustment import make_adjustment
+from prehension.matching.make_adjustment import make_adjustment
 from prehension.tools import rs
 
 

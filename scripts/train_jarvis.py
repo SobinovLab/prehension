@@ -13,7 +13,7 @@ import datetime
 import sys
 import time
 
-from prehension.train_jarvis import train_jarvis
+from prehension.kinematics.train_jarvis import train_jarvis
 
 
 # Custom type to parse list of tuples

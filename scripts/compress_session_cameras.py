@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.compress_session_cameras import compress_session_cameras
+from prehension.kinematics.compress_session_cameras import compress_session_cameras
 from prehension.tools import rs
 
 

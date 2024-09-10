@@ -7,10 +7,10 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import tqdm
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 
 def make_trial_mask(filename):

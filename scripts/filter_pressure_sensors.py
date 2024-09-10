@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension import tools
-from prehension.filter_pressure_sensors import filter_pressure_sensors
+from prehension.pressure_sensors.filter_pressure_sensors import filter_pressure_sensors
 
 
 if __name__ == '__main__':

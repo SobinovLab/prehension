@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension import tools
-from prehension.process_and_align_data import process_and_align_data
+from prehension.matching.process_and_align_data import process_and_align_data
 
 
 if __name__ == '__main__':

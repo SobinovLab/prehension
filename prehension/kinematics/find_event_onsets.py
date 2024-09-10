@@ -9,10 +9,10 @@ import tqdm
 from matplotlib.colors import ListedColormap
 from scipy.signal import argrelmin
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 # ============================================ Notes ============================================= #
 # Lint with: py -3.7 -m pycodestyle find_event_onsets.py --max-line-length 100 --ignore E402

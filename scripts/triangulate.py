@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.triangulate import run_triangulate
+from prehension.kinematics.triangulate import run_triangulate
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.predict_points_jarvis import predict_points_jarvis
+from prehension.kinematics.predict_points_jarvis import predict_points_jarvis
 
 
 if __name__ == "__main__":

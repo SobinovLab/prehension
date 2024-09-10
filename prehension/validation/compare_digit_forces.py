@@ -10,10 +10,10 @@ import scipy
 import scipy.stats
 import tqdm
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 SEGMENT_DIGIT_GROUPS = {
     'thumb': lambda v: re.search('[RL]A[0-9][MPD]1_.*', v),

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension import tools
-from prehension.mark_base import mark_base
+from prehension.kinematics.mark_base import mark_base
 
 
 if __name__ == '__main__':

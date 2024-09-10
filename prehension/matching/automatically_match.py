@@ -4,9 +4,9 @@ import os
 import tqdm
 from reporting_pool import ReportingPool
 
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 
 # to be run in parallel

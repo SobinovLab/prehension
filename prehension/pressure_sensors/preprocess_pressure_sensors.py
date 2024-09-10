@@ -11,9 +11,9 @@ import reporting_pool
 import tqdm
 import tsm
 
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 currentdir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))

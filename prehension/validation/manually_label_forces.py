@@ -9,11 +9,11 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .materialsio_colors import materialsio_colors_rgb as micolors
-from .tools import rs, ws
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..materialsio_colors import materialsio_colors_rgb as micolors
+from ..tools import rs, ws
 
 LPS_NAME = 'medial_sensor'
 RPS_NAME = 'lateral_sensor'
@@ -202,7 +202,7 @@ class ForceLabellingInterface:
         self.fig.canvas.mpl_connect('key_release_event', self.on_key_release)
 
     def add_monkey_location(self, x, y):
-        fontlocation = os.path.join('../../stereo_inverse_kinematics', 'common', 'NotoEmoji-Regular.ttf')
+        fontlocation = os.path.join('../../../stereo_inverse_kinematics', 'common', 'NotoEmoji-Regular.ttf')
         if os.path.exists(fontlocation):
             prop = font_manager.FontProperties()
             prop.set_file(fontlocation)

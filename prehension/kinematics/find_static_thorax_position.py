@@ -7,11 +7,11 @@ import numpy as np
 import tqdm
 from reporting_pool import ReportingPool
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .tools import rs, ws
-from . import inverse_kinematics
+from .. import io_tools
+from .. import meta_session
+from .. import tools
+from ..kinematics import inverse_kinematics
+from ..tools import rs, ws
 
 THORAX_DOF_NAMES = ('Thorax_tra1', 'Thorax_tra2', 'Thorax_tra3',
                     'Thorax_rot1', 'Thorax_rot2', 'Thorax_rot3')

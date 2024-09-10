@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.transform_osim_model import transform_osim_model
+from prehension.matching.transform_osim_model import transform_osim_model
 
 
 if __name__ == '__main__':

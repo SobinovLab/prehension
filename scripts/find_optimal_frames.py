@@ -5,7 +5,7 @@ import time
 
 from prehension import preset
 from prehension import tools
-from prehension.find_optimal_frames import find_optimal_frames
+from prehension.matching.find_optimal_frames import find_optimal_frames
 
 
 if __name__ == '__main__':

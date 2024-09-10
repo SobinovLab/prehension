@@ -6,9 +6,9 @@ import shutil
 import tqdm
 from reporting_pool import ReportingPool
 
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .. import meta_session
+from .. import tools
+from ..tools import rs, ws
 
 
 def new_make_video(frame_filenames, filename_ou, rate):
