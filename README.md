@@ -4,9 +4,9 @@
 
 ## Prerequisites
 
-`tsm` from https://github.com/nishbo/timed_sparse_matrix
+`tsm` from [https://github.com/nishbo/timed_sparse_matrix](https://github.com/nishbo/timed_sparse_matrix)
 
-`reporting_pool` from https://github.com/nishbo/reporting_pool
+`reporting_pool` from [https://github.com/nishbo/reporting_pool](https://github.com/nishbo/reporting_pool)
 
 `deeplabcut` - only for video analyses (`analyze_videos`)
 
@@ -14,7 +14,7 @@
 
 `opensim` for opensim usage (`inverse_kinematics`, `execute_opensim_ik.py`)
 
-`ncams` from https://github.com/CMGreenspon/NCams (`calibration`, `triangulate`)
+`ncams` from [https://github.com/CMGreenspon/NCams](https://github.com/CMGreenspon/NCams) (`calibration`, `triangulate`)
 
 `jarvis` for new video analyses (`predict_points_jarvis`, `train_jarvis`)
 
@@ -22,7 +22,7 @@
 
 `pythonnet` for `preprocess_pressure_sensors`
 
-`O2MConverter` for `transform_osim_model`
+`O2MConverter` from [https://github.com/nishbo/O2MConverter](https://github.com/nishbo/O2MConverter) for `transform_osim_model`
 
 
 ## Installation
