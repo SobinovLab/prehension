@@ -1,4 +1,4 @@
-__all__ = ['common']
+__all__ = ['camera', 'common', 'opensim', 'rom']
 
 from .camera import (get_image_list, yaml_to_config, import_intrinsics, import_extrinsics, load_calibrations,
                      import_triangulated_csv)
