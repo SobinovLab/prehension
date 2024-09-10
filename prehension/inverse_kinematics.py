@@ -288,7 +288,7 @@ def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_conver
     '''
     # import triangulated file
     # frame numbers are only to take the subset using frame_range
-    frame_numbers, triang_data = io_tools.import_triangulated_csv(triang_csv)
+    frame_numbers, triang_data = tools.import_triangulated_csv(triang_csv)
 
     # change into numpy arrays
     frame_numbers = np.array(frame_numbers)

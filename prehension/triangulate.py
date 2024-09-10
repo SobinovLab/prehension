@@ -7,8 +7,10 @@ import tqdm
 from reporting_pool import ReportingPool
 from scipy.spatial.transform import Rotation as R
 
-import ncams
+from . import inverse_kinematics
+from . import io_tools
 from . import meta_session
+from . import reconstruction
 from . import tools
 from .tools import rs, ws
 
@@ -56,13 +58,13 @@ def triangulate(trial, ncams_config, intrinsics_config, extrinsics_config, thres
 
     # Triangulate
     if do_triangulate:
-        ncams.reconstruction.triangulate_csv(
+        reconstruction.triangulate_csv(
             ncams_config, trial.markers_2D_dirname, intrinsics_config, extrinsics_config,
             output_csv_fname=trial.markers_3D_filename_csv, filter_2D=True, filter_3D=True,
             threshold=threshold, method='centroid', custom_3D_filter=c3f_remove_far_ps_local)
 
     # export for OpenSim
-    marker_weights, time_range = ncams.inverse_kinematics.triangulated_to_trc(
+    marker_weights, time_range = inverse_kinematics.triangulated_to_trc(
         trial.markers_3D_filename_csv, trial.markers_3D_filename_trc, marker_name_dict,
         rotation=rotation_vector, rate=mstruct['fps'], reflect=reflect)
 
@@ -76,9 +78,9 @@ def triangulate(trial, ncams_config, intrinsics_config, extrinsics_config, thres
             del marker_weights_general[tbm]
 
     # make general IK file
-    ik_xml_str = ncams.inverse_kinematics.IK_XML_STR.format(
+    ik_xml_str = inverse_kinematics.IK_XML_STR.format(
         model_file=mstruct['opensim_model_locked_base'])
-    ncams.inverse_kinematics.make_ik_file(
+    inverse_kinematics.make_ik_file(
         trial.ik_filename, ik_xml_str, marker_weights_general, trial.markers_3D_filename_trc,
         trial.pre_kinematic_filename, time_range)
 
@@ -86,9 +88,9 @@ def triangulate(trial, ncams_config, intrinsics_config, extrinsics_config, thres
     marker_weights = {k: v for k, v in marker_weights.items() if k in PROXIMAL_MARKERS}
 
     # make IK file for thorax position
-    ik_xml_str = ncams.inverse_kinematics.IK_XML_STR.format(
+    ik_xml_str = inverse_kinematics.IK_XML_STR.format(
         model_file=mstruct['opensim_model'])
-    ncams.inverse_kinematics.make_ik_file(
+    inverse_kinematics.make_ik_file(
         trial.base_ik_filename, ik_xml_str, marker_weights, trial.markers_3D_filename_trc,
         trial.base_kinematic_filename, time_range)
 
@@ -161,27 +163,27 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
             continue
 
         # preload camera configs
-        ncams_config = ncams.camera_io.yaml_to_config(
+        ncams_config = tools.yaml_to_config(
             mstruct['ncams_config'], overwrite_setup_path=True)
         # check if local extrinsic config exists and if so use it
         local_extrinsic_calibration_filename = os.path.join(
             mstruct['calibration'], 'extrinsic', 'extrinsic_calib.pickle')
         if os.path.exists(local_extrinsic_calibration_filename):
-            intrinsics_config = ncams.camera_io.import_intrinsics(ncams_config)
-            extrinsics_config = ncams.camera_io.import_extrinsics(
+            intrinsics_config = tools.import_intrinsics(ncams_config)
+            extrinsics_config = tools.import_extrinsics(
                 local_extrinsic_calibration_filename)
         else:
-            intrinsics_config, extrinsics_config = ncams.camera_io.load_calibrations(ncams_config)
+            intrinsics_config, extrinsics_config = tools.load_calibrations(ncams_config)
 
         # right or left handed
         reflect = mstruct['hand'] == 'left'
         if reflect:
-            marker_name_dict = ncams.utils.dic_from_csv(
+            marker_name_dict = io_tools.dic_from_csv(
                 os.path.join(os.path.split(mstruct['opensim_model'])[0],
                              'marker_meta_reflect.csv'),
                 'sDlcMarker', 'sOpenSimMarker')
         else:
-            marker_name_dict = ncams.utils.dic_from_csv(
+            marker_name_dict = io_tools.dic_from_csv(
                 os.path.join(os.path.split(mstruct['opensim_model'])[0],
                              'marker_meta.csv'),
                 'sDlcMarker', 'sOpenSimMarker')

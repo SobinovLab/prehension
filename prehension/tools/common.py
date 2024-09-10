@@ -15,7 +15,7 @@ import uuid
 import atexit
 import shutil
 
-from .io_tools import import_one_csv_matrix, import_matrices, import_matched_contacts, import_tsm_matrix
+from prehension.io_tools import import_one_csv_matrix, import_matrices, import_matched_contacts, import_tsm_matrix
 
 
 # matching geom or body

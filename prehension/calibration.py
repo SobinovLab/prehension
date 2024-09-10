@@ -4,8 +4,8 @@ import os
 import shutil
 
 import tqdm
-import ncams
 
+import ncams
 from . import meta_session
 from . import tools
 from .tools import rs, ws
@@ -82,11 +82,11 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
             elif not overwrite and os.path.exists(extrinsic_calibration_filename):
                 pass
             else:
-                ncams_config = ncams.camera_io.yaml_to_config(
+                ncams_config = tools.yaml_to_config(
                     mstruct['ncams_config'], overwrite_setup_path=True)
 
                 # load intrinsics config
-                intrinsics_config = ncams.camera_io.import_intrinsics(ncams_config)
+                intrinsics_config = tools.import_intrinsics(ncams_config)
 
                 # hack to export extrinsics into different place
                 ncams_config['setup_path'] = mstruct['calibration']

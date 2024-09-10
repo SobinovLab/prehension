@@ -6,7 +6,6 @@ import shutil
 import tqdm
 from reporting_pool import ReportingPool
 
-from . import io_tools
 from . import meta_session
 from . import tools
 from .tools import rs, ws
@@ -69,7 +68,7 @@ def make_video(trial, mstruct, clean):
 
     for camera_serial in camera_serials:
         # make a video
-        frame_filenames = io_tools.get_image_list(path=trial.images_dirnames[camera_serial])
+        frame_filenames = tools.get_image_list(path=trial.images_dirnames[camera_serial])
         if len(frame_filenames) == 0:
             ws(f'Folder {trial.images_dirnames[camera_serial]} has no images.')
             continue

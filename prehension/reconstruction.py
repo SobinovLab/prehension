@@ -1,6 +1,9 @@
 #!python3
 import csv
+import os
+import re
 import warnings
+from glob import glob
 from itertools import combinations
 
 import cv2
@@ -382,3 +385,202 @@ def nanmedianfilt(input_vector, kernel_width):
             output_vector[idx] = np.nanmedian(vals_to_filt)
 
     return output_vector
+
+
+def triangulate_csv(ncams_config, labeled_csv_path, intrinsics_config, extrinsics_config,
+                    output_csv_fname=None, threshold=0.9, method='full_rank', best_n=2,
+                    centroid_threshold=2.5, iteration=None, undistorted_data=False, file_prefix='',
+                    filter_2D=False, filter_3D=False, custom_3D_filter=None):
+
+    '''Triangulates points from multiple cameras and exports them into a csv.
+
+    TODO: Calculate a confidence metric for a 3D point based on the confidence of 2D points.
+
+    Arguments:
+        ncams_config {dict} -- see help(ncams.camera_tools). This function uses following keys:
+            serials {list of numbers} -- list of camera serials.
+            dicts {dict of 'camera_dict's} -- keys are serials, values are 'camera_dict'.
+        output_csv {str} -- file to save the triangulated points into.
+        intrinsics_config {dict} -- see help(ncams.camera_tools).
+        extrinsics_config {dict} -- see help(ncams.camera_tools).
+        labeled_csv_path {str} -- locations of csv's with marked points. TODO: accept a list of
+            files.
+    Keyword Arguments:
+        threshold {number 0-1} -- only points with confidence (likelihood) above the threshold will
+            be used for triangulation. (default: 0.9)
+        method {'full_rank' or 'best_pair'} -- method for triangulation.
+            full_rank: uses all available cameras
+            best_n: uses best n cameras to locate the point.
+            TODO: add centroid/cluster description
+            (default: 'full_rank')
+        best_n {number} -- how many cameras to use when best_n method is used. (default: 2)
+        iteration {int} -- look for csv's with this iteration number. (default: {None})
+        undistorted_data {bool} -- if the marker data was made on undistorted videos. (default:
+            {False})
+        file_prefix {string} -- prefix of the csv file to search for in the folder. (default: {''})
+        filter_2D {bool} -- filter the imported 2D data. (default: False)
+        filter_3D {bool} -- filter the produced 3D data. (default: False)
+        custom_3D_filter {None or callable} -- optional processing the 3D data after filter_3D. For
+            example, remove outlier points. Has to accept (bodyparts, triangulated_points) and
+            return triangulate_points. (default: None)
+    Output:
+        output_csv {csv file} -- csv containing all triangulated points.
+        output_csv_fname {string} -- returns the filename of the produced file.
+    '''
+
+    # Check if the source CSV path exists
+    if not os.path.exists(labeled_csv_path):
+        raise ValueError('Provided path for CSVs does not exist.')
+
+    # Get data files
+    list_of_csvs = get_list_labelled_csvs(ncams_config, labeled_csv_path,
+                                          file_prefix=file_prefix, iteration=iteration)
+
+    # Load them
+    bodyparts, num_frames, image_coordinates, ic_confidences = load_labelled_csvs(
+        list_of_csvs, threshold=threshold, filtering=filter_2D)
+
+    triangulated_points = triangulate_points(
+        ncams_config, intrinsics_config, extrinsics_config,
+        bodyparts, num_frames, image_coordinates, ic_confidences,
+        threshold=threshold, method=method, best_n=best_n,
+        centroid_threshold=centroid_threshold, undistorted_data=undistorted_data,
+        filter_3D=filter_3D, custom_3D_filter=custom_3D_filter)
+
+    if output_csv_fname is None:
+        _, dir_name = os.path.split(labeled_csv_path)
+        output_csv_fname = os.path.join(labeled_csv_path, dir_name + '_triangulated.csv')
+    else:  # check if correct delimiter
+        if not os.path.split(output_csv_fname)[1][-4:] == '.csv':
+            output_csv_fname = output_csv_fname + '.csv'
+
+    # TODO use io_tools
+    with open(output_csv_fname, 'w', newline='') as f:
+        triagwriter = csv.writer(f)
+        bps_line = ['bodyparts']
+        for bp in bodyparts:
+            bps_line += [bp]*3
+        triagwriter.writerow(bps_line)
+        triagwriter.writerow(['coords'] + ['x', 'y', 'z']*len(bodyparts))
+        for iframe in range(num_frames):
+            rw = [iframe]
+            for ibp in range(len(bodyparts)):
+                rw += [triangulated_points[iframe, 0, ibp],
+                       triangulated_points[iframe, 1, ibp],
+                       triangulated_points[iframe, 2, ibp]]
+            triagwriter.writerow(rw)
+
+    return output_csv_fname
+
+
+def get_list_labelled_csvs(ncams_config, labeled_csv_path, file_prefix='', iteration=None):
+    '''Returns a list of ML-labelled CSV files from individual cameras in a directory.
+
+    Arguments:
+        ncams_config {dict} -- see help(ncams.camera_tools). This function uses following keys:
+            serials {list of numbers} -- list of camera serials.
+        labeled_csv_path {str} -- locations of csv's with marked points. TODO: accept a list of
+            files.
+        file_prefix {string} -- prefix of the csv file to search for in the folder. (default: {''})
+        iteration {int} -- look for csv's with this iteration number. (default: {None})
+    Output:
+        list_of_csvs {list of str} -- list of filenames matching the structure of ML-labelled 2D
+            marker positions.
+    '''
+    cam_serials = ncams_config['serials']
+    list_of_csvs = []
+    for cam_serial in cam_serials:
+        if iteration is None:
+            sstr = '*.csv'
+        else:
+            sstr = '*_{}.csv'.format(iteration)
+        list_of_csvs += glob(os.path.join(
+            labeled_csv_path, file_prefix+'*'+ str(cam_serial) + sstr))
+
+    if len(list_of_csvs) == 0:
+        raise ValueError('No CSVs found in provided path.')
+    elif not len(list_of_csvs) == len(cam_serials):
+        if iteration is not None:
+            raise ValueError('Detected {} csvs in {} with iteration #{} while was provided with {}'
+                  ' serials.'.format(
+                len(list_of_csvs), labeled_csv_path, iteration, len(cam_serials)))
+        iterations = set()
+        for csv_f in list_of_csvs:
+            iterations.add(int(re.search('_[0-9]+.csv$', csv_f)[0][1:-4]))
+        print('Detected {} csvs in {} while was provided with {} serials.'
+              ' Found iterations: {}'.format(
+            len(list_of_csvs), labeled_csv_path, len(cam_serials), sorted(iterations)))
+
+        uinput_string = ('Provide iteration number to use: ')
+        uinput = input(uinput_string)
+        list_of_csvs = [i for i in list_of_csvs if re.fullmatch('.*_{}.csv'.format(uinput), i)]
+        if len(list_of_csvs) > len(cam_serials):
+            raise ValueError('Detected {} CSVs in {} with iteration #{} while was provided with {}'
+                  ' serials.'.format(
+                len(list_of_csvs), labeled_csv_path, uinput, len(cam_serials)))
+        elif len(list_of_csvs) < len(cam_serials):
+            raise ValueError('Fewer CSVs than cameras detected.')
+    return list_of_csvs
+
+
+def load_labelled_csvs(list_of_csvs, threshold=0.9, filtering=False, only_bodyparts=None,
+                       skip_bodyparts=[]):
+    '''Load the data from labelled 2D csvs.
+
+    Arguments:
+        list_of_csvs {list of str} -- list of filenames matching the structure of ML-labelled 2D
+            marker positions.
+    Keyword Arguments:
+        threshold {number 0-1} -- only points with confidence (likelihood) above the threshold will
+            be loaded. (default: 0.9)
+        filtering {bool} -- if true, will filter the imported data. (default: False)
+        only_bodyparts {list} -- TODO(might need changes to process_points and architecture change) only displays information about these bodyparts. If None, display
+            all. (default: {None})
+        skip_bodyparts {list} -- TODO(might need changes to process_points and architecture change) ignores these bodyparts. Runs after the bodyparts from
+            only_bodyparts list are selected. (default: {[]})
+    Outputs a tuple consisting of:
+        bodyparts {list of str} -- names of all loaded markers.
+        num_frames {int} -- number of frames in each file. Truncated to smallest.
+        image_coordinates {list [num csvs]ndarray([num frame,num axes,num bodypart])}
+        ic_confidences {list [num csvs]ndarray([num frame,num bodypart])}
+    '''
+    frame_count = []
+    csv_arrays = [[] for _ in list_of_csvs]
+    for ifile, csvfname in enumerate(list_of_csvs):
+        with open(csvfname) as csvfile:
+            reader_object = csv.reader(csvfile, delimiter=',')
+            for row in reader_object:
+                csv_arrays[ifile].append(row)
+
+            frame_count.append(int(len(csv_arrays[ifile])-3))
+
+    # Check frame count
+    frame_count_match = all(x==frame_count[0] for x in frame_count)
+    if frame_count_match:
+        num_frames = frame_count[0]
+    else:
+        num_frames = min(frame_count)
+        print('Warning: Not all CSVs have the same number of rows. Truncating to shortest.')
+
+    # Get the list of bodyparts
+    temp_bodyparts = csv_arrays[0][1]
+    bodypart_idx = np.arange(1, len(temp_bodyparts)-2, 3)
+    bodyparts = []
+    for idx in bodypart_idx:
+        bodyparts.append(temp_bodyparts[idx])
+
+    # trim the csv_arrays
+
+    # Format the data
+    image_coordinates, ic_confidences = [], []
+    for icam in range(len(csv_arrays)):
+        csv_array = np.vstack(csv_arrays[icam][3:])[:,1:] # Remove header rows, and first column
+        if not frame_count_match:
+            csv_array = csv_array[:num_frames,:]
+        # Reshape and threshold the data
+        ic_array, ic_confidence = process_points(csv_array, '2D', threshold=threshold,
+                                   filtering=filtering)
+        image_coordinates.append(ic_array)
+        ic_confidences.append(ic_confidence)
+
+    return bodyparts, num_frames, image_coordinates, ic_confidences
