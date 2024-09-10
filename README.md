@@ -14,7 +14,7 @@
 
 `opensim` for opensim usage (`inverse_kinematics`, `execute_opensim_ik.py`)
 
-`ncams` from https://github.com/CMGreenspon/NCams (only for `calibration`, `create_scaling_files`, `mark_base`, 
+`ncams` from https://github.com/CMGreenspon/NCams (only for `calibration`, `create_scaling_files`,  
     `triangulate`, `predict_points_jarvis`)
 
 `jarvis` for new video analyses (`predict_points_jarvis`, `train_jarvis`)

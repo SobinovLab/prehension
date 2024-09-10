@@ -11,9 +11,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
-import ncams
+from . import inverse_kinematics
+from . import io_tools
 from . import meta_session
 from . import preset
+from . import reconstruction
 from . import tools
 from .materialsio_colors import materialsio_colors_rgb as micolors
 from .tools import rs, ws
@@ -626,17 +628,16 @@ def triangulate(trial, calibration, mstruct):
         marker_data = json.load(f)
 
     # load calibration
-    ncams_config = ncams.camera_io.yaml_to_config(
+    ncams_config = io_tools.yaml_to_config(
         mstruct['ncams_config'], overwrite_setup_path=True)
     # check if local extrinsic config exists and if so use it
     local_extrinsic_calibration_filename = os.path.join(
         mstruct['calibration'], 'extrinsic', 'extrinsic_calib.pickle')
     if os.path.exists(local_extrinsic_calibration_filename):
-        intrinsics_config = ncams.camera_io.import_intrinsics(ncams_config)
-        extrinsics_config = ncams.camera_io.import_extrinsics(
-            local_extrinsic_calibration_filename)
+        intrinsics_config = io_tools.import_intrinsics(ncams_config)
+        extrinsics_config = io_tools.import_extrinsics(local_extrinsic_calibration_filename)
     else:
-        intrinsics_config, extrinsics_config = ncams.camera_io.load_calibrations(ncams_config)
+        intrinsics_config, extrinsics_config = io_tools.load_calibrations(ncams_config)
     cameras = [str(v) for v in ncams_config['serials']]
 
     # transform into NCams format
@@ -644,7 +645,7 @@ def triangulate(trial, calibration, mstruct):
         marker_data, cameras=cameras)
 
     # apply
-    triangulated_points = ncams.reconstruction.triangulate_points(
+    triangulated_points = reconstruction.triangulate_points(
         ncams_config, intrinsics_config, extrinsics_config,
         bodyparts, 1, image_coordinates, ic_confidences,
         threshold=0.5, method='centroid', centroid_threshold=2.5)
@@ -652,11 +653,11 @@ def triangulate(trial, calibration, mstruct):
     # reflect(?) and rotate
     reflect = mstruct['hand'] == 'left'
     if reflect:
-        marker_name_dict = ncams.utils.dic_from_csv(
+        marker_name_dict = io_tools.dic_from_csv(
             os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta_reflect.csv'),
             'sDlcMarker', 'sOpenSimMarker')
     else:
-        marker_name_dict = ncams.utils.dic_from_csv(
+        marker_name_dict = io_tools.dic_from_csv(
             os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta.csv'),
             'sDlcMarker', 'sOpenSimMarker')
     triangulated_points = np.swapaxes(triangulated_points, 1, 2)
@@ -668,13 +669,13 @@ def triangulate(trial, calibration, mstruct):
         triangulated_points[:, :, 0] = - triangulated_points[:, :, 0]
 
     # save 3D points to file
-    ncams.io_utils.export_trc(
+    io_tools.export_trc(
         trial.calib_base_markers_3D_filename_trc, marker_names, triangulated_points.tolist(), 50)
 
     # and generate IK file
-    ik_xml_str = ncams.inverse_kinematics.IK_XML_STR.format(
+    ik_xml_str = inverse_kinematics.IK_XML_STR.format(
         model_file=mstruct['opensim_model'])
-    ncams.inverse_kinematics.make_ik_file(
+    inverse_kinematics.make_ik_file(
         trial.calib_base_ik_filename, ik_xml_str, {k: 1 for k in marker_names},
         trial.calib_base_markers_3D_filename_trc, trial.calib_base_kinematic_filename, [0, 0.02])
 
@@ -791,7 +792,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui):
         rs('Completed inverse kinematics.')
 
         # load resulting positions
-        dof_names, _, dofs = ncams.io_utils.import_mot(
+        dof_names, _, dofs = io_tools.import_mot(
             trial.calib_base_kinematic_filename)
         positions = {}
         for dof_name, dof in zip(dof_names, dofs):
@@ -803,7 +804,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui):
         # export result into the OpenSim model for each session model
         for session in sessions:
             mstruct = mstructs[session]
-            ncams.inverse_kinematics.set_opensim_model_default_position(
+            inverse_kinematics.set_opensim_model_default_position(
                 mstruct['opensim_model'], mstruct['opensim_model_locked_base'], positions,
                 lock=True)
             rs('Created locked model {}.'.format(mstruct['opensim_model_locked_base']))

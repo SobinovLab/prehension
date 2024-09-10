@@ -11,6 +11,7 @@ from . import io_tools
 from . import meta_session
 from . import tools
 from .tools import rs, ws
+from . import inverse_kinematics
 
 THORAX_DOF_NAMES = ('Thorax_tra1', 'Thorax_tra2', 'Thorax_tra3',
                     'Thorax_rot1', 'Thorax_rot2', 'Thorax_rot3')
@@ -129,7 +130,7 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
             if mdof[dof_name]['rot']:
                 median_position[dof_name] *= np.pi / 180
 
-        io_tools.set_opensim_model_default_position(
+        inverse_kinematics.set_opensim_model_default_position(
             mstruct['opensim_model'], mstruct['opensim_model_locked_base'], median_position,
             lock=True)
 

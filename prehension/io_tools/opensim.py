@@ -1,7 +1,8 @@
 #!python3
 # -*- coding: utf-8 -*-
 import csv
-import xml.etree.ElementTree as ET
+import math
+import ntpath
 
 
 def import_mot(fname):
@@ -63,16 +64,66 @@ def export_mot(fname, dof_names, times, dofs):
             wrr.writerow([time] + [dof_vals[itime] for dof_vals in dofs])
 
 
-def set_opensim_model_default_position(osim_model_in, osim_model_ou, positions, lock=False):
-    tree = ET.parse(osim_model_in)
-    root = tree.getroot()
 
-    for dof_name, position in positions.items():
-        coordinate = root.find(".//Coordinate[@name='{}']".format(dof_name))
-        c_defval = coordinate.find("default_value")
-        c_defval.text = str(position)
-        if lock:
-            c_locked = coordinate.find("locked")
-            c_locked.text = 'true'
 
-    tree.write(osim_model_ou, encoding='UTF-8', xml_declaration=True)
+def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None, units='mm'):
+    '''Exports marker data into OpenSim-compatible trc file.
+
+    Arguments:
+        filename {str} -- output file name.
+        bodyparts {list of str} -- names of markers.
+        points {array NFrames X NBodyparts X 3} -- [iframe][ibodypart][0:x,1:y,2:z]
+        rate {float} -- DataRate.
+    Keyword Arguments:
+        frame_numbers {list of ints} -- Frame # column. If None, generated from rate and length of
+            points starting at 1.
+        times {list of floats} -- Time column. If None, generated from rate and length of
+            points starting at 0.
+        units {str} - units of the data. {default: 'mm'}
+    '''
+    if frame_numbers is None:
+        frame_numbers = list(range(1, len(points) + 1))
+    if times is None:
+        period = 1. / rate
+        times = [i * period for i in range(len(frame_numbers))]
+
+    n_bodyparts = len(bodyparts)
+    n_frames = len(frame_numbers)
+
+    with open(filename, 'w', newline='') as fou:
+        wrr = csv.writer(fou, delimiter='\t', dialect='excel-tab')
+
+        # header
+        wrr.writerow(['PathFileType', '4', '(X/Y/Z)', ntpath.basename(filename)])
+        wrr.writerow(['DataRate', 'CameraRate', 'NumFrames', 'NumMarkers', 'Units', 'OrigDataRate',
+                      'OrigDataStartFrame', 'OrigNumFrames'])
+        wrr.writerow([rate, rate, n_frames, n_bodyparts, units, rate, 1, 1])
+
+        # bodyparts
+        lo = ['Frame#', 'Time']
+        for bp in bodyparts:
+            lo += [bp, '', '']
+        wrr.writerow(lo)
+
+        # XYZ columns
+        lo = ['', '']
+        for ibp in range(n_bodyparts):
+            lo += ['X{}'.format(ibp+1), 'Y{}'.format(ibp+1), 'Z{}'.format(ibp+1)]
+        wrr.writerow(lo)
+        wrr.writerow([])  # necessary
+
+        # data
+        for frame_number, time, point in zip(frame_numbers, times, points):
+            lo = [frame_number, time]
+            for ibp in range(n_bodyparts):
+                if math.isnan(point[ibp][0]):
+                    lo += ['', '', '']
+                else:
+                    lo += point[ibp]
+
+            # OpenSim4.0 cannot read the line properly when the last value is
+            # empty and wants an additional tab:
+            if lo[-1] == '':
+                lo.append('')
+
+            wrr.writerow(lo)
