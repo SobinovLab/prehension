@@ -1,10 +1,14 @@
 #!python3.8
+import math
 import os
+import warnings
 import xml.etree.ElementTree as ET
 
+import numpy as np
 import tqdm
 from reporting_pool import ReportingPool
 
+from . import io_tools
 from . import meta_session
 from . import tools
 from .tools import rs, ws
@@ -249,6 +253,115 @@ def make_sc_file(filename, tool_name, measurements, marker_file, time_range,
 
     tree = ET.ElementTree(element=root)
     tree.write(filename, encoding='UTF-8', xml_declaration=True)
+
+
+def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_convert=None,
+                        rate=50, zero_marker=None, frame_range=None,
+                        rotation=None, verbose=0, reflect=False):
+    '''Transforms triangulated data from NCams/DLC format into OpenSim trc.
+
+    Arguments:
+        triang_csv {string} -- get the triangulated data from this file.
+        trc_file {string} -- output filename.
+        marker_name_dict {dict} -- dictionary relating names of markers in triangulated file to the
+            names in the output trc file.
+
+    Keyword Arguments:
+        data_unit_convert {lambda x} -- transform values in units, e.g., from meters to decimeters:
+            x*100. OSim usually expects meters. Should be applicable to the numpy matrix of the
+            data. No transform by default.
+        rate {number} -- framerate of the data. (default: {50})
+        zero_marker {str or None} -- shift all data so that the marker with this name is (0,0,0) at
+            frame 0. If None, no shift of the data is happening (default: None)
+        frame_range {2-list of numbers or None} -- frame range to export from the file. If a tuple
+            then indicates the start and end frame number, including both as an interval. If None
+            then all frames will be used. If frame_range[1] is None, continue until the last frame.
+            Note that frame# starts with 0. The output trc file requires frames to start from 1.
+            (default: None)
+        rotation {function} -- is applied to every point (x,y,z). Is supposed to accept a (P, 3)
+            vectors (vector in NCams coordinate system) and return a list of (P, 3)
+            (in OSim coordinate system). See scipy.spatial.transform.rotation.Rotation.apply for
+            reference. No rotation by default.
+        verbose {int} -- verbosity level. Higher verbosity prints more output {default: 0}.
+        reflect {bool} -- reflects the data along an axis (x = -x). Needed when processing data
+            from a left-handed experiment to right-handed model. {default: False}
+    '''
+    # import triangulated file
+    # frame numbers are only to take the subset using frame_range
+    frame_numbers, triang_data = io_tools.import_triangulated_csv(triang_csv)
+
+    # change into numpy arrays
+    frame_numbers = np.array(frame_numbers)
+    for k in triang_data.keys():
+        triang_data[k] = np.array(triang_data[k])
+
+    # trim the range based on frame_range and estimate number of frames
+    if frame_range is not None:
+        if frame_range[1] is None:
+            frame_mask = frame_numbers >= frame_range[0]
+        else:
+            frame_mask = frame_numbers >= frame_range[0] & frame_numbers <= frame_range[1]
+        # trim
+        frame_numbers = frame_numbers[frame_mask]
+        for k in triang_data.keys():
+            triang_data[k] = triang_data[k][frame_mask, :]
+
+    # collect the data based on the marker name dictionary
+    bodyparts = []
+    marker_names = []  # OpenSim names
+    points = []
+    for td_k, td in triang_data.items():
+        if td_k in marker_name_dict.keys():
+            bodyparts.append(td_k)
+            marker_names.append(marker_name_dict[td_k])
+            points.append(td)
+    points = np.array(points)
+    # change the indices from NBodyparts X NFrames X 3 to NFrames X NBodyparts X 3
+    points = np.swapaxes(points, 0, 1)
+
+    # transform the data
+    # remove the 0 point
+    if zero_marker is not None:
+        # just break it if it is not there
+        zero_index = bodyparts.index(zero_marker)
+        zero_xyz = points[0, zero_marker, :]
+        if math.isnan(zero_xyz[0]):
+            warnings.warn('Zero marker is NaN. All data will be NaNs.')
+        points = points - zero_xyz
+
+    # convert
+    if data_unit_convert is not None:
+        points = data_unit_convert(points)
+
+    # rotate
+    if rotation is not None:
+        for ibp, _ in enumerate(bodyparts):
+            points[:, ibp, :] = rotation(points[:, ibp, :])
+
+    # reflect
+    if reflect:
+        points[:, :, 0] = - points[:, :, 0]
+
+    # calculate how much data is nans
+    n_frames = len(points)
+    num_dats = {}
+    for ibp, bp in enumerate(bodyparts):
+        num_dats[bp] = n_frames - np.sum(np.isnan(points[:, ibp, 0]))
+    marker_weights = {marker_name_dict[bp]: num_dats[bp]/n_frames for bp in bodyparts}
+    if verbose > 0:
+        print('Portion of the data being data and not NaNs:')
+        print('\n'.join('\t{}: {:.3f}'.format(marker_name, marker_weight)
+                        for marker_name, marker_weight in marker_weights.items()))
+
+    # export
+    io_tools.export_trc(trc_file, marker_names, points.tolist(), rate)
+
+    # estimate time_range
+    period = 1./rate
+    time_range = [0, period * len(points)]
+
+    # return variables for creation of IK files
+    return marker_weights, time_range
 
 
 def run_ik_f(ik_file, log_file):

@@ -1,4 +1,5 @@
 #!python3
+import csv
 import os
 import pickle
 import re
@@ -270,3 +271,35 @@ def load_calibrations(ncams_config):
         print('No pose estimation file found.')
 
     return (intrinsics_config, extrinsics_config)
+
+
+def import_triangulated_csv(filename):
+    '''Returns data as dictionary:
+        bodypart: nFrames X 3
+    '''
+    data = {}
+    with open(filename, 'r') as f:
+        rdr = csv.reader(f)
+
+        li1 = next(rdr)
+        li2 = next(rdr)
+
+        # read the csv
+        frame_numbers = []
+        data_raw = [[] for _ in range(len(li1) - 1)]
+        for li in rdr:
+            frame_numbers.append(int(li[0]))
+            for i, el in enumerate(li[1:]):
+                data_raw[i].append(float(el) if el != '' else math.nan)
+
+    # transform into a dictionary
+    for i, (i1, i2) in enumerate(zip(li1[1:], li2[1:])):
+        v = data.get(i1, [])
+        v.append(data_raw[i])
+        data[i1] = v
+
+    # transpose the dictionary
+    for k in data.keys():
+        data[k] = list(zip(*data[k]))
+
+    return frame_numbers, data

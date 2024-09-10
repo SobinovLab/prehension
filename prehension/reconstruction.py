@@ -346,7 +346,7 @@ def process_points(path_or_array, csv_type, filt_width=5, threshold=0.9, filteri
             for a in range(num_axes):
                 ibp_a = np.squeeze(point_array[:,a,ibp])
                 # Apply median filter
-                ibp_a = _nanmedianfilt(ibp_a, filt_width)
+                ibp_a = nanmedianfilt(ibp_a, filt_width)
                 # Apply gaussian filter
                 ibp_a_gauss = convolve(ibp_a, gauss_filt, boundary='extend', nan_treatment='interpolate')
                 processed_point_array[:,a,ibp] = ibp_a_gauss
@@ -360,7 +360,7 @@ def process_points(path_or_array, csv_type, filt_width=5, threshold=0.9, filteri
         return processed_point_array
 
 
-def _nanmedianfilt(input_vector, kernel_width):
+def nanmedianfilt(input_vector, kernel_width):
     '''Median filter that ignores nan values'''
     if kernel_width % 2 == 0:
         kernel_width = kernel_width + 1

@@ -20,8 +20,10 @@ from jarvis.utils.paramClasses import Predict3DParams
 from jarvis.utils.reprojection import ReprojectionTool
 from jarvis.utils.skeleton import get_skeleton
 
-import ncams
+from . import inverse_kinematics
+from . import io_tools
 from . import meta_session
+from . import reconstruction
 from .tools import rs, ws
 
 
@@ -117,7 +119,7 @@ def my_predict3D(params, proj_cfg, trial, reproTool, processes):
 
 def ncams_filter_3D(x, filt_width=5):
     gauss_filt = Gaussian1DKernel(stddev=filt_width/10)
-    x = ncams.reconstruction._nanmedianfilt(x, filt_width)
+    x = reconstruction.nanmedianfilt(x, filt_width)
     x = convolve(x, gauss_filt, boundary='extend', nan_treatment='interpolate')
     return x
 
@@ -151,7 +153,7 @@ def convert_jarvis(trial, threshold):
 
 def prepare_ik(trial, mstruct, reflect, marker_name_dict):
     # export for OpenSim
-    marker_weights, time_range = ncams.inverse_kinematics.triangulated_to_trc(
+    marker_weights, time_range = inverse_kinematics.triangulated_to_trc(
         trial.markers_3D_filename_csv, trial.markers_3D_filename_trc, marker_name_dict,
         rate=mstruct['fps'], reflect=reflect)
 
@@ -163,9 +165,9 @@ def prepare_ik(trial, mstruct, reflect, marker_name_dict):
     marker_weights_general = copy.deepcopy(marker_weights)
 
     # make general IK file
-    ik_xml_str = ncams.inverse_kinematics.IK_XML_STR.format(
+    ik_xml_str = inverse_kinematics.IK_XML_STR.format(
         model_file=mstruct['opensim_model_locked_base'])
-    ncams.inverse_kinematics.make_ik_file(
+    inverse_kinematics.make_ik_file(
         trial.ik_filename, ik_xml_str, marker_weights_general, trial.markers_3D_filename_trc,
         trial.pre_kinematic_filename, time_range)
 
@@ -322,12 +324,12 @@ def predict_points_jarvis(server, processed_server, sessions, temp, trials_sel, 
         # right or left handed
         reflect = mstruct['hand'] == 'left'
         if reflect:
-            marker_name_dict = ncams.utils.dic_from_csv(
+            marker_name_dict = io_tools.dic_from_csv(
                 os.path.join(os.path.split(mstruct['opensim_model'])[0],
                              'marker_meta_reflect.csv'),
                 'sDlcMarker', 'sOpenSimMarker')
         else:
-            marker_name_dict = ncams.utils.dic_from_csv(
+            marker_name_dict = io_tools.dic_from_csv(
                 os.path.join(os.path.split(mstruct['opensim_model'])[0],
                              'marker_meta.csv'),
                 'sDlcMarker', 'sOpenSimMarker')
