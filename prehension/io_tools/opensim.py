@@ -64,6 +64,57 @@ def export_mot(fname, dof_names, times, dofs):
             wrr.writerow([time] + [dof_vals[itime] for dof_vals in dofs])
 
 
+def import_trc(filename):
+    '''Import OpenSim trc file into a Python structure format.
+
+    Arguments:
+        filename {str} -- trc file name.
+    Output:
+        bodyparts {list of str} -- names of markers.
+        frame_numbers {list of ints} -- Frame # column.
+        times {list of floats} -- Time column
+        points {array NFrames X NBodyparts X 3} -- [iframe][ibodypart][0:x,1:y,2:z]
+        rate {float} -- DataRate.
+        units {str} - units of the data.
+    '''
+    with open(filename, 'r') as fin:
+        rdr = csv.reader(fin, delimiter='\t', dialect='excel-tab')
+
+        li = next(rdr)  # flavor text
+        li = next(rdr)  # flavor text
+
+        li = next(rdr)
+        if not li[0] == li[1] or not li[0] == li[5]:
+            warnings.warn('DataRate, CameraRate or OrigDataRate do not match. Using DataRate.')
+        rate = float(li[0])
+        units = li[4]
+
+        li = next(rdr)
+        bodyparts = li[slice(2, len(li), 3)]
+
+        li = next(rdr)
+        li = next(rdr)
+
+        frame_numbers = []
+        times = []
+        points = []
+        for li in rdr:
+            if len(li) == 0:
+                continue
+            frame_numbers.append(int(li[0]))
+            times.append(float(li[1]))
+            points.append([])
+            for ibp in range(len(bodyparts)):
+                points[-1].append([])
+                if li[2+ibp*3] == '':
+                    points[-1][-1].append(math.nan)
+                    points[-1][-1].append(math.nan)
+                    points[-1][-1].append(math.nan)
+                else:
+                    points[-1][-1].append(float(li[2+ibp*3]))
+                    points[-1][-1].append(float(li[2+ibp*3+1]))
+                    points[-1][-1].append(float(li[2+ibp*3+2]))
+    return bodyparts, frame_numbers, times, points, rate, units
 
 
 def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None, units='mm'):

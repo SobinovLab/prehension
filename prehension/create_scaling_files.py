@@ -8,7 +8,8 @@ import scipy
 import scipy.ndimage
 import scipy.signal
 
-import ncams
+from . import inverse_kinematics
+from . import io_tools
 from . import meta_session
 from . import tools
 from .materialsio_colors import materialsio_colors as micolors
@@ -79,13 +80,13 @@ def fill_nans(v):
 
 def prepare_scaling_files(trial, session, mstruct, period):
     # load trc
-    bodyparts, _, times, points, rate, units = ncams.io_utils.import_trc(
+    bodyparts, _, times, points, rate, units = io_tools.import_trc(
         trial.markers_3D_filename_trc)
     times = np.array(times)
     points = np.array(points)
 
     # find ps markers, doesn't matter if left or right in this case
-    marker_name_dict = ncams.utils.dic_from_csv(
+    marker_name_dict = io_tools.dic_from_csv(
         os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta.csv'),
         'sDlcMarker', 'sOpenSimMarker')
     ps_osim_markers = []
@@ -207,30 +208,30 @@ def prepare_scaling_files(trial, session, mstruct, period):
         rs('\t{}: {}'.format(
             smg, ', '.join(m for m in markers if m in bodyparts)))
     # save trc
-    ncams.io_utils.export_trc(
+    io_tools.export_trc(
         trial.scaling_markers_3D_filename_trc, bodyparts, points.tolist(), rate, units=units)
 
     # create IK file
     marker_weights = {bp: 1 for bp in bodyparts}
     time_range = [0, 1. / rate * len(points)]
     # first time it will have to be based on unscaled model, later on the scaled one
-    ik_xml_str = ncams.inverse_kinematics.IK_XML_STR.format(
+    ik_xml_str = inverse_kinematics.IK_XML_STR.format(
         model_file='Unassigned')  # will run on the open model
-    ncams.inverse_kinematics.make_ik_file(
+    inverse_kinematics.make_ik_file(
         trial.scaling_ik_filename, ik_xml_str, marker_weights,
         trial.scaling_markers_3D_filename_trc,
         trial.scaling_kinematic_filename, time_range)
 
     # create SC file
     tool_name = session + '_' + os.path.basename(trial.scaling_sc_filename)[:-4] + '_scaling_tool'
-    ncams.inverse_kinematics.make_sc_file(
+    inverse_kinematics.make_sc_file(
         trial.scaling_sc_filename, tool_name, SEGMENT_BODY_GROUPS,
         trial.scaling_markers_3D_filename_trc, time_range)
 
 
 def transfer_position_to_model(trial, mstruct, mdof):
     # load joint angle trace
-    dof_names, _, dofs = ncams.io_utils.import_mot(trial.scaling_kinematic_filename)
+    dof_names, _, dofs = io_tools.import_mot(trial.scaling_kinematic_filename)
 
     # find median posture
     median_positions = {}
@@ -240,7 +241,7 @@ def transfer_position_to_model(trial, mstruct, mdof):
             median_positions[dof_name] *= np.pi / 180
 
     # export (overwrite) to the opensim model
-    ncams.inverse_kinematics.set_opensim_model_default_position(
+    inverse_kinematics.set_opensim_model_default_position(
         mstruct['opensim_model'], mstruct['opensim_model'], median_positions)
 
     rs('Transferred median position from {} into model {}.'.format(
