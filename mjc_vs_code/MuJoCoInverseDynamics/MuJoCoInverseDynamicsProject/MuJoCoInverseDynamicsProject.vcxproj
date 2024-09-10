@@ -1,0 +1,128 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="DebugOptimize|x64">
+      <Configuration>DebugOptimize</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{57ba2785-b8f2-4fd0-88a6-dbf290b42d01}</ProjectGuid>
+    <RootNamespace>MuJoCoInverseDynamicsProject</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugOptimize|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugOptimize|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugOptimize|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>.\src;.\glfw\include;.\mujoco\include;.\nlopt\include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>.\glfw\lib\glfw3.lib;.\mujoco\lib\mujoco.lib;.\nlopt\lib\libnlopt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy /B /V /Y "$(ProjectDir)glfw\x64\*.dll" "$(OutDir)" &gt; NUL
+copy /B /V /Y "$(ProjectDir)mujoco\x64\*.dll" "$(OutDir)" &gt; NUL
+copy /B /V /Y "$(ProjectDir)nlopt\x64\*.dll" "$(OutDir)" &gt; NUL</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugOptimize|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>.\src;.\glfw\include;.\mujoco\include;.\nlopt\include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>.\glfw\lib\glfw3.lib;.\mujoco\lib\mujoco.lib;.\nlopt\lib\libnlopt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy /B /V /Y "$(ProjectDir)glfw\x64\*.dll" "$(OutDir)" &gt; NUL
+copy /B /V /Y "$(ProjectDir)mujoco\x64\*.dll" "$(OutDir)" &gt; NUL
+copy /B /V /Y "$(ProjectDir)nlopt\x64\*.dll" "$(OutDir)" &gt; NUL</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Basinhopping.cpp" />
+    <ClCompile Include="src\Frame.cpp" />
+    <ClCompile Include="src\FrameSavingBuffer.cpp" />
+    <ClCompile Include="src\IOFunctions.cpp" />
+    <ClCompile Include="mujoco\include\uitools.c" />
+    <ClCompile Include="src\MiscArrayFunctions.cpp" />
+    <ClCompile Include="src\simulate_minimize.cpp" />
+    <ClCompile Include="src\tsm.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="glfw\include\glfw3.h" />
+    <ClInclude Include="src\Basinhopping.h" />
+    <ClInclude Include="src\Frame.h" />
+    <ClInclude Include="src\FrameSavingBuffer.h" />
+    <ClInclude Include="src\IOFunctions.h" />
+    <ClInclude Include="mujoco\include\mjdata.h" />
+    <ClInclude Include="mujoco\include\mjmodel.h" />
+    <ClInclude Include="mujoco\include\mjrender.h" />
+    <ClInclude Include="mujoco\include\mjui.h" />
+    <ClInclude Include="mujoco\include\mjvisualize.h" />
+    <ClInclude Include="mujoco\include\mjxmacro.h" />
+    <ClInclude Include="mujoco\include\mujoco.h" />
+    <ClInclude Include="mujoco\include\mujoco_export.h" />
+    <ClInclude Include="mujoco\include\uitools.h" />
+    <ClInclude Include="nlopt\include\nlopt.h" />
+    <ClInclude Include="nlopt\include\nlopt.hpp" />
+    <ClInclude Include="src\MiscArrayFunctions.h" />
+    <ClInclude Include="src\SharedQueue.h" />
+    <ClInclude Include="src\tsm.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
