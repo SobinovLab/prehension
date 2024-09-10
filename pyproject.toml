@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "prehension"
+version = "0.0.2"
+authors = [
+  { name="Anton R Sobinov", email="an.sobinov@gmail.com" },
+  { name="Charles M Greenspon"},
+  { name="Caleb A Raman" },
+  { name="Milan Rybar" },
+]
+description = "Tools for processing and extracting kinematic and kinetic data from prehension experiments."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: Microsoft :: Windows",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console"
+]
+dependencies = [
+    "numpy",
+    'matplotlib',
+    'scipy',
+    'opencv-contrib-python',
+    'pyyaml',
+    'astropy',
+    'tqdm',
+    'pandas',  # to be dropped
+    'timed_sparse_matrix',
+    'reporting_pool'
+]
+[project.optional-dependencies]
+jarvis = [
+    "joblib",
+    ]
+# Jarvis should be installed from https://github.com/craman96/JARVIS-HybridNet
+ncams = [
+]
+# ncams should be installed from https://github.com/CMGreenspon/NCams
+
+[project.urls]
+Homepage = "https://github.com/BensmaiaLab/prehension"
