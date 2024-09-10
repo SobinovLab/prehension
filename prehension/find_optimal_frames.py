@@ -151,7 +151,7 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
                         session, trials[v].trial_number, pool.error_reports[v]))
 
         # unpack and save
-        io_tools.export_optimal_frames(
+        meta_session.export_optimal_frames(
             optimal_frames_filename, [t.trial_number for t in trials], optimal_frames)
         rs('Exported optimal frames to {}.'.format(optimal_frames_filename))
 

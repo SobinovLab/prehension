@@ -1,7 +1,6 @@
 #!python3.7
 import os
 
-from . import io_tools
 from . import meta_session
 from . import tools
 from .tools import rs
@@ -42,7 +41,7 @@ def make_adjustment(server, session, trial_number, temp, overwrite, executable_f
         ValueError('Could not find trial #{}.'.format(trial_number))
 
     # find the frame
-    optimal_frames = io_tools.import_optimal_frames(
+    optimal_frames = meta_session.import_optimal_frames(
         os.path.join(server_session, 'optimal_frames.csv'))
     frame = optimal_frames[trial_number]
 

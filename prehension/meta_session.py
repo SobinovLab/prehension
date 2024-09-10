@@ -5,7 +5,7 @@ import glob
 import warnings
 import json
 
-from .io_tools import import_csv
+from .io_tools import import_csv, export_csv
 
 SENSOR_SERIAL1 = '00110-2743'
 SENSOR_SERIAL2 = '00110-2746'
@@ -828,3 +828,19 @@ def get_trial_log_info(mstruct, trial_number, column_names):
     column_ids = [sy_column_names.index(cn) for cn in column_names]
 
     return [sy_data[ci][row] for ci in column_ids]
+
+
+def export_optimal_frames(filename, trial_numbers, optimal_frames):
+    column_names = ['trial_number', 'optimal_frame']
+    values = [trial_numbers, optimal_frames]
+
+    export_csv(filename, column_names, values)
+
+
+def import_optimal_frames(filename):
+    column_names, values = import_csv(filename)
+
+    trial_numbers = [int(v) for v in values[column_names.index('trial_number')]]
+    optimal_frames = [int(v) for v in values[column_names.index('optimal_frame')]]
+
+    return {k: v for k, v in zip(trial_numbers, optimal_frames)}

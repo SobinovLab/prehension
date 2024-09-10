@@ -236,24 +236,6 @@ def import_matched_contacts(filename):
     return matched_contacts
 
 
-# TODO move to meta_session
-def export_optimal_frames(filename, trial_numbers, optimal_frames):
-    column_names = ['trial_number', 'optimal_frame']
-    values = [trial_numbers, optimal_frames]
-
-    export_csv(filename, column_names, values)
-
-
-# TODO move to meta_session
-def import_optimal_frames(filename):
-    column_names, values = import_csv(filename)
-
-    trial_numbers = [int(v) for v in values[column_names.index('trial_number')]]
-    optimal_frames = [int(v) for v in values[column_names.index('optimal_frame')]]
-
-    return {k: v for k, v in zip(trial_numbers, optimal_frames)}
-
-
 def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
     '''Imports two columns from a CSV file as a dictionary.
 
@@ -287,3 +269,34 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
             dic[key_cast(l[keyword])] = value_cast(l[value])
 
     return dic
+
+
+def load_roms(filename, dof_names=None):
+    column_names, values = import_csv(filename)
+
+    i_dofname = column_names.index('dof_name')
+    i_rmin = column_names.index('range_min')
+    i_rmax = column_names.index('range_max')
+    if 'rotation' in column_names:
+        i_rot = column_names.index('rotation')
+    else:
+        i_rot = -1
+
+    if dof_names is None:
+        ranges = [[rmin, rmax] for rmin, rmax in zip(values[i_rmin], values[i_rmax])]
+        if i_rot >= 0:
+            return values[i_dofname], ranges, values[i_rot]
+        else:
+            return values[i_dofname], ranges
+
+    ranges = []
+    rots = []
+    for dof_name in dof_names:
+        i_dof = values[i_dofname].index(dof_name)
+        ranges.append([values[i_rmin][i_dof], values[i_rmax][i_dof]])
+        if i_rot >= 0:
+            rots.append(values[i_rot][i_dof])
+    if i_rot >= 0:
+        return ranges, rots
+    else:
+        return ranges
