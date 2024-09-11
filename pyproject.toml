@@ -1,6 +1,7 @@
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
 [project]
 name = "prehension"
 version = "0.0.2"
@@ -20,10 +21,13 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: Microsoft :: Windows",
+    "Environment :: Console",
+
     "Development Status :: 4 - Beta",
-    "Environment :: Console"
 ]
 dependencies = [
     "numpy",
@@ -37,14 +41,21 @@ dependencies = [
     'timed_sparse_matrix',
     'reporting_pool'
 ]
+
+[tool.setuptools]
+packages = [
+    "prehension",
+    "prehension_scripts"
+]
+
 [project.optional-dependencies]
+# Jarvis should be installed from https://github.com/craman96/JARVIS-HybridNet
 jarvis = [
     "joblib",
     ]
-# Jarvis should be installed from https://github.com/craman96/JARVIS-HybridNet
+# ncams should be installed from https://github.com/CMGreenspon/NCams
 ncams = [
 ]
-# ncams should be installed from https://github.com/CMGreenspon/NCams
 
 [project.urls]
 Homepage = "https://github.com/BensmaiaLab/prehension"
