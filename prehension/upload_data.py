@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Uploading data to a shared server.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import datetime
 import os
 import time
@@ -6,8 +26,10 @@ import time
 import tqdm
 
 from . import meta_session
+from .tools import logs
+from .tools.logs import rs, ws
+from .tools import filesystem
 from . import tools
-from .tools import rs, ws
 
 # We want to upload the following dirs and folders
 GENERAL_DIRS = (
@@ -49,7 +71,7 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
         dry_run {bool} --- Do not copy the data, only print out the files to be copied.
         overwrite {bool} --- Overwrites the created files if they exist.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
@@ -67,10 +89,10 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
     rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     start_time = time.time()
-    copy_function = tools.PrintCopyAccumulateSize(dry_run, 1)
+    copy_function = filesystem.PrintCopyAccumulateSize(dry_run, 1)
 
     ## upload general monkey stuff like models
-    tools.copy_folder_contents(
+    filesystem.copy_folder_contents(
         server, target_dir,
         dir_names=GENERAL_DIRS, file_names=GENERAL_FILES, copy_function=copy_function,
         overwrite=overwrite, box=True)
@@ -84,7 +106,7 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
-        tools.copy_folder_contents(
+        filesystem.copy_folder_contents(
             server_session, os.path.join(target_dir, session),
             dir_names=SESSION_DIRS, file_names=SESSION_FILES, copy_function=copy_function,
             overwrite=overwrite, box=True)

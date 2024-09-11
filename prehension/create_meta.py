@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Creates meta information files for experimental sessions.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import datetime
 import glob
 import json
@@ -12,19 +32,12 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import tqdm
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .tools import rs, ws
+from .tools.constants import ORIGINAL_OPENSIM_MODEL, CALIBRATIONS_DIR
+from .tools import io
+from .tools import logs
+from .tools.logs import rs, ws
 
-# only needed for DOF extraction here
-# and to remind user which model to start from
-ORIGINAL_OPENSIM_MODEL = os.path.join('../../stereo_inverse_kinematics', 'osim_models', 'default_model',
-                                      'RightArmAndHand_NoMuscles.osim')
-# CALIBRATIONS_DIR = os.path.join(
-#     r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'DeepLabCut', 'CameraConfigs')
-CALIBRATIONS_DIR = os.path.join(
-    r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'CameraConfigs')
+from . import meta_session
 
 
 def get_object_sets(sy_column_names, sy_data, object_def_columns):
@@ -56,16 +69,16 @@ def import_logs(dirname, mstruct):
     else:
         sy_ja_file = sy_ja_file[0]
 
-    no_cam_log=False
+    no_cam_log = False
     if not os.path.exists(sy_ja_file):
         ws('Camera log for this session does not exist.')
-        no_cam_log=True
+        no_cam_log = True
         # raise ValueError('Camera log for this session does not exist.')
 
     sy_ps_file = os.path.join(mstruct['raw_ps_dir'], 'trial_log.csv')
-    no_ps_log=False
+    no_ps_log = False
     if not os.path.exists(sy_ps_file):
-        no_ps_log=True
+        no_ps_log = True
         ws('Pressure sensor log for this session does not exist.')
         #raise ValueError('Pressure sensor log for this session does not exist.')
 
@@ -74,11 +87,11 @@ def import_logs(dirname, mstruct):
         raise ValueError("Must have camera log or ps log")
 
     # import general sync data
-    sy_column_names, sy_data = io_tools.import_csv(mstruct['auto_log'][0])
+    sy_column_names, sy_data = io.import_csv(mstruct['auto_log'][0])
     sy_data = np.array(sy_data).transpose()
 
     for al in mstruct['auto_log'][1:]:
-        _, sd = io_tools.import_csv(al)
+        _, sd = io.import_csv(al)
         sd = np.array(sd).transpose()
         sy_data = np.concatenate((sy_data, sd), axis=0)
 
@@ -90,14 +103,14 @@ def import_logs(dirname, mstruct):
 
     # cameras data
     if os.path.exists(sy_ja_file):
-        sy_ja_column_names, sy_ja_data = io_tools.import_csv(sy_ja_file)
+        sy_ja_column_names, sy_ja_data = io.import_csv(sy_ja_file)
         sy_ja_data = np.array(sy_ja_data).transpose()
     else:
         sy_ja_column_names = []
         sy_ja_data = []
 
     # import pressure sensor sync data
-    sy_ps_column_names, sy_ps_data = io_tools.import_csv(sy_ps_file)
+    sy_ps_column_names, sy_ps_data = io.import_csv(sy_ps_file)
     sy_ps_data = np.array(sy_ps_data).transpose()
 
     return sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
@@ -263,7 +276,7 @@ def export_roms_from_osim(osim_filename, o_filename, verbose=False):
     column_names = ('dof_name', 'range_min', 'range_max', 'rotation')
     values = (dof_names, dof_rmin, dof_rmax, [0 if '_tra' in dn else 1 for dn in dof_names])
 
-    io_tools.export_csv(o_filename, column_names, values)
+    io.export_csv(o_filename, column_names, values)
 
 
 # only used here because does not support unresolving absolute paths into session-relative
@@ -337,7 +350,7 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
     processed_dir = os.path.join(preset['processed_server'], session)
     os.makedirs(processed_dir, exist_ok=True)
 
-    if overwrite or not os.path.exists( os.path.join(processed_dir, 'meta_structure.json')):
+    if overwrite or not os.path.exists(os.path.join(processed_dir, 'meta_structure.json')):
         mstruct_rel = meta_session.get_default_meta_structure()
 
         meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
@@ -434,7 +447,7 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
         u_objects_t = list(zip(*u_objects))
         values = [list(range(len(u_objects)))] + u_objects_t
         # always overwritten if meta_session does not exist
-        io_tools.export_csv(meta_object_filename, column_names, values)
+        io.export_csv(meta_object_filename, column_names, values)
         rs('Exported session meta object information to {}'.format(meta_object_filename))
 
         # export the meta session
@@ -449,7 +462,7 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
             ttl_to_obj_end_pos, ttl_to_cue,
             ttl_to_reach, ttl_to_success_grasp, ttl_to_reward,
             ja_ttl_to_rec_start]
-        io_tools.export_csv(meta_session_filename, column_names, values)
+        io.export_csv(meta_session_filename, column_names, values)
         rs('Exported session meta information to {}'.format(meta_session_filename))
 
     meta_dof_filename = os.path.join(processed_dir, 'meta_dof.csv')
@@ -471,7 +484,7 @@ def create_meta(server, sessions, temp, overwrite, export_roms, preset):
             If this flag is provided, meta_dof is not created.
         preset {dict} --- Preset dictionary.
     """
-    tools.setup_logging(temp, sessions_dir=preset['processed_server'])
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

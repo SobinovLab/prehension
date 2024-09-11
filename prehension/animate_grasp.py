@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Animates a trial.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 import re
 
@@ -6,13 +26,16 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import io_tools
-from . import meta_session
-from . import tools
-from .materialsio_colors import materialsio_colors_rgb as micolors
+from .tools.constants import LPS_NAME, RPS_NAME, DIGITS, UNCLAIMED_INDEX
+from .tools import io
+from .tools import forces
+from .tools import misc
+from .tools.materialsio_colors import materialsio_colors_rgb as micolors
 
-LPS_NAME = 'medial_sensor'
-RPS_NAME = 'lateral_sensor'
+from . import meta_session
+
+
+# TODO use DIGITS
 SEGMENT_DIGIT_GROUPS = {
     'thumb': lambda v: re.search('[RL]A[0-9][MPD]1_.*', v),
     'index': lambda v: re.search('[RL]A[0-9][MPD]2_.*', v),
@@ -22,19 +45,15 @@ SEGMENT_DIGIT_GROUPS = {
     'None': lambda v: True
 }
 
-DIGITS = tools.DIGITS
-UNCLAIMED_NAME = tools.UNCLAIMED_NAME
-UNCLAIMED_INDEX = tools.UNCLAIMED_INDEX
-
 
 def get_matched_contacts(mstruct, trial):
     ps_matrices = {}
     matched_contacts = {}
     segments_set = set()
     for ps_name in mstruct['ps_dic'].keys():
-        ps_times, ps_matrices[ps_name] = io_tools.import_matrices(
+        ps_times, ps_matrices[ps_name] = io.import_matrices(
             trial.get_post_ps_filenames()[ps_name])
-        matched_contacts[ps_name] = io_tools.import_matched_contacts(
+        matched_contacts[ps_name] = io.import_matched_contacts(
             trial.matched_contacts_filenames[ps_name])
         for mc in matched_contacts[ps_name]:
             segments_set = segments_set.union(list(mc.keys()))
@@ -149,9 +168,9 @@ class GraspAnimation:
         self.rps_auto_colormask = None
 
         self.matched_contacts = {
-            LPS_NAME: io_tools.import_matched_contacts(
+            LPS_NAME: io.import_matched_contacts(
                 self.trial.matched_contacts_filenames[LPS_NAME]),
-            RPS_NAME: io_tools.import_matched_contacts(
+            RPS_NAME: io.import_matched_contacts(
                 self.trial.matched_contacts_filenames[RPS_NAME])
         }
 
@@ -239,14 +258,14 @@ class GraspAnimation:
             else:
                 # print(ds)
                 color = micolors[ds['c']][600]
-            lpsdmask = tools.get_matched_contact_frame_mask(
+            lpsdmask = forces.get_matched_contact_frame_mask(
                 ds['exp'], self.matched_contacts[LPS_NAME][i_frame],
                 (self.nsenselsr, self.nsenselsr))
             lps_digit_color_mask[lpsdmask, 0] = color[0]
             lps_digit_color_mask[lpsdmask, 1] = color[1]
             lps_digit_color_mask[lpsdmask, 2] = color[2]
 
-            rpsdmask = tools.get_matched_contact_frame_mask(
+            rpsdmask = forces.get_matched_contact_frame_mask(
                 ds['exp'], self.matched_contacts[RPS_NAME][i_frame],
                 (self.nsenselsr, self.nsenselsr))
             rps_digit_color_mask[rpsdmask, 0] = color[0]
@@ -298,7 +317,7 @@ class GraspAnimation:
         pass
 
     def display_time(self, time):
-        i_frame = tools.find_first(self.ps_times >= time)
+        i_frame = misc.find_first(self.ps_times >= time)
 
         self.display_videos_frame(i_frame=i_frame)
         self.display_ps_frame(i_frame=i_frame)

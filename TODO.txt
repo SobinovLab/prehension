@@ -1,2 +1,0 @@
-# Add relevant stuff from ncams
-# Subfolder for IO tools that pulls from NCAms - pull in ncams when used in any of the .py files in the prehension folder

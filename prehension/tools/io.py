@@ -1,14 +1,37 @@
-#!python3.12
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Loading and saving a variety of files. Images are in a separate module
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 import csv
 import re
+import math
+
 import numpy as np
-import tsm
+
+import timed_sparse_matrix as tsm
 
 
 def import_matrices(filename, equalize_period=-np.inf,
-                    rowscols=None, zero_time_start=False, force_positive=True):
-    '''[summary]
+                    rowscols=None, zero_time_start=False, force_positive=False):
+    '''Load a CSV or TSM matrix.
 
     Switches between TSM and CSV based on extension.
 
@@ -21,7 +44,7 @@ def import_matrices(filename, equalize_period=-np.inf,
         rowscols [(int, int) or int or None] -- number of rows and columns in the matrix. If None,
             estimated from the first line. (default: {None})
         zero_time_start {bool} -- subtract the first value from the time series. (default: {False})
-        force_positive {bool} -- makes all values less than 0 equal to 0. (default: {True})
+        force_positive {bool} -- makes all values less than 0 equal to 0. (default: {False})
 
     Returns:
         times -- [itime]
@@ -40,6 +63,8 @@ def import_matrices(filename, equalize_period=-np.inf,
 
     # equalize the beginning
     if equalize_period >= times[0]:
+        rows = len(matrices[0])
+        cols = len(matrices[0][0])
         equalizer_range = range(next(x for x, val in enumerate(times) if val > equalize_period))
         equalizer = []
         for irow in range(rows):
@@ -258,15 +283,17 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
         dict -- returns the element from the 'value' column in response to the element
     '''
     if key_cast is None:
-        key_cast = lambda x: x.strip()
+        def key_cast(x):
+            x.strip()
     if value_cast is None:
-        value_cast = lambda x: x.strip()
+        def value_cast(x):
+            x.strip()
 
     dic = {}
     with open(fname, 'r') as f:
         fd = csv.DictReader(f)
-        for l in fd:
-            dic[key_cast(l[keyword])] = value_cast(l[value])
+        for li in fd:
+            dic[key_cast(li[keyword])] = value_cast(li[value])
 
     return dic
 
@@ -300,3 +327,35 @@ def load_roms(filename, dof_names=None):
         return ranges, rots
     else:
         return ranges
+
+
+def import_triangulated_csv(filename):
+    '''Returns data as dictionary:
+        bodypart: nFrames X 3
+    '''
+    data = {}
+    with open(filename, 'r') as f:
+        rdr = csv.reader(f)
+
+        li1 = next(rdr)
+        li2 = next(rdr)
+
+        # read the csv
+        frame_numbers = []
+        data_raw = [[] for _ in range(len(li1) - 1)]
+        for li in rdr:
+            frame_numbers.append(int(li[0]))
+            for i, el in enumerate(li[1:]):
+                data_raw[i].append(float(el) if el != '' else math.nan)
+
+    # transform into a dictionary
+    for i, (i1, i2) in enumerate(zip(li1[1:], li2[1:])):
+        v = data.get(i1, [])
+        v.append(data_raw[i])
+        data[i1] = v
+
+    # transpose the dictionary
+    for k in data.keys():
+        data[k] = list(zip(*data[k]))
+
+    return frame_numbers, data

@@ -1,13 +1,36 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Animates pressure sensors from a trial.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 
 import matplotlib.animation as mpl_ani
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import io_tools
+
+from .tools.constants import RPS_NAME
+from .tools import misc
+from .tools import io
+
 from . import meta_session
-from . import tools
 
 
 class PSDisplayer:
@@ -47,19 +70,19 @@ class PSDisplayer:
                                     vmin=0, vmax=1, cmap='Greys')
 
     def display_time(self, time):
-        i_frame = tools.find_first(self.ps_times >= time)
+        i_frame = misc.find_first(self.ps_times >= time)
 
         self.display_ps_frame(i_frame=i_frame)
 
 
 def animate_ps(mstruct, trial):
-    ps_name = tools.RPS_NAME
+    ps_name = RPS_NAME
     speed = 10
 
     # load data
-    times_transformed, matrices_transformed = io_tools.import_matrices(
+    times_transformed, matrices_transformed = io.import_matrices(
         trial.transformed_ps_filenames[ps_name])
-    times_filtered, matrices_filtered = io_tools.import_matrices(
+    times_filtered, matrices_filtered = io.import_matrices(
         trial.filtered_ps_filenames[ps_name])
 
     times = times_transformed

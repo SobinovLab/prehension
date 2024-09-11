@@ -1,15 +1,32 @@
 #!python3
+# -*- coding: utf-8 -*-
+"""
+Functions related to sessions from a dataset.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import glob
 import json
 import os
 import re
 import warnings
 
-from .io_tools import import_csv, export_csv
+from .tools.io import import_csv, export_csv
 from .trial_info import TrialInfo
-
-SENSOR_SERIAL1 = '00110-2743'
-SENSOR_SERIAL2 = '00110-2746'
 
 
 def find_session_dirs(dirname):
@@ -54,16 +71,7 @@ def get_default_meta_structure():
         'manual_log': '',
         'videos_dir': 'camera_videos',
         'images_dir': 'cameras',
-        'cameras': {
-            # 19194005: 'cam19194005',  # now handled by fill_meta_structure
-            # 19194008: 'cam19194008',
-            # 19194009: 'cam19194009',
-            # 19335177: 'cam19335177',
-            # 19340298: 'cam19340298',
-            # 19340300: 'cam19340300',
-            # 19340396: 'cam19340396',
-            # 20050811: 'cam20050811',
-        },
+        'cameras': {},
         'timepoint_plots_dir': 'timepoint_plots',
         'timepoint_csv_filename': 'timepoints.csv',
         'markers_2D_dir': 'markers_2D',
@@ -131,7 +139,7 @@ def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='b
         elif len(auto_log) == 0:
             raise ValueError('Could not find auto log session filenames in {}.'.format(raw_dir))
 
-        mstruct['auto_log'] = auto_log ### SWITCH TO FULL PATH
+        mstruct['auto_log'] = auto_log  ### SWITCH TO FULL PATH
 
     # Search manual log
     if len(mstruct['manual_log']) == 0:
@@ -196,7 +204,6 @@ def import_meta_structure(raw_dir, proc_dir):
     # on processed server
     pth_2_resolve_proc = (
         'timepoint_plots_dir', 'timepoint_csv_filename',
-        # 'videos_dir', 'images_dir',
         'markers_2D_dir', 'markers_2D_video_dir', 'markers_3D_dir', 'markers_3D_jarvis_dir',
         'jarvis_video_dir',
         'pre_ja_dir', 'post_ja_dir',

@@ -1,8 +1,29 @@
 #!python3
 # -*- coding: utf-8 -*-
+"""
+Loading and saving files in OpenSim formats.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import csv
 import math
 import ntpath
+
+from .logs import ws
 
 
 def import_mot(fname):
@@ -20,11 +41,11 @@ def import_mot(fname):
     with open(fname, 'r') as f:
         rdr = csv.reader(f, dialect='excel-tab')
 
-        l = next(rdr)
-        while len(l) < 1 or not l[0].strip().lower() == 'time':
-            l = next(rdr)
+        li = next(rdr)
+        while len(li) < 1 or not li[0].strip().lower() == 'time':
+            li = next(rdr)
 
-        dof_names = [i.strip() for i in l[1:]]
+        dof_names = [i.strip() for i in li[1:]]
 
         times = []
         dofs = [[] for _ in dof_names]
@@ -85,7 +106,7 @@ def import_trc(filename):
 
         li = next(rdr)
         if not li[0] == li[1] or not li[0] == li[5]:
-            warnings.warn('DataRate, CameraRate or OrigDataRate do not match. Using DataRate.')
+            ws('DataRate, CameraRate or OrigDataRate do not match. Using DataRate.')
         rate = float(li[0])
         units = li[4]
 

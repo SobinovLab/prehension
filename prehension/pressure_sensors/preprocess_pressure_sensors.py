@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import reporting_pool
 import tqdm
-import tsm
+import timed_sparse_matrix as tsm
 
 from .. import meta_session
 from .. import tools
