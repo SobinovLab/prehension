@@ -1,6 +1,32 @@
-#!python3.8
-import math
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Functions for preparing to run and running inverse kinematics using OpenSim. For proper function,
+compile a fork of OpenSim: https://github.com/nishbo/opensim-core, otherwise the adaptive precision
+will not work.
+
+Needs to execute OpenSim in Python3.8
+
+TODO Check if OpenSim can run in Python3.11, or use a compiled exe file.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
+import math
 import warnings
 import xml.etree.ElementTree as ET
 
@@ -8,10 +34,10 @@ import numpy as np
 import tqdm
 from reporting_pool import ReportingPool
 
-from .. import io_tools
 from .. import meta_session
-from .. import tools
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools import opensim_io
+from ..tools.logs import rs, ws
 
 # Default accuracy of 1e-5 does not produce precise enough results for hand and finger movements.
 IK_XML_STR = '''\
@@ -288,7 +314,7 @@ def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_conver
     '''
     # import triangulated file
     # frame numbers are only to take the subset using frame_range
-    frame_numbers, triang_data = tools.import_triangulated_csv(triang_csv)
+    frame_numbers, triang_data = logs.import_triangulated_csv(triang_csv)
 
     # change into numpy arrays
     frame_numbers = np.array(frame_numbers)
@@ -354,7 +380,7 @@ def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_conver
                         for marker_name, marker_weight in marker_weights.items()))
 
     # export
-    io_tools.export_trc(trc_file, marker_names, points.tolist(), rate)
+    opensim_io.export_trc(trc_file, marker_names, points.tolist(), rate)
 
     # estimate time_range
     period = 1./rate
@@ -384,15 +410,17 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed
+            trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} --- Number of parallel processes in the pool.
         overwrite {bool} --- Overwrites the created files if they exist.
         base {bool} --- Runs inverse kinematics on the most proximal markers
             that can be used to estimate the default static thorax position.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

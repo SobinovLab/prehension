@@ -1,9 +1,36 @@
-#!python3.7
-import itertools
-import json
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Mark the position of the torso and use that to fix the body in space for inverse kinematics.
+
+Needs to execute OpenSim in Python3.8
+
+Currently depends on NCams, so will not be automatically loaded.
+
+TODO remove NCams dependency, replace with updated triangulation scripts.
+TODO allow use of Jarvis calibrations
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
+import json
 import random
 import warnings
+import itertools
 
 import cv2
 import matplotlib as mpl
@@ -11,14 +38,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
-from .. import io_tools
+import ncams
+
 from .. import meta_session
-from .. import preset
-from .. import tools
-from ..kinematics import inverse_kinematics, reconstruction
-from ..kinematics.triangulate import rotation_vector
-from ..materialsio_colors import materialsio_colors_rgb as micolors
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools import io
+from ..tools import opensim_io
+from ..tools.logs import rs, ws
+from ..tools.materialsio_colors import materialsio_colors_rgb as micolors
+from ..tools.constants import THORAX_DOF_NAMES
+
+from .ncams_3d import rotation_vector
+from . import inverse_kinematics
+
 
 MARKERS = (
     'left_clavicle_distal', 'left_clavicle_proximal',
@@ -30,9 +62,6 @@ VIDEO_MARKER_SIZE = 50
 ZOOM_VIDEO_MARKER_SIZE = 150
 DELETE_MARKER_RADIUS = 20
 VIDEO_MARKER_ALPHA = 0.5
-
-THORAX_DOF_NAMES = ('Thorax_tra1', 'Thorax_tra2', 'Thorax_tra3',
-                    'Thorax_rot1', 'Thorax_rot2', 'Thorax_rot3')
 
 
 class VideoViewInterface:
@@ -627,16 +656,16 @@ def triangulate(trial, calibration, mstruct):
         marker_data = json.load(f)
 
     # load calibration
-    ncams_config = tools.yaml_to_config(
+    ncams_config = ncams.camera_io.yaml_to_config(
         mstruct['ncams_config'], overwrite_setup_path=True)
     # check if local extrinsic config exists and if so use it
     local_extrinsic_calibration_filename = os.path.join(
         mstruct['calibration'], 'extrinsic', 'extrinsic_calib.pickle')
     if os.path.exists(local_extrinsic_calibration_filename):
-        intrinsics_config = tools.import_intrinsics(ncams_config)
-        extrinsics_config = tools.import_extrinsics(local_extrinsic_calibration_filename)
+        intrinsics_config = ncams.camera_io.import_intrinsics(ncams_config)
+        extrinsics_config = ncams.camera_io.import_extrinsics(local_extrinsic_calibration_filename)
     else:
-        intrinsics_config, extrinsics_config = tools.load_calibrations(ncams_config)
+        intrinsics_config, extrinsics_config = ncams.camera_io.load_calibrations(ncams_config)
     cameras = [str(v) for v in ncams_config['serials']]
 
     # transform into NCams format
@@ -644,7 +673,7 @@ def triangulate(trial, calibration, mstruct):
         marker_data, cameras=cameras)
 
     # apply
-    triangulated_points = reconstruction.triangulate_points(
+    triangulated_points = ncams.reconstruction.triangulate_points(
         ncams_config, intrinsics_config, extrinsics_config,
         bodyparts, 1, image_coordinates, ic_confidences,
         threshold=0.5, method='centroid', centroid_threshold=2.5)
@@ -652,11 +681,11 @@ def triangulate(trial, calibration, mstruct):
     # reflect(?) and rotate
     reflect = mstruct['hand'] == 'left'
     if reflect:
-        marker_name_dict = io_tools.dic_from_csv(
+        marker_name_dict = io.dic_from_csv(
             os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta_reflect.csv'),
             'sDlcMarker', 'sOpenSimMarker')
     else:
-        marker_name_dict = io_tools.dic_from_csv(
+        marker_name_dict = io.dic_from_csv(
             os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta.csv'),
             'sDlcMarker', 'sOpenSimMarker')
     triangulated_points = np.swapaxes(triangulated_points, 1, 2)
@@ -668,7 +697,7 @@ def triangulate(trial, calibration, mstruct):
         triangulated_points[:, :, 0] = - triangulated_points[:, :, 0]
 
     # save 3D points to file
-    io_tools.export_trc(
+    opensim_io.export_trc(
         trial.calib_base_markers_3D_filename_trc, marker_names, triangulated_points.tolist(), 50)
 
     # and generate IK file
@@ -679,17 +708,18 @@ def triangulate(trial, calibration, mstruct):
         trial.calib_base_markers_3D_filename_trc, trial.calib_base_kinematic_filename, [0, 0.02])
 
 
-def mark_base(server, sessions, temp, overwrite, skip_gui):
+def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
     """Manually label points on macaque torso to find its location once per calibration.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
         temp {str} --- Folder for local temporary storage.
         overwrite {bool} --- Overwrites the created files if they exist.
         skip_gui {bool} --- Do not launch the GUI for labeling.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
@@ -747,7 +777,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui):
 
         # check if default spec file exists
         default_base_spec_filename = os.path.join(calibration, 'base', 'default_{}.json'.format(
-            preset.CURRENT_PRESET))
+            preset['name']))
 
         # deal with 2d marker positions and default choices
         if not skip_gui:
@@ -780,9 +810,10 @@ def mark_base(server, sessions, temp, overwrite, skip_gui):
         rs('Triangulated.')
 
         # run inverse kinematics
+        eoik = os.path.join(os.path.dirname(__file__), 'execute_opensim_ik.py')
         # opensim needs to work in Python3.8
-        command = 'py execute_opensim_ik.py {} {}'.format(
-            trial.calib_base_ik_filename, trial.calib_base_ik_log_filename)
+        command = 'py {} {} {}'.format(
+            eoik, trial.calib_base_ik_filename, trial.calib_base_ik_log_filename)
         ret = os.system(command)
         # process output as error throw
         if (ret < 0):
@@ -791,7 +822,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui):
         rs('Completed inverse kinematics.')
 
         # load resulting positions
-        dof_names, _, dofs = io_tools.import_mot(
+        dof_names, _, dofs = opensim_io.import_mot(
             trial.calib_base_kinematic_filename)
         positions = {}
         for dof_name, dof in zip(dof_names, dofs):

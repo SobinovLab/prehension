@@ -1,6 +1,6 @@
 __all__ = [
     'cmd_args', 'constants', 'filesystem', 'filters', 'forces', 'io', 'logs',
-    'materialsio_colors', 'misc', 'opensim', 'plotting']
+    'materialsio_colors', 'misc', 'opensim_io', 'plotting']
 
 from . import cmd_args
 from . import constants
@@ -11,5 +11,5 @@ from . import io
 from . import logs
 from . import materialsio_colors
 from . import misc
-from . import opensim
+from . import opensim_io
 from . import plotting

@@ -1,24 +1,43 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Finds a median thorax position to fix the skeleton in place.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+import os
 import copy
 import multiprocessing
-import os
 
 import numpy as np
 import tqdm
 from reporting_pool import ReportingPool
 
-from .. import io_tools
 from .. import meta_session
-from .. import tools
-from ..kinematics import inverse_kinematics
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools import io
+from ..tools.logs import rs, ws
+from ..tools.constants import THORAX_DOF_NAMES
 
-THORAX_DOF_NAMES = ('Thorax_tra1', 'Thorax_tra2', 'Thorax_tra3',
-                    'Thorax_rot1', 'Thorax_rot2', 'Thorax_rot3')
+from . import inverse_kinematics
 
 
 def get_median_thorax_position(trial, thorax_dof_names, median_positions, i_trial):
-    dof_names, _, dofs = io_tools.import_mot(trial.base_kinematic_filename)
+    dof_names, _, dofs = io.import_mot(trial.base_kinematic_filename)
 
     for i_dof, dof_name in enumerate(thorax_dof_names):
         median_positions[i_trial][i_dof] = np.nanmedian(dofs[dof_names.index(dof_name)])
@@ -29,14 +48,16 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed
+            trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} --- Number of parallel processes in the pool.
         overwrite {bool} --- Overwrites the created files if they exist.
     """
     thorax_dof_names = THORAX_DOF_NAMES
-    tools.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

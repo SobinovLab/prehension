@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Finds events based on forces and kinematics if available and aligns them to the neural data.
+
+Copyright (C) 2023-2024 Caleb Raman, Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 
 import matplotlib.pyplot as plt
@@ -9,10 +29,10 @@ import tqdm
 from matplotlib.colors import ListedColormap
 from scipy.signal import argrelmin
 
-from .. import io_tools
 from .. import meta_session
-from .. import tools
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools import io
+from ..tools.logs import rs, ws
 
 # ============================================ Notes ============================================= #
 # Lint with: py -3.7 -m pycodestyle find_event_onsets.py --max-line-length 100 --ignore E402
@@ -128,8 +148,8 @@ TIMEPOINT_LABELS = [
     'release_start',  # release start
     'release',  # release
     'hand_retreat_time',  # hand retreated
-    'success_grasp_start', # Successful (as determined by meta ttl times)
-    'success_grasp_end', # See above
+    'success_grasp_start',  # Successful (as determined by meta ttl times)
+    'success_grasp_end',  # See above
     'regrasp_bool'  # regrasp (bool)
 
 ]
@@ -448,8 +468,8 @@ def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
 
     # Handle different start/end times
     # load time and ps data for each file
-    ps_times1, ps_matrices1 = io_tools.import_matrices(tsm1_file)
-    ps_times2, ps_matrices2 = io_tools.import_matrices(tsm2_file)
+    ps_times1, ps_matrices1 = io.import_matrices(tsm1_file)
+    ps_times2, ps_matrices2 = io.import_matrices(tsm2_file)
 
     # Get the sums at each timestep
     ps_sum1 = np.sum(ps_matrices1, axis=(1, 2))
@@ -831,7 +851,8 @@ def find_trial_timepoints(
     # W1: Check if pressure sensor data is not found
     expected_ps_files = [trial.transformed_ps_filenames[k] for k in keys]
     if np.any([not os.path.exists(k) for k in expected_ps_files]):
-        ws(f"trial {trial.trial_number}: No pressure sensor data found. Searched {expected_ps_files} Skipping.")
+        ws(f"trial {trial.trial_number}: No pressure sensor data found. Searched"
+           f" {expected_ps_files} Skipping.")
         return timepoints_d, plot_addons, None
 
     # Get the normalized summed L/R force
@@ -873,7 +894,7 @@ def find_trial_timepoints(
 
     # CR instead of taking the first force threshold crossing to be the time onset
     # Find force thresh crossings the contain the success grasp
-    meta_success_time=np.nan
+    meta_success_time = np.nan
     if 'ttl_to_success_grasp' in trial.other_info.keys():
         meta_success_time = trial.other_info['ttl_to_success_grasp']
 
@@ -949,7 +970,7 @@ def create_plot_from_dictionary(timepoints_d, trial,
     cmap = plt.get_cmap('brg')
     sub_d = {k: timepoints_d[k] for k in timepoints_d.keys() - {'trial_number', 'regrasp_bool'}}
     # Filter out any nans
-    #pdb.set_trace()
+    # pdb.set_trace()
     sub_d = {k: v for k, v in sub_d.items() if not np.isnan(v)}
     # add meta_session timepoints
     for tk, tv in trial.other_info.items():
@@ -1012,8 +1033,10 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed
+            trials.
         temp {str} --- Folder for local temporary storage.
         overwrite {bool} --- Overwrites the created files if they exist.
         processes {int} --- Number of parallel processes in the pool.
@@ -1033,7 +1056,7 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
     >>> find_event_onsets(server_directory, session_directories, temp_dir, overwrite_output,
         num_processes, create_plots)
     """
-    tools.setup_logging(temp, sessions_dir=preset['processed_server'])
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
         raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
@@ -1068,8 +1091,8 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(server_session,
-                                                                          processed_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(
+                server_session, processed_session)
         except Exception as e:
             ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
             continue
@@ -1109,7 +1132,6 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
             ]))
 
             if len(p_args) > 0:
-
                 pool = reporting_pool.ReportingPool(
                     find_trial_timepoints,
                     p_args,

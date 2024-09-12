@@ -1,14 +1,35 @@
-#!python3.7
-import copy
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Makes videos from images using ffmpegio.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
+import copy
 import shutil
 
 import tqdm
 from reporting_pool import ReportingPool
 
 from .. import meta_session
-from .. import tools
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools import filesystem
+from ..tools.logs import rs, ws
 
 
 def new_make_video(frame_filenames, filename_ou, rate):
@@ -68,14 +89,15 @@ def make_video(trial, mstruct, clean):
 
     for camera_serial in camera_serials:
         # make a video
-        frame_filenames = tools.get_image_list(path=trial.images_dirnames[camera_serial])
+        frame_filenames = filesystem.get_image_list(path=trial.images_dirnames[camera_serial])
         if len(frame_filenames) == 0:
             ws(f'Folder {trial.images_dirnames[camera_serial]} has no images.')
             continue
         # filename_ou = os.path.split(trial.videos[camera_serial])[1]
 
-        # ncams.image_tools.images_to_video(frame_filenames, filename_ou,
-        #                                   fps=mstruct['fps'], output_folder=dirname_ou, logger=None)
+        # ncams.image_tools.images_to_video(
+        #     frame_filenames, filename_ou,
+        #     fps=mstruct['fps'], output_folder=dirname_ou, logger=None)
         new_make_video(frame_filenames, trial.videos[camera_serial], mstruct['fps'])
 
         # copy log
@@ -90,14 +112,16 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed
+            trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} --- Number of parallel processes in the pool.
         overwrite {bool} --- Overwrites the created files if they exist.
         clean {bool} --- DANGER! Remove directories from the server that were converted into videos.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=server)
 
     # To enable multiple videos encoding at the same time, use
     # https://github.com/keylase/nvidia-patch/tree/master

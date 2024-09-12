@@ -37,6 +37,7 @@ dependencies = [
     'pyyaml',
     'astropy',
     'tqdm',
+    'ffmpegio',
     'pandas',  # to be dropped
     'timed_sparse_matrix',
     'reporting_pool'

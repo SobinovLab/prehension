@@ -87,6 +87,7 @@ def get_preset(name):
     '''Returns the dictionary corresponding to the requested preset.'''
     for k, v in PRESETS.items():
         if name == k or name in v['names']:
+            v['name'] = k
             return k, v
 
     raise ValueError('Preset {} not found.'.format(name))

@@ -337,7 +337,8 @@ def animate_grasp_all(mstruct, trial):
     fps = int(video.get(cv2.CAP_PROP_FPS))
     num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    ga = GraspAnimation(trial, ps_times, ps_matrices, video, video_rps, fps, num_frames, data_digits_aps)
+    ga = GraspAnimation(trial, ps_times, ps_matrices, video, video_rps, fps, num_frames,
+                        data_digits_aps)
 
     for i_frame, time in enumerate(ps_times[ps_times >= -1.8]):
         ga.display_time(time)

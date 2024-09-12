@@ -89,3 +89,27 @@ def reduce_force_matrices(matrices, reduction=np.sum):
     for matrix in matrices:
         red.append(reduction(matrix))
     return red
+
+
+def nanmedianfilt(input_vector, kernel_width):
+    '''Median filter that ignores nan values'''
+    if kernel_width % 2 == 0:
+        kernel_width = kernel_width + 1
+
+    kernel_offset = int((kernel_width-1)/2)
+
+    output_vector = np.empty(input_vector.shape)
+    output_vector.fill(np.nan)
+
+    init_idx = int(np.ceil(kernel_width/2))
+    term_idx = int(len(input_vector) - np.ceil(kernel_width/2))
+
+    output_vector[:init_idx] = input_vector[:init_idx]
+    output_vector[term_idx:] = input_vector[term_idx:]
+    for idx in np.arange(init_idx, term_idx):
+        vals_to_filt = input_vector[idx-kernel_offset:idx+kernel_offset+1]
+        num_nans = sum(np.isnan(vals_to_filt))
+        if num_nans < kernel_offset:
+            output_vector[idx] = np.nanmedian(vals_to_filt)
+
+    return output_vector

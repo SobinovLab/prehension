@@ -1,4 +1,24 @@
-#!python3.11
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Runs a trained Jarvis network on a dataset. Tested on Python 3.11.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import copy
 import csv
 import glob
@@ -20,10 +40,13 @@ from jarvis.utils.paramClasses import Predict3DParams
 from jarvis.utils.reprojection import ReprojectionTool
 from jarvis.utils.skeleton import get_skeleton
 
-from .. import io_tools
 from .. import meta_session
-from ..kinematics import inverse_kinematics, reconstruction
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools import io
+from ..tools import filters
+from ..tools.logs import rs, ws
+
+from . import inverse_kinematics
 
 
 def get_calibrations(mstruct):
@@ -118,7 +141,7 @@ def my_predict3D(params, proj_cfg, trial, reproTool, processes):
 
 def ncams_filter_3D(x, filt_width=5):
     gauss_filt = Gaussian1DKernel(stddev=filt_width/10)
-    x = reconstruction.nanmedianfilt(x, filt_width)
+    x = filters.nanmedianfilt(x, filt_width)
     x = convolve(x, gauss_filt, boundary='extend', nan_treatment='interpolate')
     return x
 
@@ -250,16 +273,18 @@ def my_create_videos3D(params, proj_cfg, trial, reproTool, processes):
         cap.release()
 
 
-def predict_points_jarvis(server, processed_server, sessions, temp, trials_sel, jarvis_proj, threshold, overwrite,
-         processes, predict, transform, make_videos):
+def predict_points_jarvis(server, processed_server, sessions, temp, trials_sel, jarvis_proj,
+                          threshold, overwrite, processes, predict, transform, make_videos):
     """Runs a trained Jarvis model on videos generating 3D points and IK files.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
         processed_server {str} --- Folder where the processed data from sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
         temp {str} --- Folder for local temporary storage.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed
+            trials.
         jarvis_proj {str} --- Jarvis project to use.
         threshold {float} --- Threshold for likelihood of 3D points to be used.
         overwrite {bool} --- Overwrites the created files if they exist.
@@ -323,12 +348,12 @@ def predict_points_jarvis(server, processed_server, sessions, temp, trials_sel, 
         # right or left handed
         reflect = mstruct['hand'] == 'left'
         if reflect:
-            marker_name_dict = io_tools.dic_from_csv(
+            marker_name_dict = io.dic_from_csv(
                 os.path.join(os.path.split(mstruct['opensim_model'])[0],
                              'marker_meta_reflect.csv'),
                 'sDlcMarker', 'sOpenSimMarker')
         else:
-            marker_name_dict = io_tools.dic_from_csv(
+            marker_name_dict = io.dic_from_csv(
                 os.path.join(os.path.split(mstruct['opensim_model'])[0],
                              'marker_meta.csv'),
                 'sDlcMarker', 'sOpenSimMarker')
