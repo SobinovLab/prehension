@@ -1,54 +1,47 @@
-#!python3.11
-import cv2
-import numpy as np
-import tqdm
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Example of how to crop a video using tools.video.
 
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
 
-def transform(ivp, ovp, frame_start, frame_end):
-    # open reading file and get params
-    cap = cv2.VideoCapture(ivp)
-    img_size = [
-        int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-        int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))]
-    frame_rate = cap.get(cv2.CAP_PROP_FPS)
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    # where start
-    cap.set(1, frame_start)
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    # open video for writing
-    out = cv2.VideoWriter(
-        ovp, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
-        frame_rate, (img_size[0], img_size[1]))
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 
-    number_frames = frame_end - frame_start + 1
-
-    for frame_num in tqdm.tqdm(range(number_frames)):
-        ret, img = cap.read()
-        img = img.astype(np.uint8)
-        out.write(img)
-    out.release()
-    cap.release()
+from prehension.tools import video
 
 
 def main():
     in_video_paths = (
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam001\trial0\cam001.avi",
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam002\trial0\cam002.avi",
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam003\trial0\cam003.avi",
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam004\trial0\cam004.avi",
+        r"cameras\cam001\trial0\cam001.avi",
+        r"cameras\cam002\trial0\cam002.avi",
+        r"cameras\cam003\trial0\cam003.avi",
+        r"cameras\cam004\trial0\cam004.avi",
     )
     ou_video_paths = (
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam001\trial1\cam001.avi",
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam002\trial1\cam002.avi",
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam003\trial1\cam003.avi",
-        r"S:\ProjectFolders\Prehension\Data\Tot_Miller\sessions\2024_01_19\cameras\cam004\trial1\cam004.avi",
+        r"cameras\cam001\trial1\cam001.avi",
+        r"cameras\cam002\trial1\cam002.avi",
+        r"cameras\cam003\trial1\cam003.avi",
+        r"cameras\cam004\trial1\cam004.avi",
     )
 
     frame_start = 290
     frame_end = 580
 
     for ivp, ovp in zip(in_video_paths, ou_video_paths):
-        transform(ivp, ovp, frame_start, frame_end)
+        video.crop_video(ivp, ovp, frame_start, frame_end)
 
 
 if __name__ == '__main__':

@@ -23,6 +23,8 @@ import os
 import copy
 import shutil
 
+import numpy as np
+import cv2
 import tqdm
 from reporting_pool import ReportingPool
 
@@ -77,7 +79,6 @@ def new_make_video(frame_filenames, filename_ou, rate):
                 'maxrate': '80000k',
             }
         )
-
 
 
 def make_video(trial, mstruct, clean):
@@ -209,3 +210,29 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
         ws('Failed trials across sessions:')
         for failed_trial_report in failed_trial_reports:
             ws('\t{}'.format(failed_trial_report))
+
+
+def crop_video(ivp, ovp, frame_start, frame_end):
+    # open reading file and get params
+    cap = cv2.VideoCapture(ivp)
+    img_size = [
+        int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+        int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))]
+    frame_rate = cap.get(cv2.CAP_PROP_FPS)
+
+    # where start
+    cap.set(1, frame_start)
+
+    # open video for writing
+    out = cv2.VideoWriter(
+        ovp, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
+        frame_rate, (img_size[0], img_size[1]))
+
+    number_frames = frame_end - frame_start + 1
+
+    for frame_num in tqdm.tqdm(range(number_frames)):
+        ret, img = cap.read()
+        img = img.astype(np.uint8)
+        out.write(img)
+    out.release()
+    cap.release()

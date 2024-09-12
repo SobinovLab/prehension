@@ -29,7 +29,6 @@ from . import meta_session
 from .tools import logs
 from .tools.logs import rs, ws
 from .tools import filesystem
-from . import tools
 
 # We want to upload the following dirs and folders
 GENERAL_DIRS = (

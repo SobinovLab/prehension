@@ -1,5 +1,26 @@
-#!python3.7
+#!python
+# -*- coding: utf-8 -*-
+"""
+Uploading data to a shared directory.
 
+TODO: move back to SIK
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import datetime
 import inspect
 import os
@@ -9,9 +30,9 @@ import time
 
 import tqdm
 
-from prehension import tools
+from prehension.tools import filesystem
 
-# Not sure we need this, leave for now tho ...
+# Not sure we need this, leave for now though ...
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
@@ -54,15 +75,15 @@ def transfer_one(transfer_name, src, dst, dry_run, verbose_level,
             def ignore(src, names):
                 return add_ignore_list
 
-    pcas = tools.PrintCopyAccumulateSize(dry_run, verbose_level - 1)
+    pcas = filesystem.PrintCopyAccumulateSize(dry_run, verbose_level - 1)
     make_dir = not dry_run
 
     if overwrite_with_new:
-        overwrite_existing = tools.overwrite_existing_new
+        overwrite_existing = filesystem.overwrite_existing_new
     else:
-        overwrite_existing = tools.overwrite_existing_never
+        overwrite_existing = filesystem.overwrite_existing_never
 
-    tools.copytree(
+    filesystem.copytree(
         src, dst,
         symlinks=True,
         ignore=ignore, copy_function=pcas,
@@ -79,9 +100,6 @@ def transfer_one(transfer_name, src, dst, dry_run, verbose_level,
 
 
 def main():
-    # src_base = os.path.join(r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data')
-    # dst_base = os.path.join('E:\\', 'StereognosisBackup')
-    # dst_base = os.path.join(r'S:\\', 'ProjectFolders', 'Prehension')
 
     src_base = os.path.join(r'\\midwaysmb.rcc.uchicago.edu', 'project2', 'nicho', 'pitt_collab',
                             'BCI02', 'BlackrockData')
@@ -92,23 +110,6 @@ def main():
     overwrite_with_new = False
 
     transfers = {
-        # 'mojito': {
-        #     'src': 'Spring_2021',
-        #     'dst': 'MojitoRightHand',
-        # },
-        # 'pimms': {
-        #     'src': 'Pimms',
-        #     'dst': 'Pimms',
-        #     'ignore': ['RightHem_AllDays_OldFormat', 'cameras_incomplete']
-        # },
-        # 'mojito_lh': {
-        #     'src': 'Mojito',
-        #     'dst': 'MojitoLeftHand',
-        # }
-        # 'mojito_right_hemisphere': {
-        #     'src': os.path.join('Mojito', 'RightHem_Recordings'),
-        #     'dst': os.path.join('MojitoRightHemisphere', 'sessions')
-        # },
         # 'test_bci': {
         #     'src': os.path.join('Baseline'),
         #     'dst': os.path.join('BaselineRecordings')
@@ -154,12 +155,12 @@ def main_bci():
     crs07_sessions = [68, 69, 73, 74, 74, 86, 87, 89, 92]
     crs07_locations = ['Lab', 'Lab', 'Home', 'Home', 'Lab', 'Home', 'Home', 'Home', 'Home']
 
-    pcas = tools.PrintCopyAccumulateSize(dry_run, verbose_level - 1)
+    pcas = filesystem.PrintCopyAccumulateSize(dry_run, verbose_level - 1)
     make_dir = not dry_run
     if overwrite_with_new:
-        overwrite_existing = tools.overwrite_existing_new
+        overwrite_existing = filesystem.overwrite_existing_new
     else:
-        overwrite_existing = tools.overwrite_existing_never
+        overwrite_existing = filesystem.overwrite_existing_never
 
     subjects = ['CRS02b'] * len(crs02b_sessions) + ['CRS07'] * len(crs07_sessions)
     sessions = crs02b_sessions + crs07_sessions
@@ -168,7 +169,7 @@ def main_bci():
     for subject, session, location in zip(tqdm.tqdm(subjects), sessions, locations):
         src = subject_filname_pitt(subject, location, session)
         dst = subject_filname_chicago(subject, location, session)
-        tools.copytree(
+        filesystem.copytree(
             src, dst,
             symlinks=True,
             ignore=ignore_nothing, copy_function=pcas,
