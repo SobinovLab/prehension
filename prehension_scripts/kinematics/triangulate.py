@@ -1,11 +1,32 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Uses NCams to triangulate 2D points into 3D marker positions.
+
+Copyright (C) 2019-2024 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import argparse
 import datetime
 import time
 
 from prehension import preset
-from prehension import tools
+from prehension.tools import cmd_args
 from prehension.kinematics.triangulate import run_triangulate
+from prehension.tools.logs import rs
 
 
 if __name__ == '__main__':
@@ -14,9 +35,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=('Triangulates marker positions from 2D to 3D and creates inverse kinematics '
                      'files.'))
-    tools.add_default_kwarguments(
+    cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
-    tools.add_default_arguments(
+    cmd_args.add_default_arguments(
         parser, ('sessions', 'trials', 'temp', 'processes', 'overwrite'))
 
     parser.add_argument(
@@ -36,5 +57,5 @@ if __name__ == '__main__':
         args.server, args.sessions, args.trials, args.temp, args.processes,
         args.overwrite, args.threshold, args.do_triangulate)
 
-    print('Program took {}.'.format(
+    rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

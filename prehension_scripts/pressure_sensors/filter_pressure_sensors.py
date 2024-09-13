@@ -1,9 +1,9 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Uploading data for sharing, defaults to Box.
+Filters pressure sensors, removing electrical and other noise.
 
-Copyright (C) 2019-2024 Anton Sobinov
+Copyright (C) 2023-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension
 
 This program is free software: you can redistribute it and/or modify
@@ -21,12 +21,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import argparse
 import datetime
-import os
 import time
+
+import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.upload_data import upload_data
+from prehension.pressure_sensors.filter_pressure_sensors import filter_pressure_sensors
 from prehension.tools.logs import rs
 
 
@@ -34,27 +35,21 @@ if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
     parser = argparse.ArgumentParser(
-        description=('Uploads the data from local server to server accessible to collaborators.'))
+        description=('Filters and denoise pressure sensor data. If transformed CSVs exist, they'
+                     ' will be used to generate TSM files and deleted.'))
     cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
     cmd_args.add_default_arguments(
-        parser, ('sessions', 'temp', 'overwrite'))
-
-    default_target_dir = os.path.join(os.environ['USERPROFILE'], 'Box', 'PrehensionProject')
-    parser.add_argument(
-        '--target_dir',
-        type=str, default=default_target_dir,
-        help='Where to upload the data. Default: {}'.format(default_target_dir))
-
-    parser.add_argument(
-        '--dry_run',
-        action='store_true',
-        help='Do not copy the data, only print out the files to be copied.')
+        parser, ('sessions', 'trials', 'temp', 'processes', 'overwrite', 'make_plots'))
 
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    upload_data(args.server, args.sessions, args.temp, args.target_dir, args.dry_run,
-                args.overwrite)
+    filter_pressure_sensors(
+        args.server, args.sessions, args.trials, args.temp, args.processes,
+        args.overwrite, args.make_plots, current_preset)
+
     rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))
+
+    plt.show()

@@ -26,6 +26,7 @@ import time
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.visualization.animate_grasp import animate_grasp
+from prehension.tools.logs import rs
 
 
 if __name__ == '__main__':
@@ -43,5 +44,5 @@ if __name__ == '__main__':
 
     start_time = time.time()
     animate_grasp(args.server, args.session, args.trial)
-    print('Program took {}.'.format(
+    rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

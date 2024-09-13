@@ -1,7 +1,7 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Uploading data for sharing, defaults to Box.
+Finds a median thorax position in a session.
 
 Copyright (C) 2019-2024 Anton Sobinov
 https://github.com/BensmaiaLab/prehension
@@ -21,12 +21,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import argparse
 import datetime
-import os
 import time
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.upload_data import upload_data
+from prehension.kinematics.find_static_thorax_position import find_static_thorax_position
 from prehension.tools.logs import rs
 
 
@@ -34,27 +33,18 @@ if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
     parser = argparse.ArgumentParser(
-        description=('Uploads the data from local server to server accessible to collaborators.'))
+        description=('Calculates and saves median base body position (thorax) in the'
+                     ' OpenSim model.'))
     cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
     cmd_args.add_default_arguments(
-        parser, ('sessions', 'temp', 'overwrite'))
-
-    default_target_dir = os.path.join(os.environ['USERPROFILE'], 'Box', 'PrehensionProject')
-    parser.add_argument(
-        '--target_dir',
-        type=str, default=default_target_dir,
-        help='Where to upload the data. Default: {}'.format(default_target_dir))
-
-    parser.add_argument(
-        '--dry_run',
-        action='store_true',
-        help='Do not copy the data, only print out the files to be copied.')
+        parser, ('sessions', 'trials', 'temp', 'processes', 'overwrite'))
 
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    upload_data(args.server, args.sessions, args.temp, args.target_dir, args.dry_run,
-                args.overwrite)
+    find_static_thorax_position(args.server, args.sessions, args.trials, args.temp, args.processes,
+                                args.overwrite)
+
     rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

@@ -1,4 +1,4 @@
 __all__ = [
-    'find_event_onsets', ]
+    'predict_points_jarvis', ]
 
-from . import find_event_onsets
+from . import predict_points_jarvis

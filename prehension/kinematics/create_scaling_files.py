@@ -31,9 +31,9 @@ import scipy.signal
 from .. import io_tools
 from .. import meta_session
 from .. import tools
-from ..kinematics import inverse_kinematics
-from ..materialsio_colors import materialsio_colors as micolors
-from ..tools import rs, ws
+from . import inverse_kinematics
+from ..tools.materialsio_colors import materialsio_colors as micolors
+from ..tools.logs import rs, ws
 
 SEGMENT_BODY_GROUPS = {
     'chest': ('Thorax', 'RA_clavicle', 'RA_clavphant', 'RA_scapula', 'RA_scapphant'),

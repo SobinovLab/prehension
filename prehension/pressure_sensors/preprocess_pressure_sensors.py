@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Creates IK and Scaling files for OpenSim based on a period of trial.
+
+Copyright (C) 2023-2024 Caleb Raman
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import ctypes
 import inspect
 import os
@@ -12,14 +32,13 @@ import tqdm
 import timed_sparse_matrix as tsm
 
 from .. import meta_session
-from .. import tools
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools.logs import rs, ws
 
 currentdir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
 
-dll_dir = os.path.join(parentdir, 'TekDLL')
+dll_dir = os.path.join(currentdir, 'TekDLL')
 sys.path.append(dll_dir)
 clr.AddReference("TekAPI64")
 from TekAPI import CTekAPI
@@ -111,14 +130,16 @@ def preprocess_pressure_sensors(server, sessions, trials_sel, temp, overwrite, p
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all
+            unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         overwrite {bool} --- Overwrites the created files if they exist.
         processes {int} --- Number of parallel processes in the pool.
         preset {dict} --- Preset dictionary.
     """
-    tools.setup_logging(temp, sessions_dir=preset['processed_server'])
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
@@ -149,7 +170,8 @@ def preprocess_pressure_sensors(server, sessions, trials_sel, temp, overwrite, p
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(raw_server_session, proc_server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(
+                raw_server_session, proc_server_session)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))

@@ -3,7 +3,7 @@
 """
 Untested.
 
-Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman, Rashi Bhatt
+Copyright (C) 2024 Caleb Raman, Rashi Bhatt
 https://github.com/BensmaiaLab/prehension
 
 This program is free software: you can redistribute it and/or modify

@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Creates IK and Scaling files for OpenSim based on a period of trial.
+
+Copyright (C) 2023-2024 Anton Sobinov, Caleb Raman
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 
 import matplotlib.pyplot as plt
@@ -8,10 +28,10 @@ import scipy.ndimage
 import tqdm
 from reporting_pool import ReportingPool
 
-from .. import io_tools
+from ..tools import io
 from .. import meta_session
-from .. import tools
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools.logs import rs, ws
 
 
 # to be run in parallel
@@ -20,9 +40,9 @@ def transform_trial(trial, make_plots):
     for ps_name in trial.transformed_ps_filenames.keys():
         if not os.path.exists(trial.transformed_ps_filenames[ps_name]):
             # will break if the CSV does not exist - then run a MATLAB fsx->tsm program
-            times, matrices = io_tools.import_csv_matrix_low(
+            times, matrices = io.import_csv_matrix_low(
                 trial.transformed_ps_csv_filenames[ps_name])
-            io_tools.export_tsm_matrix(
+            io.export_tsm_matrix(
                 trial.transformed_ps_filenames[ps_name], times, matrices, type='stamps')
 
     # remove the CSV if it exists
@@ -34,7 +54,7 @@ def transform_trial(trial, make_plots):
 
     # filter the pressure sensor data
     for ps_name in trial.transformed_ps_filenames.keys():
-        times, matrices = io_tools.import_matrices(trial.transformed_ps_filenames[ps_name])
+        times, matrices = io.import_matrices(trial.transformed_ps_filenames[ps_name])
 
         force_summed = np.sum(matrices, axis=(1, 2))
         force_summed_thr = np.max(force_summed) * 0.05
@@ -59,7 +79,7 @@ def transform_trial(trial, make_plots):
                     matrices[:, irow, icol], size=3, mode='constant', cval=0.)
 
         # export
-        io_tools.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices,
+        io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices,
                                    type='stamps')
 
     # testing plot
@@ -67,9 +87,9 @@ def transform_trial(trial, make_plots):
         fig, axs = plt.subplots(len(trial.transformed_ps_filenames.keys()), figsize=(16, 9))
         axs = axs.flatten()
         for ps_name, axs in zip(trial.transformed_ps_filenames.keys(), axs):
-            times, matrices = io_tools.import_matrices(trial.transformed_ps_filenames[ps_name])
+            times, matrices = io.import_matrices(trial.transformed_ps_filenames[ps_name])
             axs.plot(times, np.sum(matrices, axis=(1, 2)), 'k')
-            times, matrices = io_tools.import_matrices(trial.filtered_ps_filenames[ps_name])
+            times, matrices = io.import_matrices(trial.filtered_ps_filenames[ps_name])
             axs.plot(times, np.sum(matrices, axis=(1, 2)), 'r--')
             axs.set_xlabel('Time, s')
             axs.set_ylabel('Force, N')
@@ -77,7 +97,8 @@ def transform_trial(trial, make_plots):
         fig.set_suptitle('Trial {}'.format(trial.trial_number))
 
 
-def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overwrite, make_plots, preset):
+def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overwrite, make_plots,
+                            preset):
     """Compare manually-labeled to the automatically-labeled forces using sensor masks.
 
     Arguments:
@@ -90,7 +111,7 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
         make_plots {bool} --- Makes some inspection figures.
         preset {dict} --- Preset dictionary.
     """
-    tools.setup_logging(temp, sessions_dir=preset['processed_server'])
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
@@ -120,8 +141,8 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(server_session,
-                                                                                  processed_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(
+                server_session, processed_session)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
