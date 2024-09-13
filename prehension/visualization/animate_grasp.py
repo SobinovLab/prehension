@@ -26,13 +26,13 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .tools.constants import LPS_NAME, RPS_NAME, DIGITS, UNCLAIMED_INDEX
-from .tools import io
-from .tools import forces
-from .tools import misc
-from .tools.materialsio_colors import materialsio_colors_rgb as micolors
+from ..tools.constants import LPS_NAME, RPS_NAME, DIGITS, UNCLAIMED_INDEX
+from ..tools import io
+from ..tools import forces
+from ..tools import misc
+from ..tools.materialsio_colors import materialsio_colors_rgb as micolors
 
-from . import meta_session
+from .. import meta_session
 
 
 # TODO use DIGITS

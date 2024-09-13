@@ -26,11 +26,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-from .tools.constants import RPS_NAME
-from .tools import misc
-from .tools import io
+from ..tools.constants import RPS_NAME
+from ..tools import misc
+from ..tools import io
 
-from . import meta_session
+from .. import meta_session
 
 
 # TODO move to tools or pressure_sensors

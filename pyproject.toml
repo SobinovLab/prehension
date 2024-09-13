@@ -40,7 +40,8 @@ dependencies = [
     'ffmpegio',
     'pandas',  # to be dropped
     'timed_sparse_matrix',
-    'reporting_pool'
+    'reporting_pool',
+    'pythonnet'
 ]
 
 [tool.setuptools]
