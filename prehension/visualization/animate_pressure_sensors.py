@@ -33,6 +33,7 @@ from .tools import io
 from . import meta_session
 
 
+# TODO move to tools or pressure_sensors
 class PSDisplayer:
     def __init__(self, ax, ps_times, ps_matrices):
         self.ax = ax

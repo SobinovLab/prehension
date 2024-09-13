@@ -28,9 +28,10 @@ import scipy
 import scipy.ndimage
 import scipy.signal
 
-from .. import io_tools
 from .. import meta_session
-from .. import tools
+from ..tools import logs
+from ..tools import io
+from ..tools import opensim_io
 from . import inverse_kinematics
 from ..tools.materialsio_colors import materialsio_colors as micolors
 from ..tools.logs import rs, ws
