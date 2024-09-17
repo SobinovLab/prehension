@@ -19,6 +19,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import os
 import sys
 import uuid
@@ -53,7 +54,7 @@ def setup_logging(temp, sessions_dir=None):
     start_time = datetime.datetime.now()
     timestamp_long = start_time.strftime('%Y.%m.%d-%H:%M:%S')
     logging_filename = os.path.join(temp, f'{timestamp}_{exec_fname}_{random_hash}.log')
-    logging.basicConfig(filename=logging_filename, level=logging.INFO)
+    logging.basicConfig(filename=logging_filename, level=logging.INFO, force=True)
     logging.info('')
 
     # Define the cleanup action as upload to sessions_log dir
@@ -81,4 +82,5 @@ def rs(s):
 
 def ws(s):
     warnings.warn(s, stacklevel=2)
+    print(s)
     logging.warning(s)

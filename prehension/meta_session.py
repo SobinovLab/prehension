@@ -114,18 +114,20 @@ def get_default_meta_structure():
 
 
 # meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
-def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='behavior'):
+def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
     '''If the meta structure dictionary has empty auto_log and manual_log, script searches for them.
     Replacement is done in place.
 
     Also fills mujoco and opensim models, and identifies cameras
     '''
 
+    raw_ss = os.path.normpath(raw_ss)
+
     # Search auto log
     if len(mstruct['auto_log']) == 0:
         # search automatically
         auto_log = glob.glob(os.path.join(
-            raw_dir, log_rel_dir, 'session_*.csv'))
+            raw_ss, log_rel_dir, 'session_*.csv'))
         if len(auto_log) > 1:
             # sort them
             def order(v):
@@ -137,7 +139,7 @@ def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='b
 
             warnings.warn('Several session log filenames found: {}'.format(auto_log))
         elif len(auto_log) == 0:
-            raise ValueError('Could not find auto log session filenames in {}.'.format(raw_dir))
+            raise ValueError('Could not find auto log session filenames in {}.'.format(raw_ss))
 
         mstruct['auto_log'] = auto_log  ### SWITCH TO FULL PATH
 
@@ -145,10 +147,10 @@ def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='b
     if len(mstruct['manual_log']) == 0:
         # search automatically
         manual_log = glob.glob(os.path.join(
-            raw_dir, log_rel_dir, '*Daily experiment log - trials*.csv'))
+            raw_ss, log_rel_dir, '*Daily experiment log - trials*.csv'))
         if len(manual_log) == 0:
             manual_log = glob.glob(os.path.join(
-                raw_dir, log_rel_dir, 'Manual_*.csv'))
+                raw_ss, log_rel_dir, 'Manual_*.csv'))
         if len(manual_log) > 1:
             warnings.warn(
                 'Too many manual session log filenames found: {}. Using first one.'.format(
@@ -165,25 +167,25 @@ def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='b
         mstruct['mujoco_model'][:-4], session)
 
     # identify cameras
-    if os.path.exists(os.path.join(raw_dir, mstruct['videos_dir'])):
+    if os.path.exists(os.path.join(raw_ss, mstruct['videos_dir'])):
         # TODO suboptimal
-        _cameras = glob.glob(os.path.join(raw_dir, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
+        _cameras = glob.glob(os.path.join(raw_ss, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
             try:
                 serial = int(camera[3:-4])
-            except Exception as e:
+            except Exception:
                 continue
             _cameras_dict[serial] = camera[:-4]
     else:
-        _cameras = glob.glob(os.path.join(raw_dir, mstruct['images_dir'], 'cam*'))
+        _cameras = glob.glob(os.path.join(raw_ss, mstruct['images_dir'], 'cam*'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
             try:
                 serial = int(camera[3:])
-            except Exception as e:
+            except Exception:
                 continue
             _cameras_dict[serial] = camera
     mstruct['cameras'] = _cameras_dict
@@ -196,6 +198,10 @@ def normjoinpath(dirname, p):
 
 
 def import_meta_structure(raw_dir, proc_dir):
+
+    raw_dir = os.path.normpath(raw_dir)
+    proc_dir = os.path.normpath(proc_dir)
+
     filename = os.path.join(proc_dir, 'meta_structure.json')
     with open(filename, 'r') as f:
         mstruct = json.load(f)
@@ -223,6 +229,7 @@ def import_meta_structure(raw_dir, proc_dir):
 
     def add_key(ptr, d):
         if ptr not in mstruct.keys():
+            print(f'ptr {ptr} not in mstruct @ {f}, not adding key')
             return
         # in case one has multiple elements
         if isinstance(mstruct[ptr], (list, tuple)):

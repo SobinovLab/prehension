@@ -344,16 +344,19 @@ def find_ncams_config(session, calibrations_dir):
     return f
 
 
-def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
+def create_session_meta(preset, session, overwrite, export_roms):
     # handle meta structure
     # Create output directory if it doesn't exist already
-    processed_dir = os.path.join(preset['processed_server'], session)
-    os.makedirs(processed_dir, exist_ok=True)
+    processed_ss = os.path.join(preset['processed_server'], session)
+    os.makedirs(processed_ss, exist_ok=True)
 
-    if overwrite or not os.path.exists(os.path.join(processed_dir, 'meta_structure.json')):
+    raw_ss = os.path.join(preset['default_server'], session)
+    assert os.path.exists(raw_ss), 'server session {} does not exist on the server.'.format(raw_ss)
+
+    if overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_structure.json')):
         mstruct_rel = meta_session.get_default_meta_structure()
 
-        meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
+        meta_session.fill_meta_structure(mstruct_rel, raw_ss, session)
         mstruct_rel['ncams_config'] = find_ncams_config(session, CALIBRATIONS_DIR)
         mstruct_rel['hand'] = preset['hand']
         mstruct_rel['ps_dic'] = preset['ps_dic']
@@ -362,21 +365,21 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
         if preset['straight_to_video']:
             mstruct_rel['videos_dir'] = mstruct_rel['images_dir']
 
-        export_meta_structure(processed_dir, mstruct_rel)
+        export_meta_structure(processed_ss, mstruct_rel)
         rs('Exported meta structure.')
     else:
         rs('Meta structure already exists. Loading...')
     # this one will have resolved paths
-    mstruct = meta_session.import_meta_structure(raw_dir, processed_dir)
+    mstruct = meta_session.import_meta_structure(raw_ss, processed_ss)
 
     if len(mstruct['auto_log']) == 0:
         raise ValueError('Session {} does not have an auto log.'.format(session))
 
     # generate meta session
-    if (overwrite or not os.path.exists(os.path.join(processed_dir, 'meta_session.csv')) or
-            not os.path.exists(os.path.join(processed_dir, 'meta_object.csv'))):
+    if (overwrite or not os.path.exists(os.path.join(preset['processed_server'], 'meta_session.csv')) or
+            not os.path.exists(os.path.join(preset['processed_server'], 'meta_object.csv'))):
         (sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
-         ) = import_logs(raw_dir, mstruct)
+         ) = import_logs(preset['default_server'], mstruct)
 
         # take subset of data that exists in all logs
         # now all data structure rows refer to the same trials in the same order
@@ -442,7 +445,7 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
             sy_column_names, sy_data, preset['object_def_columns'])
 
         # export the meta object information
-        meta_object_filename = os.path.join(processed_dir, 'meta_object.csv')
+        meta_object_filename = os.path.join(preset['processed_server'], 'meta_object.csv')
         column_names = ['id'] + list(object_def_columns)
         u_objects_t = list(zip(*u_objects))
         values = [list(range(len(u_objects)))] + u_objects_t
@@ -451,7 +454,7 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
         rs('Exported session meta object information to {}'.format(meta_object_filename))
 
         # export the meta session
-        meta_session_filename = os.path.join(processed_dir, 'meta_session.csv')
+        meta_session_filename = os.path.join(preset['processed_server'], 'meta_session.csv')
         column_names = [
             'trial_number', 'success', 'object_id', 'sync_period_length',
             'ttl_to_obj_end_pos', 'ttl_to_cue',
@@ -465,34 +468,28 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
         io.export_csv(meta_session_filename, column_names, values)
         rs('Exported session meta information to {}'.format(meta_session_filename))
 
-    meta_dof_filename = os.path.join(processed_dir, 'meta_dof.csv')
+    meta_dof_filename = os.path.join(preset['processed_server'], 'meta_dof.csv')
     if export_roms and (overwrite or not os.path.exists(meta_dof_filename)):
         export_roms_from_osim(ORIGINAL_OPENSIM_MODEL, meta_dof_filename)
         rs('Exported session meta DOF information from {} to {}'.format(
             ORIGINAL_OPENSIM_MODEL, meta_dof_filename))
 
 
-def create_meta(server, sessions, temp, overwrite, export_roms, preset):
-    """Creates meta information for a session.
+def create_meta(current_preset, sessions, temp, overwrite, export_roms):
 
-    Arguments:
-        server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        temp {str} --- Folder for local temporary storage.
-        overwrite {bool} --- Overwrites the created files if they exist.
-        export_roms {bool} --- Exports range of motion data from OpenSim model into a convenient CSV meta file.
-            If this flag is provided, meta_dof is not created.
-        preset {dict} --- Preset dictionary.
-    """
-    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
-    if not os.path.exists(server):
+    import pdb;pdb.set_trace()
+
+    rserv = current_preset['default_server']
+    pserv = current_preset['processed_server']
+    logs.setup_logging(temp, sessions_dir=pserv)
+
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
-
+        sessions = meta_session.find_session_dirs(rserv)
 
     # sort
     sessions.sort()
@@ -503,15 +500,26 @@ def create_meta(server, sessions, temp, overwrite, export_roms, preset):
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
 
-        if not os.path.exists(server_session):
-            ws('Session {} does not exist on the server.'.format(session))
+        r_server_session = os.path.join(rserv, session)
+        p_server_session = os.path.join(pserv, session)
+
+        if not os.path.exists(r_server_session):
+            ws('Session {} does not exist on the server.'.format(r_server_session))
+            continue
+
+        if not os.path.exists(p_server_session):
+            ws('Session {} does not exist on the server.'.format(p_server_session))
             continue
 
         try:
-            create_session_meta(session, server_session, overwrite, export_roms, preset)
-        except Exception as e:
+            create_session_meta(
+                current_preset,
+                session,
+                overwrite,
+                export_roms
+            )
+        except Exception:
             print()
             ws('Meta creation for session {} failed.'.format(session))
             _, exc_value, exc_traceback = sys.exc_info()

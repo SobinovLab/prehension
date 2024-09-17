@@ -19,13 +19,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import argparse
 import datetime
 import time
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.create_meta import create_meta
+from prehension.pressure_sensors import filter_pressure_sensors as fps
 
 
 if __name__ == '__main__':
@@ -35,9 +36,10 @@ if __name__ == '__main__':
         description=('Creates meta information for a session.'))
     cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
-    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite'))
+    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
 
     # custom
+    parser.add_argument('--make_plots', action='store_true')
     parser.add_argument(
         '--dont_export_roms',
         dest='export_roms',
@@ -48,14 +50,15 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
     start_time = time.time()
 
-    import pdb; pdb.set_trace()
-
-    create_meta(
-        current_preset,
+    fps.filter_pressure_sensors(
+        args.server,
         args.sessions,
+        args.trials,
         args.temp,
+        args.processes,
         args.overwrite,
-        args.export_roms
+        args.make_plots,
+        preset
     )
 
     print('Program took {}.'.format(
