@@ -376,10 +376,10 @@ def create_session_meta(preset, session, overwrite, export_roms):
         raise ValueError('Session {} does not have an auto log.'.format(session))
 
     # generate meta session
-    if (overwrite or not os.path.exists(os.path.join(preset['processed_server'], 'meta_session.csv')) or
-            not os.path.exists(os.path.join(preset['processed_server'], 'meta_object.csv'))):
+    if (overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_session.csv')) or
+            not os.path.exists(os.path.join(processed_ss, 'meta_object.csv'))):
         (sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
-         ) = import_logs(preset['default_server'], mstruct)
+         ) = import_logs(raw_ss, mstruct)
 
         # take subset of data that exists in all logs
         # now all data structure rows refer to the same trials in the same order
@@ -445,7 +445,7 @@ def create_session_meta(preset, session, overwrite, export_roms):
             sy_column_names, sy_data, preset['object_def_columns'])
 
         # export the meta object information
-        meta_object_filename = os.path.join(preset['processed_server'], 'meta_object.csv')
+        meta_object_filename = os.path.join(processed_ss, 'meta_object.csv')
         column_names = ['id'] + list(object_def_columns)
         u_objects_t = list(zip(*u_objects))
         values = [list(range(len(u_objects)))] + u_objects_t
@@ -454,7 +454,7 @@ def create_session_meta(preset, session, overwrite, export_roms):
         rs('Exported session meta object information to {}'.format(meta_object_filename))
 
         # export the meta session
-        meta_session_filename = os.path.join(preset['processed_server'], 'meta_session.csv')
+        meta_session_filename = os.path.join(processed_ss, 'meta_session.csv')
         column_names = [
             'trial_number', 'success', 'object_id', 'sync_period_length',
             'ttl_to_obj_end_pos', 'ttl_to_cue',
@@ -468,7 +468,7 @@ def create_session_meta(preset, session, overwrite, export_roms):
         io.export_csv(meta_session_filename, column_names, values)
         rs('Exported session meta information to {}'.format(meta_session_filename))
 
-    meta_dof_filename = os.path.join(preset['processed_server'], 'meta_dof.csv')
+    meta_dof_filename = os.path.join(processed_ss, 'meta_dof.csv')
     if export_roms and (overwrite or not os.path.exists(meta_dof_filename)):
         export_roms_from_osim(ORIGINAL_OPENSIM_MODEL, meta_dof_filename)
         rs('Exported session meta DOF information from {} to {}'.format(
