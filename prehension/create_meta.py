@@ -477,9 +477,6 @@ def create_session_meta(preset, session, overwrite, export_roms):
 
 def create_meta(current_preset, sessions, temp, overwrite, export_roms):
 
-
-    import pdb;pdb.set_trace()
-
     rserv = current_preset['default_server']
     pserv = current_preset['processed_server']
     logs.setup_logging(temp, sessions_dir=pserv)
