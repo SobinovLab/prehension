@@ -1,0 +1,55 @@
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Filters pressure sensors, removing electrical and other noise.
+
+Copyright (C) 2023-2024 Anton Sobinov, Caleb Raman
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+import argparse
+import datetime
+import time
+
+import matplotlib.pyplot as plt
+
+from prehension import preset
+from prehension.tools import cmd_args
+from prehension.pressure_sensors.filter_pressure_sensors import filter_pressure_sensors
+from prehension.tools.logs import rs
+
+
+if __name__ == '__main__':
+    current_preset_name, current_preset, argv = preset.process_args_for_preset()
+
+    parser = argparse.ArgumentParser(
+        description=('Filters and denoise pressure sensor data. If transformed CSVs exist, they'
+                     ' will be used to generate TSM files and deleted.'))
+    cmd_args.add_default_kwarguments(
+        parser, {'server': current_preset['default_server']})
+    cmd_args.add_default_arguments(
+        parser, ('sessions', 'trials', 'temp', 'processes', 'overwrite', 'make_plots'))
+
+    args = parser.parse_args(args=argv)
+
+    start_time = time.time()
+    filter_pressure_sensors(
+        args.server, args.sessions, args.trials, args.temp, args.processes,
+        args.overwrite, args.make_plots, current_preset)
+
+    rs('Program took {}.'.format(
+        datetime.timedelta(seconds=time.time() - start_time)))
+
+    plt.show()
