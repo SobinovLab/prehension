@@ -164,6 +164,7 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
         run_extrinsic_calibration {bool} --- Runs local extrinsic calibration in the session
             directory.
     """
+    raise NotImplementedError('Must be refactored for new import meta structure call')
     logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):

@@ -128,6 +128,11 @@ def import_csv(filename, cast=float):
         values {list [M][N] of cast type if possible, str otherwise} -- list of all column values.
             First index corresponds to column number.
     '''
+
+    if not os.path.isfile(filename):
+        raise ValueError('File not found: {filename}')
+
+
     with open(filename, 'r') as f:
         rdr = csv.reader(f)
 

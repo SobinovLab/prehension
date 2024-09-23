@@ -1056,13 +1056,17 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
     >>> find_event_onsets(server_directory, session_directories, temp_dir, overwrite_output,
         num_processes, create_plots)
     """
-    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
-    if not os.path.exists(server):
+    proc_dir = preset['processed_server']
+    raw_dir = preset['default_server']
+
+    logs.setup_logging(temp, sessions_dir=proc_dir)
+
+    if not os.path.exists(raw_dir):
         raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(raw_dir)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -1082,17 +1086,19 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
     for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
         print()
         rs("Processing session {}.".format(session))
-        server_session = os.path.join(server, session)
-        processed_session = os.path.join(preset['processed_server'], session)
+        raw_ss = os.path.join(raw_dir, session)
+        proc_ss = os.path.join(proc_dir, session)
 
-        if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+        if not os.path.exists(raw_ss):
+            ws("Session {} does not exist on the server.".format(raw_ss))
             continue
 
         # load session meta
         try:
             mstruct, _, _, msession = meta_session.load_meta_information(
-                server_session, processed_session)
+                raw_dir,
+                proc_dir,
+            )
         except Exception as e:
             ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
             continue
@@ -1247,7 +1253,10 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
                              if trial_number in plot_kwargs.keys() else None)
 
                 fig = create_plot_from_dictionary(
-                    row_d, meta_session.find_trial(msession, trial_number),
+                    row_d,
+                    meta_session.find_trial(
+                        msession,
+                        trial_number),
                     on_off_thresholds=None,
                     **plot_kwarg)
 

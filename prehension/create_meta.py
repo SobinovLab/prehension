@@ -370,7 +370,8 @@ def create_session_meta(preset, session, overwrite, export_roms):
     else:
         rs('Meta structure already exists. Loading...')
     # this one will have resolved paths
-    mstruct = meta_session.import_meta_structure(raw_ss, processed_ss)
+    mstruct_path = os.path.join(processed_ss, 'meta_structure.json')
+    mstruct = meta_session.import_meta_structure(mstruct_path, raw_ss, processed_ss)
 
     if len(mstruct['auto_log']) == 0:
         raise ValueError('Session {} does not have an auto log.'.format(session))
@@ -498,16 +499,16 @@ def create_meta(current_preset, sessions, temp, overwrite, export_roms):
         print()
         rs('Processing session {}.'.format(session))
 
-        r_server_session = os.path.join(rserv, session)
-        p_server_session = os.path.join(pserv, session)
+        r_server_session = os.path.normpath(os.path.join(rserv, session))
+        p_server_session = os.path.normpath(os.path.join(pserv, session))
 
         if not os.path.exists(r_server_session):
             ws('Session {} does not exist on the server.'.format(r_server_session))
             continue
 
         if not os.path.exists(p_server_session):
-            ws('Session {} does not exist on the server.'.format(p_server_session))
-            continue
+            rs('Creating processed server session directory {}'.format(p_server_session))
+            os.makedirs(p_server_session)
 
         try:
             create_session_meta(

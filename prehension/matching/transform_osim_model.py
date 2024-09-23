@@ -63,6 +63,7 @@ def transform_osim_model(server, session, overwrite):
         session {str} --- Session directory to use.
         temp {str} --- Folder for local temporary storage.
     """
+    raise NotImplementedError('Must be refactored for new import meta structure call')
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
             server))

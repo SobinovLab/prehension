@@ -48,8 +48,6 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
     start_time = time.time()
 
-    import pdb; pdb.set_trace()
-
     create_meta(
         current_preset,
         args.sessions,

@@ -26,6 +26,7 @@ import re
 import warnings
 
 from .tools.io import import_csv, export_csv
+from .tools.logs import rs, ws
 from .trial_info import TrialInfo
 
 
@@ -197,13 +198,11 @@ def normjoinpath(dirname, p):
     return os.path.normpath(os.path.join(dirname, p))
 
 
-def import_meta_structure(raw_dir, proc_dir):
+def import_meta_structure(meta_structure_path, raw_dir=None, proc_dir=None):
 
-    raw_dir = os.path.normpath(raw_dir)
-    proc_dir = os.path.normpath(proc_dir)
+    assert 'ProcessedData' in meta_structure_path, '{} is not a meta structure path.'.format(meta_structure_path)
 
-    filename = os.path.join(proc_dir, 'meta_structure.json')
-    with open(filename, 'r') as f:
+    with open(meta_structure_path, 'r') as f:
         mstruct = json.load(f)
 
     # resolve relative paths
@@ -237,53 +236,25 @@ def import_meta_structure(raw_dir, proc_dir):
         else:
             mstruct[ptr] = normjoinpath(d, mstruct[ptr])
 
-    for ptr in pth_2_resolve_proc:
-        add_key(ptr, proc_dir)
-    for ptr in pth_2_resolve_raw:
-        if ptr in pth_2_resolve_proc:
-            raise Exception(f'Attempting to resolve path for {ptr} twice.')
-        add_key(ptr, raw_dir)
+    if proc_dir is not None:
+        for ptr in pth_2_resolve_proc:
+            add_key(ptr, proc_dir)
+    else:
+        ws(f'No processed directory provided, skipping {len(pth_2_resolve_proc)} paths')
 
-    ###############################################################################################
-    # HACK FOR saving videos
-    ###############################################################################################
-    # should only work for *_camera_copy presets
-    # mojito lhem
-    default_server = os.path.join(
-        r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data', 'Spring_2021',
-        'Recording_sessions', 'Mojito')
-    new_default_server = os.path.join(
-        r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'MojitoLeftHemisphere',
-        'sessions')
-    if default_server in mstruct['videos_dir']:
-        mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
-
-    # pimms rhem
-    default_server = os.path.join(
-        r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data', 'Pimms',
-        'RightHem_Recordings')
-    new_default_server = os.path.join(
-        r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'PimmsRightHemisphere',
-        'sessions')
-    if default_server in mstruct['videos_dir']:
-        mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
-
-    # mojito rhem
-    default_server = os.path.join(
-        r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data', 'Mojito',
-        'RightHem_Recordings')
-    new_default_server = os.path.join(
-        r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'MojitoRightHemisphere',
-        'sessions')
-    if default_server in mstruct['videos_dir']:
-        mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
+    if raw_dir is not None:
+        for ptr in pth_2_resolve_raw:
+            if ptr in pth_2_resolve_proc:
+                raise Exception(f'Attempting to resolve path for {ptr} twice.')
+            add_key(ptr, raw_dir)
+    else:
+        ws(f'No raw directory provided, skipping {len(pth_2_resolve_raw)} paths')
 
     return mstruct
 
 
-def import_meta_object(dirname):
-    filename = os.path.join(dirname, 'meta_object.csv')
-    column_names, values = import_csv(filename)
+def import_meta_object(meta_object_path):
+    column_names, values = import_csv(meta_object_path)
     object_ids = values[column_names.index('id')]
     object_def_columns = [v for v in column_names if v != 'id']
 
@@ -300,9 +271,8 @@ def import_meta_object(dirname):
     return answ
 
 
-def import_meta_dof(dirname):
-    filename = os.path.join(dirname, 'meta_dof.csv')
-    column_names, values = import_csv(filename)
+def import_meta_dof(meta_dof_path):
+    column_names, values = import_csv(meta_dof_path)
 
     i_dofname = column_names.index('dof_name')
     i_rmin = column_names.index('range_min')
@@ -318,6 +288,9 @@ def import_meta_dof(dirname):
 
 
 def import_manual_log(filename):
+    if not os.path.isfile(filename):
+        raise ValueError('Could not find manual_log in {}'.format(filename))
+
     column_names, values = import_csv(filename, cast=str)
     mlog = {int(trial_number): code.split(',')
             for trial_number, code in zip(values[column_names.index('Trial')],
@@ -333,19 +306,53 @@ def _column_pop(k, column_names, values):
     return answ
 
 
+# Custom error class
+class IncompleteMetaError(Exception):
+    def __init__(self, missing_files):
+        self.missing_files = missing_files
+        super().__init__(self._generate_message())
+
+    def _generate_message(self):
+        return (f"Incomplete metadata: {len(self.missing_files)} file(s) missing. "
+                f"Missing files: {self.missing_files}")
+
+
+def import_all_meta(raw_dir, proc_dir):
+    # Check if proc dir exists
+    if not os.path.isdir(proc_dir):
+        raise ValueError(f'Processed directory {proc_dir} does not exist.')
+
+    assert 'ProcessedData' in proc_dir, 'ProcessedData directory not found in {}'.format(proc_dir)
+
+    meta_structure_path = os.path.join(proc_dir, 'meta_structure.json')
+    meta_dof_path = os.path.join(proc_dir, 'meta_dof.csv')
+    meta_object_path = os.path.join(proc_dir, 'meta_object.csv')
+    meta_session_path = os.path.join(proc_dir, 'meta_session.csv')
+
+    files = [meta_structure_path, meta_dof_path, meta_object_path, meta_session_path]
+    missing_files = [f for f in files if not os.path.isfile(f)]
+
+    if len(missing_files) > 0:
+        raise IncompleteMetaError(missing_files)
+
+    # returns (mstruct, mdof, mobject, msess_cols, msess_values)  ## Note last two return values
+    # go together
+    mstruct = import_meta_structure(meta_structure_path, raw_dir=raw_dir, proc_dir=proc_dir)
+    mdof = import_meta_dof(meta_dof_path)
+    mobject = import_meta_object(meta_object_path)
+    msess_cols, msess_values = import_csv(meta_session_path)
+
+    return mstruct, mdof, mobject, msess_cols, msess_values
+
+
 def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
                           check_manual_log=False, session=None):
     # find the session name if it was None
     if session is None:
         session = os.path.basename(raw_dir)
 
-    mstruct = import_meta_structure(raw_dir, proc_dir)
-    mdof = import_meta_dof(proc_dir)
-    mobject = import_meta_object(proc_dir)
-
-    # meta session
-    meta_session_filename = os.path.join(proc_dir, 'meta_session.csv')
-    column_names, values = import_csv(meta_session_filename)
+    # Check all meta exists and load the files
+    mstruct, mdof, mobject, column_names, values = import_all_meta(raw_dir, proc_dir)
 
     # essential trial parameters
     trial_numbers = _column_pop('trial_number', column_names, values)
