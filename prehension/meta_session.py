@@ -313,8 +313,9 @@ class IncompleteMetaError(Exception):
         super().__init__(self._generate_message())
 
     def _generate_message(self):
+        pretty_string = '\n'.join([os.path.normpath(f) for f in self.missing_files])
         return (f"Incomplete metadata: {len(self.missing_files)} file(s) missing. "
-                f"Missing files: {self.missing_files}")
+                f"Missing files: {pretty_string}")
 
 
 def import_all_meta(raw_dir, proc_dir):

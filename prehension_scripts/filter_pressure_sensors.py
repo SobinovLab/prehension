@@ -58,7 +58,7 @@ if __name__ == '__main__':
         args.processes,
         args.overwrite,
         args.make_plots,
-        preset
+        current_preset
     )
 
     print('Program took {}.'.format(

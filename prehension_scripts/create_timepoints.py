@@ -29,7 +29,7 @@ from prehension.find_event_onsets import find_event_onsets
 from prehension.tools.logs import rs
 
 # ============================================ Notes ============================================= #
-# Lint with: py -3.7 -m pycodestyle find_event_onsets.py --max-line-length 100 --ignore E402
+# Lint with: py -3.7 -m pycodestyle create_timepoints.py --max-line-length 100 --ignore E402
 # - trial_id - same as meta_session
 # - shoulder_movement_onset - onset of movement of shoulder joints
 # - elbow_movement_onset
@@ -48,20 +48,7 @@ from prehension.tools.logs import rs
 #     (shoulder and elbow kinematics close to beginning)
 # - (boolean) regrasp - should be 1 if the force drops to 0 at any
 #     point between grasp and release.
-
-# =========================================== Examples =========================================== #
-# Example call:
-# py find_event_onsets.py cr_test --server "C:\PrehensionDataLocal\MojitoRightHemisphere"
-# --sessions 2022_04_19_Set1 --overwrite --processes 1
-
-# Server:
-# py find_event_onsets.py cr_test --server
-# "S:\ProjectFolders\Prehension\Data\MojitoRightHemisphere\sessions"
-#  --sessions 2022_04_27_Set1 --trials 34 --overwrite
-
-# py find_event_onsets.py cr_test --server
-#  "S:\ProjectFolders\Prehension\Data\MojitoRightHemisphere\sessions"
-#  --sessions 2022_04_27_Set1 --overwrite --processes 1 --make_plots
+# ================================================================================================ #
 
 
 if __name__ == "__main__":
@@ -101,7 +88,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     find_event_onsets(
-        args.server,
+        current_preset,
         args.sessions,
         args.trials,
         args.temp,
@@ -111,6 +98,5 @@ if __name__ == "__main__":
         args.store_plots,
         args.make_trial_plots,
         not args.dont_show_plots,
-        current_preset
     )
     rs("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

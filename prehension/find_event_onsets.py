@@ -1027,8 +1027,8 @@ def create_plot_from_dictionary(timepoints_d, trial,
     return fig
 
 
-def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
-                      processes, make_plots, store_plots, make_trial_plots, show_plots, preset):
+def find_event_onsets(preset, sessions, trials_sel, temp, overwrite,
+                      processes, make_plots, store_plots, make_trial_plots, show_plots):
     """Outputs a csv of movement onset times for each session.
 
     Arguments:
@@ -1063,7 +1063,7 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
     logs.setup_logging(temp, sessions_dir=proc_dir)
 
     if not os.path.exists(raw_dir):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError("Server directory {} does not exist or is inaccessible.".format(raw_dir))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(raw_dir)
@@ -1096,8 +1096,8 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
         # load session meta
         try:
             mstruct, _, _, msession = meta_session.load_meta_information(
-                raw_dir,
-                proc_dir,
+                raw_ss,
+                proc_ss,
             )
         except Exception as e:
             ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
