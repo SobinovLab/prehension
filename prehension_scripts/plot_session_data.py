@@ -564,6 +564,9 @@ def plot_performance(raw_ss, proc_ss, savename=None,
         except FileNotFoundError as fnfe:
             ws(f'Skipping {rss} due to error loading meta: {fnfe}')
             continue
+        except meta_session.IncompleteMetaError as imfe:
+            ws(f'Skipping {rss} due to incomplete meta: {imfe}')
+            continue
 
         successful = [tr.success for tr in msession]
         dates.append(date_from_folder(os.path.basename(rss)))
@@ -873,8 +876,6 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
             train_contents = set([os.path.basename(pth) for pth in
                                   glob.glob(os.path.join(raw_training_dir, '**'), recursive=True)])
 
-            #import pdb; pdb.set_trace()
-
             if exp_contents <= train_contents:  ## Checks if experimental contents is a subset of training contents
                 # If so delete the experimental contents as they have already been moved
                 shutil.rmtree(raw_ss, ignore_errors=True)
@@ -884,12 +885,11 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
     transferred_pairs = []
     for raw_ss, proc_ss in tqdm.tqdm(consider_for_transfer, ncols=100, desc="Tranfering training sessions"):
 
-        print(f'Considering moving: {raw_ss}')
+        #print(f'Considering moving: {raw_ss}')
 
         try:
             mstruct, _, _, _ = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
-            import pdb; pdb.set_trace()
             ws('Could not load meta data from session {} ({}), skipping.'.format(raw_ss, repr(e)))
             continue
 
@@ -929,7 +929,7 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
 
 
 
-def main(preset, sessions, temp, overwrite, processes, dry_run=True):
+def main(preset, sessions, temp, overwrite, processes, dry_run=False):
 
     # Setup logging
     setup_logging(temp, sessions_dir=preset['processed_server'])

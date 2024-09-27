@@ -1099,9 +1099,14 @@ def find_event_onsets(preset, sessions, trials_sel, temp, overwrite,
                 raw_ss,
                 proc_ss,
             )
+        except meta_session.IncompleteMetaError as imfe:
+            ws(f'Skipping {raw_ss} due to incomplete meta: {imfe}')
+            continue
         except Exception as e:
             ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
             continue
+
+
 
         # If store_plots create the timepoints plots directory
         directory_path = None
