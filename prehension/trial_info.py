@@ -71,6 +71,7 @@ class TrialInfo():
                 k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.csv')
                 for k, v in mstruct['cameras'].items()}
 
+        import pdb; pdb.set_trace()
         self.jarvis_video_dir = os.path.join(mstruct['jarvis_video_dir'], trial_name)
         self.jarvis_videos = {
             k: os.path.join(self.jarvis_video_dir, v + '.mp4')

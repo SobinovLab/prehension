@@ -387,9 +387,10 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
         if only_successful_trials and check_manual_log:
             if any([mfn in mlog[trial_number] for mfn in mlog_failed_numbers]):
                 continue
-        msession.append(TrialInfo(session, trial_number, object_id, success,
-                                  other_info={k: v[i_trial] for k, v in zip(column_names, values)}))
-        msession[-1].generate_filenames(mstruct)
+        trial_info = TrialInfo(session, trial_number, object_id, success,
+                                  other_info={k: v[i_trial] for k, v in zip(column_names, values)})
+        trial_info.generate_filenames(mstruct)
+        msession.append(trial_info)
 
     return mstruct, mdof, mobject, msession
 
