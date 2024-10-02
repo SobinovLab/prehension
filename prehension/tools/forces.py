@@ -20,7 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
-
+import tsm
 import numpy as np
 
 from . import constants
@@ -130,61 +130,42 @@ def load_forces(mstruct, trial):
 
 
 def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
-    # Handle different start/end times
-    # load time and ps data for each file
-    ps_times1, ps_matrices1 = io.import_tsm_matrix(tsm1_file)  # import_matrices(tsm1_file)
-    ps_times2, ps_matrices2 = io.import_tsm_matrix(tsm2_file)  # import_matrices(tsm2_file)
+
+    #### Create Input: 2 sets of times, forces
+    ps_times1, ps_matrices1 = tsm.load(tsm1_file)
+    ps_times2, ps_matrices2 = tsm.load(tsm2_file)
 
     # Get the sums at each timestep
     ps_sum1 = np.sum(ps_matrices1, axis=(1, 2))
     ps_sum2 = np.sum(ps_matrices2, axis=(1, 2))
 
-    # MEM ISSUE FIX
-    ps_matrices1 = None
-    ps_matrices2 = None
-
     # Sanity check that time and pressure data are the same size
-    if ps_times1.size != ps_sum1.size:
-        raise ValueError("Size of tsm1 time and pressure data not equal")
-    if ps_times2.size != ps_sum2.size:
-        raise ValueError("Size of tsm2 time and pressure data not equal")
+    assert ps_times1.size == ps_sum1.size
+    assert ps_times2.size == ps_sum2.size
 
-    # find smallest common time range
+    #### Build interp time array
+    # find median period
+    med_T = np.median(np.concatenate((np.diff(ps_times1), np.diff(ps_times2))))
+
+    if verbose:
+        print(f'Interpolating times with period {med_T:.7f} sec')
+
+    # find smallest common time frame for both sensors
     tmin = max([ps_times1[0], ps_times2[0]])
     tmax = min([ps_times1[-1], ps_times2[-1]])
 
-    # trim both datasets to that range
-    valid_idx1 = (ps_times1 >= tmin) & (ps_times1 <= tmax)
-    ps_times1 = np.array(ps_times1[valid_idx1])
-    ps_sum1 = np.array(ps_sum1[valid_idx1])
+    if tmin >= tmax:
+        raise ValueError("The time ranges of the two datasets do not overlap.")
 
-    valid_idx2 = (ps_times2 >= tmin) & (ps_times2 <= tmax)
-    ps_times2 = np.array(ps_times2[valid_idx2])
-    ps_sum2 = np.array(ps_sum2[valid_idx2])
+    # Build time range to interp over
+    time_interp = np.arange(tmin, tmax + med_T, med_T)
 
-    # Take union of times to get all common times
-    U_times = np.union1d(ps_times1, ps_times2)
-    max_size = max(ps_times1.size, ps_times2.size)
-    added_times_pct = abs(U_times.size - max_size) / max_size
-    if added_times_pct > 0.05:
-        if verbose:
-            ws(f"Times union size is greater 5% of the max \
-            ps_times array: pct diff = ({added_times_pct})")
-
-    # Interp the missing sums
-    ps_sum1_fill = np.interp(U_times, ps_times1, ps_sum1)
-    ps_sum2_fill = np.interp(U_times, ps_times2, ps_sum2)
-
-    if ps_sum1_fill.size != ps_sum2_fill.size:
-        raise ValueError(
-            f"Len of ps sum 1 and 2 not equal "
-            f"({ps_sum1_fill.size} / {ps_sum2_fill.size})"
-        )
+    #### Do interpolation and return sums
+    ps_sum1_fill = np.interp(time_interp, ps_times1, ps_sum1, left=ps_sum1[0], right=ps_sum1[-1])
+    ps_sum2_fill = np.interp(time_interp, ps_times2, ps_sum2, left=ps_sum2[0], right=ps_sum2[-1])
 
     # Left/Right force sums
-    fss_total = np.sum([ps_sum1_fill, ps_sum2_fill], axis=0)
+    force_total = np.add(ps_sum1_fill, ps_sum2_fill)
 
-    return (
-        U_times,
-        fss_total
-    )
+    return (time_interp, force_total)
+

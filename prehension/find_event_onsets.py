@@ -33,6 +33,7 @@ from . import meta_session
 from .tools import logs
 from .tools import io
 from .tools.logs import rs, ws
+from .tools.forces import get_summed_force_data
 
 # ============================================ Notes ============================================= #
 # Lint with: py -3.7 -m pycodestyle find_event_onsets.py --max-line-length 100 --ignore E402
@@ -461,65 +462,6 @@ def get_max_thumb_index_aperture(df, time_window, ax=None):
 
     return t_MGA, MGA
 
-
-def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
-
-    # ---- ----- ---- ---- #
-
-    # Handle different start/end times
-    # load time and ps data for each file
-    ps_times1, ps_matrices1 = io.import_matrices(tsm1_file)
-    ps_times2, ps_matrices2 = io.import_matrices(tsm2_file)
-
-    # Get the sums at each timestep
-    ps_sum1 = np.sum(ps_matrices1, axis=(1, 2))
-    ps_sum2 = np.sum(ps_matrices2, axis=(1, 2))
-
-    # Sanity check that time and pressure data are the same size
-    if ps_times1.size != ps_sum1.size:
-        raise ValueError("Size of tsm1 time and pressure data not equal")
-    if ps_times2.size != ps_sum2.size:
-        raise ValueError("Size of tsm2 time and pressure data not equal")
-
-    # find smallest common time range
-    tmin = max([ps_times1[0], ps_times2[0]])
-    tmax = min([ps_times1[-1], ps_times2[-1]])
-
-    # trim both datasets to that range
-    valid_idx1 = (ps_times1 >= tmin) & (ps_times1 <= tmax)
-    ps_times1 = np.array(ps_times1[valid_idx1])
-    ps_sum1 = np.array(ps_sum1[valid_idx1])
-
-    valid_idx2 = (ps_times2 >= tmin) & (ps_times2 <= tmax)
-    ps_times2 = np.array(ps_times2[valid_idx2])
-    ps_sum2 = np.array(ps_sum2[valid_idx2])
-
-    # Take union of times to get all common times
-    U_times = np.union1d(ps_times1, ps_times2)
-    max_size = max(ps_times1.size, ps_times2.size)
-    added_times_pct = abs(U_times.size - max_size) / max_size
-    if added_times_pct > 0.05:
-        if verbose:
-            ws("Times union size is greater 5% of the max"
-               f" ps_times array: pct diff = ({added_times_pct})")
-
-    # Interp the missing sums
-    ps_sum1_fill = np.interp(U_times, ps_times1, ps_sum1)
-    ps_sum2_fill = np.interp(U_times, ps_times2, ps_sum2)
-
-    if ps_sum1_fill.size != ps_sum2_fill.size:
-        raise ValueError(
-            f"Len of ps sum 1 and 2 not equal "
-            f"({ps_sum1_fill.size} / {ps_sum2_fill.size})"
-        )
-
-    # Left/Right force sums
-    fss_total = np.sum([ps_sum1_fill, ps_sum2_fill], axis=0)
-
-    return (
-        U_times,
-        fss_total
-    )
 
 
 def merge_pairs(point_list, x_tolerance):

@@ -205,6 +205,8 @@ def import_meta_structure(meta_structure_path, raw_dir=None, proc_dir=None):
     with open(meta_structure_path, 'r') as f:
         mstruct = json.load(f)
 
+    assert 'jarvis_video_dir' in mstruct, 'No jarvis video directory in meta structure.'
+
     # resolve relative paths
     # on processed server
     pth_2_resolve_proc = (
@@ -341,8 +343,6 @@ def import_all_meta(raw_dir, proc_dir):
     if len(missing_files) > 0:
         raise IncompleteMetaError(missing_files)
 
-    # returns (mstruct, mdof, mobject, msess_cols, msess_values)  ## Note last two return values
-    # go together
     mstruct = import_meta_structure(meta_structure_path, raw_dir=raw_dir, proc_dir=proc_dir)
     mdof = import_meta_dof(meta_dof_path)
     mobject = import_meta_object(meta_object_path)

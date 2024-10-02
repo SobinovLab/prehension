@@ -37,6 +37,8 @@ from .tools import io
 from .tools import logs
 from .tools.logs import rs, ws
 
+from .tools.utils import apply_to_sessions_helper
+
 from . import meta_session
 
 
@@ -344,13 +346,13 @@ def find_ncams_config(session, calibrations_dir):
     return f
 
 
-def create_session_meta(preset, session, overwrite, export_roms):
+def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export_roms):
     # handle meta structure
     # Create output directory if it doesn't exist already
-    processed_ss = os.path.join(preset['processed_server'], session)
+    #processed_ss = os.path.join(preset['processed_server'], session)
     os.makedirs(processed_ss, exist_ok=True)
 
-    raw_ss = os.path.join(preset['default_server'], session)
+    #raw_ss = os.path.join(preset['default_server'], session)
     assert os.path.exists(raw_ss), 'server session {} does not exist on the server.'.format(raw_ss)
 
     if overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_structure.json')):
@@ -476,58 +478,85 @@ def create_session_meta(preset, session, overwrite, export_roms):
             ORIGINAL_OPENSIM_MODEL, meta_dof_filename))
 
 
-def create_meta(current_preset, sessions, temp, overwrite, export_roms):
+# def create_meta_helper(rserv, pserv, preset, overwrite, export_roms):
 
-    rserv = current_preset['default_server']
-    pserv = current_preset['processed_server']
-    logs.setup_logging(temp, sessions_dir=pserv)
+#     if not os.path.exists(rserv):
+#         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
+#             rserv))
 
-    if not os.path.exists(rserv):
-        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            rserv))
+#     found_sessions = meta_session.find_session_dirs(rserv)
+#     found_sessions.sort()
+#     rs('Found {} sessions: {}'.format(len(found_sessions), ', '.join(found_sessions)))
 
-    if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(rserv)
+#     failed_sessions = []
+#     failed_sessions_errors = []
+#     for session in tqdm.tqdm(found_sessions, ncols=100, desc='Sessions'):
+#         print()
+#         rs('Processing session {}.'.format(session))
 
-    # sort
-    sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+#         r_server_session = os.path.normpath(os.path.join(rserv, session))
+#         p_server_session = os.path.normpath(os.path.join(pserv, session))
 
-    failed_sessions = []
-    failed_sessions_errors = []
-    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
-        print()
-        rs('Processing session {}.'.format(session))
+#         if not os.path.exists(r_server_session):
+#             ws('Session {} does not exist on the server.'.format(r_server_session))
+#             continue
 
-        r_server_session = os.path.normpath(os.path.join(rserv, session))
-        p_server_session = os.path.normpath(os.path.join(pserv, session))
+#         if not os.path.exists(p_server_session):
+#             rs('Creating processed server session directory {}'.format(p_server_session))
+#             os.makedirs(p_server_session)
 
-        if not os.path.exists(r_server_session):
-            ws('Session {} does not exist on the server.'.format(r_server_session))
-            continue
+#         try:
+#             create_session_meta(
+#                 r_server_session,
+#                 p_server_session,
+#                 preset,
+#                 session,
+#                 overwrite,
+#                 export_roms
+#             )
 
-        if not os.path.exists(p_server_session):
-            rs('Creating processed server session directory {}'.format(p_server_session))
-            os.makedirs(p_server_session)
+#         except Exception:
+#             print()
+#             ws('Meta creation for session {} failed.'.format(session))
+#             _, exc_value, exc_traceback = sys.exc_info()
+#             error_str = ''.join(traceback.format_exception(None, exc_value, exc_traceback))
+#             ws(error_str)
+#             failed_sessions.append(session)
+#             failed_sessions_errors.append(error_str)
 
-        try:
-            create_session_meta(
-                current_preset,
-                session,
-                overwrite,
-                export_roms
-            )
-        except Exception:
-            print()
-            ws('Meta creation for session {} failed.'.format(session))
-            _, exc_value, exc_traceback = sys.exc_info()
-            error_str = ''.join(traceback.format_exception(None, exc_value, exc_traceback))
-            ws(error_str)
-            failed_sessions.append(session)
-            failed_sessions_errors.append(error_str)
+#     if len(failed_sessions) > 0:
+#         print()
+#         ws('Failed creating meta files for sessions:')
+#         for fs, fse in zip(failed_sessions, failed_sessions_errors):
+#             ws('\t{}: {}'.format(fs, fse))
 
-    if len(failed_sessions) > 0:
-        print()
-        ws('Failed creating meta files for sessions:')
-        for fs, fse in zip(failed_sessions, failed_sessions_errors):
-            ws('\t{}: {}'.format(fs, fse))
+
+def create_meta(current_preset, temp, overwrite, export_roms):
+
+    # Step 1: process experiment sessions
+    apply_to_sessions_helper(
+        current_preset['default_server'],
+        current_preset['processed_server'],
+        current_preset,
+        temp,
+        create_session_meta,
+        args=(overwrite, export_roms))
+
+    # Step 2: process training sessions
+    if not 'default_training_server' in current_preset.keys():
+        ws('No raw training server specified in preset. Skipping...')
+        return
+
+    if not 'processed_training_server' in current_preset.keys():
+        ws('No processed training server specified in preset. Skipping...')
+        return
+
+    # Step 2: Process training sessions
+    apply_to_sessions_helper(
+        current_preset['default_training_server'],
+        current_preset['processed_training_server'],
+        current_preset,
+        temp,
+        create_session_meta,
+        args=(overwrite, export_roms))
+

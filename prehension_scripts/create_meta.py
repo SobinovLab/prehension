@@ -27,7 +27,6 @@ from prehension import preset
 from prehension.tools import cmd_args
 from prehension.create_meta import create_meta
 
-
 if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
@@ -35,7 +34,7 @@ if __name__ == '__main__':
         description=('Creates meta information for a session.'))
     cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
-    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite'))
+    cmd_args.add_default_arguments(parser, ('temp', 'overwrite'))
 
     # custom
     parser.add_argument(
@@ -48,9 +47,9 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
     start_time = time.time()
 
+    # NOTE: got rid of sessions argument, now we process all sessions
     create_meta(
         current_preset,
-        args.sessions,
         args.temp,
         args.overwrite,
         args.export_roms

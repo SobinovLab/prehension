@@ -50,8 +50,8 @@ if __name__ == '__main__':
 
     start_time = time.time()
     preprocess_pressure_sensors(
-        args.server, args.sessions, args.trials, args.temp,
-        args.overwrite, args.processes, current_preset)
+        current_preset, args.trials, args.temp,
+        args.overwrite, args.processes)
 
     rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

@@ -3,41 +3,28 @@ import argparse
 import time
 import os
 import datetime
+import sys
+import tqdm
+import tsm
+import math
+import numbers
+import shutil
+import glob
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import interp1d
+from datetime import datetime, timedelta
+from reporting_pool import ReportingPool
+from matplotlib.colors import LinearSegmentedColormap
 
 #from prehension import tools, meta_session
 from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.logs import rs, ws, setup_logging
 from prehension import meta_session
 from prehension.tools import cmd_args
+from prehension.tools.forces import get_summed_force_data
 
-import tqdm
-import tsm
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.interpolate import interp1d
-import pandas as pd
-import matplotlib.colors as mcolors
-from datetime import datetime, timedelta
-import os
-import sys
-from reporting_pool import ReportingPool
-import numpy as np
-from matplotlib.cm import ScalarMappable
-import matplotlib as mpl
-import math
-import numbers
-from matplotlib.colors import LinearSegmentedColormap
-import shutil
-import glob
-
-# TODO 4.24.2023
-# Add error bars for residual plot --> Check
-# Remove outer box --> Check
-
-# Make force bin range an input param
-# Group conditionals by one newton range
-
-# Make avg force traces in each range
 
 # --- HELPERS --- #
 def plot_avg_target_ft():
@@ -61,66 +48,6 @@ def merge_dicts(dict1, dict2):
         if key not in dict1:
             merged_dict[key] = value
     return merged_dict
-
-
-def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
-
-    # Handle different start/end times
-    # load time and ps data for each file
-    ps_times1, ps_matrices1 = tsm.load(tsm1_file)
-    ps_times2, ps_matrices2 = tsm.load(tsm2_file)
-
-    # Get the sums at each timestep
-    ps_sum1 = np.sum(ps_matrices1, axis=(1, 2))
-    ps_sum2 = np.sum(ps_matrices2, axis=(1, 2))
-
-    # Sanity check that time and pressure data are the same size
-    if ps_times1.size != ps_sum1.size:
-        raise ValueError("Size of tsm1 time and pressure data not equal")
-    if ps_times2.size != ps_sum2.size:
-        raise ValueError("Size of tsm2 time and pressure data not equal")
-
-    # find smallest common time range
-    tmin = max([ps_times1[0], ps_times2[0]])
-    tmax = min([ps_times1[-1], ps_times2[-1]])
-
-    # trim both datasets to that range
-    valid_idx1 = (ps_times1 >= tmin) & (ps_times1 <= tmax)
-    ps_times1 = np.array(ps_times1[valid_idx1])
-    ps_sum1 = np.array(ps_sum1[valid_idx1])
-
-    valid_idx2 = (ps_times2 >= tmin) & (ps_times2 <= tmax)
-    ps_times2 = np.array(ps_times2[valid_idx2])
-    ps_sum2 = np.array(ps_sum2[valid_idx2])
-
-    # Take union of times to get all common times
-    U_times = np.union1d(ps_times1, ps_times2)
-    max_size = max(ps_times1.size, ps_times2.size)
-    added_times_pct = abs(U_times.size - max_size) / max_size
-    if added_times_pct > 0.05:
-        if verbose:
-            print(f"Times union size is greater 5% of the max \
-            ps_times array: pct diff = ({added_times_pct})")
-
-    # Interp the missing sums
-    ps_sum1_fill = np.interp(U_times, ps_times1, ps_sum1)
-    ps_sum2_fill = np.interp(U_times, ps_times2, ps_sum2)
-
-    if ps_sum1_fill.size != ps_sum2_fill.size:
-        raise ValueError(
-            f"Len of ps sum 1 and 2 not equal "
-            f"({ps_sum1_fill.size} / {ps_sum2_fill.size})"
-        )
-
-    # Left/Right force sums
-    fss_total = np.sum([ps_sum1_fill, ps_sum2_fill], axis=0)
-
-    assert U_times.shape == fss_total.shape
-
-    return (
-        U_times,
-        fss_total
-    )
 
 
 def get_trial_force(trial_info):
@@ -597,6 +524,7 @@ def plot_performance(raw_ss, proc_ss, savename=None,
     axs[1].plot(dates, num_correct, color='green', label='num correct')
     axs[1].plot(dates, num_incorrect, color='orange', label='num incorrect')
     axs[1].tick_params(axis='x', labelrotation=45)
+    axs[1].set_ylim(bottom=0)
     axs[1].legend()
 
     # -- DATE TICKS -- #
@@ -739,11 +667,9 @@ def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=1
     return retval
 
 
-
 def process_session(raw_ss, proc_ss, overwrite, processes):
 
     # Create output dir with plots
-
     session = os.path.basename(raw_ss)
     rs("Processing session {}.".format(os.path.basename(session)))
 
@@ -754,7 +680,6 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
     if not os.path.exists(proc_ss) or not os.path.exists(raw_ss):
         ws("Session {} does not exist on the server.".format(session))
         return
-
 
     try:
         _, _, mobject, msession = meta_session.load_meta_information(raw_ss, proc_ss)
@@ -786,7 +711,7 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
     # Return if nothing to make
     if not any([make_force_traces, make_cond_succ_mat, make_avg_succ_mat,
                 make_perf_plot, make_perf10day_plot]):
-        print("No new plots to make. Skipping session.")
+        #print("No new plots to make. Skipping session.")
         return
 
     # Else create a message for plotting
@@ -797,7 +722,6 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
     if make_perf_plot: msg += " longitudinal performance plot"
     if make_perf10day_plot: msg += " last 10 days performance plot"
     #print(msg)
-
 
     if not os.path.isfile(tp_path):
         ws(f"Could not find timepoints csv {tp_path}, skipping force trace")
@@ -859,10 +783,14 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
         ws('WARNING: no training server location defined, not transfering session')
         return
 
+    if not preset['default_training_server'] or not preset['processed_training_server']:
+        ws('WARNING: no training server location defined, not transfering session')
+        return
+
     ## HACK clean up any training sessions that have already been transfered but that,
     # for some reason, still exist in sessions
     if clean:
-        for raw_ss, proc_ss in tqdm.tqdm(consider_for_transfer, ncols=100, desc="Cleaning"):
+        for raw_ss, proc_ss in tqdm.tqdm(consider_for_transfer, ncols=100, desc="Attempting to clean (sometimes fails due to permissions)"):
 
             raw_training_dir = os.path.join(preset['default_training_server'], os.path.basename(raw_ss))
             if not os.path.isdir(raw_training_dir):
@@ -879,7 +807,7 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
             if exp_contents <= train_contents:  ## Checks if experimental contents is a subset of training contents
                 # If so delete the experimental contents as they have already been moved
                 shutil.rmtree(raw_ss, ignore_errors=True)
-                print(f'Removed redundant training session @ {raw_ss}')
+                #print(f'Removed redundant training session @ {raw_ss}')
 
     print('\n' * 2)
     transferred_pairs = []
@@ -925,8 +853,7 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
             transferred_pairs.append((proc_ss, pdst))
             assert len(glob.glob(pdst)) == premove_len
 
-        print(f'\nMoved {len(transferred_pairs)} from experiment to training data')
-
+        #print(f'\nMoved {len(transferred_pairs)} from experiment to training data')
 
 
 def main(preset, sessions, temp, overwrite, processes, dry_run=False):
@@ -972,8 +899,6 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
     rs('Moving training sessions')
     consider_for_transfer = list(zip(raw_server_sessions, proc_server_sessions))
     transfer_to_training(preset, consider_for_transfer, overwrite)
-
-
 
 
 if __name__ == "__main__":
