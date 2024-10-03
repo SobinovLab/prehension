@@ -11,8 +11,12 @@ import numbers
 import shutil
 import glob
 import pandas as pd
+import matplotlib as mpl
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
+
+from matplotlib.cm import ScalarMappable
 from scipy.interpolate import interp1d
 from datetime import datetime, timedelta
 from reporting_pool import ReportingPool
@@ -686,9 +690,6 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
     except Exception as e:
         ws('Could not load meta data from session {} || {} ({}), skipping.'.format(raw_ss, proc_ss, repr(e)))
         return
-
-    # \\192.170.210.120/RawData/ProjectFolders/Prehension/Data/DaiquiriRightHemisphere_1/sessions\2024_08_09_Set1 ||
-    # \\192.170.210.120/ProcessedData/ProjectFolders/Prehension/ProcessedData/DaiquiriRightHemisphere_1/sessions\2024_08_09_Set1
 
     # Sort trials by force condition
     trial_cond_info = build_cond_trial_dict(mobject, msession)
