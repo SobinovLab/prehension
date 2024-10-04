@@ -240,6 +240,10 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                 continue
             trials.append(trial)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
 

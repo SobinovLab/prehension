@@ -1048,8 +1048,6 @@ def find_event_onsets(preset, sessions, trials_sel, temp, overwrite,
             ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
             continue
 
-
-
         # If store_plots create the timepoints plots directory
         directory_path = None
         if store_plots:
@@ -1069,6 +1067,10 @@ def find_event_onsets(preset, sessions, trials_sel, temp, overwrite,
                 trials = []
         else:
             trials = [t for t in msession if t.trial_number in trials_sel]
+
+        # Just continue if no trials
+        if not trials:
+            continue
 
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))

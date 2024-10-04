@@ -338,12 +338,12 @@ def predict_points_jarvis(server, processed_server, sessions, temp, trials_sel, 
 
             trials.append(trial)
 
-        print()
-        rs('Found {} trials: {}'.format(
-            len(trials), ', '.join([str(trial.trial_number) for trial in trials])))
-
-        if len(trials) == 0:
+        # Just continue if no trials
+        if not trials:
             continue
+
+        rs('Found {} trials: {}'.format(
+            len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
         # right or left handed
         reflect = mstruct['hand'] == 'left'

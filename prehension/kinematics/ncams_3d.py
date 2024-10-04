@@ -385,12 +385,12 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
                 continue
             trials.append(trial)
 
-        print()
-        rs('Found {} trials: {}'.format(
-            len(trials), ', '.join([str(trial.trial_number) for trial in trials])))
-
-        if len(trials) == 0:
+        # Just continue if no trials
+        if not trials:
             continue
+
+        rs('Found {} trials: {}'.format(
+            len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
         # preload camera configs
         ncams_config = ncams.camera_io.yaml_to_config(

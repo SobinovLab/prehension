@@ -165,11 +165,12 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
                 continue
             trials.append(trial)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
-        if len(trials) == 0:
-            continue
 
         os.makedirs(mstruct['pre_ps_dir'], exist_ok=True)
 

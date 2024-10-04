@@ -201,11 +201,12 @@ def preprocess_pressure_sensors_OLD(server, sessions, trials_sel, temp, overwrit
                 continue
             trials.append(trial)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
-        if len(trials) == 0:
-            continue
 
         trial_timestamps = loadTrialLog(trial_log_filename, [t.trial_number for t in trials])
 
@@ -264,11 +265,12 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             continue
         trials.append(trial)
 
+    # Just continue if no trials
+    if not trials:
+        return
+
     rs('Found {} trials: {}'.format(
         len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
-    if len(trials) == 0:
-        return
 
     trial_timestamps = loadTrialLog(trial_log_filename, [t.trial_number for t in trials])
 
@@ -320,11 +322,11 @@ def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, pro
         args=(trials_sel, overwrite, processes))
 
     # Step 2: process training sessions
-    if not 'default_training_server' in current_preset.keys():
+    if current_preset['default_training_server']:
         ws('No raw training server specified in preset. Skipping...')
         return
 
-    if not 'processed_training_server' in current_preset.keys():
+    if current_preset['processed_training_server']:
         ws('No processed training server specified in preset. Skipping...')
         return
 

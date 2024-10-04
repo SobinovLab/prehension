@@ -110,12 +110,12 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
                 median_positions[-1].append(np.nan)
             trials.append(trial)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
-        if len(trials) == 0:
-            ws('Not enough trials, skipping.')
-            continue
 
         p_args = list(zip(*[
             trials,

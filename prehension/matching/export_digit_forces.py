@@ -208,11 +208,12 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
                 continue
             trials.append(trial)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
-        if len(trials) == 0:
-            continue
 
         os.makedirs(mstruct['digit_forces_dir'], exist_ok=True)
         os.makedirs(mstruct['segment_forces_dir'], exist_ok=True)

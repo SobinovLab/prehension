@@ -182,7 +182,10 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
                 continue
             trials.append(trial)
 
-        print()
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
 

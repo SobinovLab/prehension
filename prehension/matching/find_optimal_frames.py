@@ -126,9 +126,13 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
             optimal_frames.append(-1)
             trials.append(trial)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
+        
         p_args = list(zip(*[
             trials,
             [copy.deepcopy(mdof) for _ in trials],

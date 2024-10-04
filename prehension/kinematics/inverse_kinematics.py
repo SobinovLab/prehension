@@ -476,8 +476,12 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
             log_files.append(trial.ik_log_filename)
             trials.append(trial)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
-            len(trials), ', '.join([str(trial.trial_number) for trial in trials])))
+            len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
         p_args = list(zip(*[ik_files, log_files]))
 

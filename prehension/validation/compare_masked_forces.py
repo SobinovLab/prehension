@@ -196,7 +196,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
 
         # load session meta
         try:
-            mstruct, _, mobject, msession = meta_session.load_meta_information(
+            mstruct, _, _, msession = meta_session.load_meta_information(
                 server_session, check_manual_log=True)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
@@ -212,6 +212,10 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
                                   not trial.does_manually_labelled_file_exists()):
                 continue
             trials.append(trial)
+
+        # Just continue if no trials
+        if not trials:
+            continue
 
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))

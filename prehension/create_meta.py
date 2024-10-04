@@ -543,11 +543,11 @@ def create_meta(current_preset, temp, overwrite, export_roms):
         args=(overwrite, export_roms))
 
     # Step 2: process training sessions
-    if not 'default_training_server' in current_preset.keys():
+    if not current_preset['default_training_server']:
         ws('No raw training server specified in preset. Skipping...')
         return
 
-    if not 'processed_training_server' in current_preset.keys():
+    if not current_preset['processed_training_server']:
         ws('No processed training server specified in preset. Skipping...')
         return
 

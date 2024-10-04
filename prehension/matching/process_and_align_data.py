@@ -260,6 +260,10 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
             trials.append(trial)
             object_defs.append(copy.deepcopy(mobject[trial.object_id]['def']))
 
+       # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
 

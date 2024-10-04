@@ -28,6 +28,7 @@ from prehension.tools.logs import rs, ws, setup_logging
 from prehension import meta_session
 from prehension.tools import cmd_args
 from prehension.tools.forces import get_summed_force_data
+from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
 
 
 # --- HELPERS --- #
@@ -103,7 +104,6 @@ def get_date_folders(ref_server_session, mode='before',
         current_date = date_from_folder(folder)
 
         if mode == 'before':
-            ### NOTE: CHECK THAT WE ARE IN RANGE ref_dt - lookback timedelta
             if current_date < ref_dt and current_date >= min_dt:
                 valid_folders.append(os.path.join(server, folder))
         elif mode == 'after':
@@ -471,8 +471,7 @@ def plot_performance(raw_ss, proc_ss, savename=None,
     total_trials = []
 
     # Get all sessions older than current sesssion
-    raw_server_sessions = get_date_folders(raw_ss, mode='before',
-                                           lookback_timedelta=_lookback_timedelta)
+    raw_server_sessions = get_date_folders(raw_ss, mode='before', lookback_timedelta=_lookback_timedelta)
     print(f'Found {len(raw_server_sessions)} sessions < {raw_ss}')
 
     proc_server = os.path.dirname(proc_ss)
@@ -507,6 +506,8 @@ def plot_performance(raw_ss, proc_ss, savename=None,
         pct_incorrect.append(1 - pct_correct[-1])
         num_correct.append(sum(successful))
         num_incorrect.append(ntrials - num_correct[-1])
+
+    import pdb; pdb.set_trace()
 
     fig, axs = plt.subplots(1, 2, figsize=(15,7))
     fig.suptitle('Training Progress')
@@ -722,7 +723,6 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
     if make_avg_succ_mat: msg += " average success plot,"
     if make_perf_plot: msg += " longitudinal performance plot"
     if make_perf10day_plot: msg += " last 10 days performance plot"
-    #print(msg)
 
     if not os.path.isfile(tp_path):
         ws(f"Could not find timepoints csv {tp_path}, skipping force trace")
@@ -739,7 +739,7 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
         plot_cond_success_matrix([msession,], [mobject,], title=session,
                                   cmap='Purples', savename=cond_succ_path)
 
-    # # Acumulate msessions and mobjects for avg_cond_success_matrix
+    # Acumulate msessions and mobjects for avg_cond_success_matrix
     if make_avg_succ_mat:
         plot_avg_cond_success_matrix(raw_ss, proc_ss,
                                     savename=avg_succ_path)
@@ -778,13 +778,9 @@ def get_sessions_from(server, sessions, from_session):
 
 def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=True):
 
-    # Firstly we must have these keys present in the preset
-    expected_keys = ['default_training_server', 'processed_training_server']
-    if not all([ek in preset.keys() for ek in expected_keys]):
-        ws('WARNING: no training server location defined, not transfering session')
-        return
 
-    if not preset['default_training_server'] or not preset['processed_training_server']:
+    # Check if training servers is defined
+    if not does_trianing_servers_exist(preset):
         ws('WARNING: no training server location defined, not transfering session')
         return
 
@@ -865,41 +861,27 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
     if not os.path.exists(preset['default_server']):
         raise ValueError("Default server directory {} does not exist or is inaccessible.".format(preset['default_server']))
 
-    if len(sessions) == 0:
-        session_names = meta_session.find_session_dirs(preset['default_server'])
-        raw_server_sessions = [os.path.normpath(os.path.join(preset['default_server'], os.path.basename(ss)))
-                                for ss in session_names]
-        proc_server_sessions = [os.path.normpath(os.path.join(preset['processed_server'], os.path.basename(ss)))
-                                 for ss in session_names]
-        raw_training_sessions = []
-        proc_training_sessions = []
-        if 'default_training_server' in preset.keys():
-            training_names = meta_session.find_session_dirs(preset['default_training_server'])
-            raw_training_sessions += [os.path.normpath(os.path.join(
-                preset['default_training_server'], os.path.basename(ss))) for ss in training_names]
-
-            proc_training_sessions += [os.path.normpath(os.path.join(
-                preset['processed_training_server'], os.path.basename(ss))) for ss in training_names]
-
-    all_raw = raw_server_sessions + raw_training_sessions
-    all_proc = proc_server_sessions + proc_training_sessions
-
-    # For each session
-    # Build plots etc
-    ss_pairs = list(zip(all_raw, all_proc))
+    import pdb; pdb.set_trace() # check that sessions have just one elem
+    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions)
 
     # Process all sessions -- training and experiment
     if not dry_run:
-        for raw_ss, proc_ss in tqdm.tqdm(ss_pairs, ncols=100, desc="Sessions"):
+
+        # process experiment sessions
+        for raw_ss, proc_ss in tqdm.tqdm(experimental_ss_pairs, ncols=100, desc="Making plots for experimental sessions"):
             process_session(raw_ss, proc_ss, overwrite, processes)
+
+        # process training sessions
+        for raw_ss, proc_ss in tqdm.tqdm(training_ss_pairs, ncols=100, desc="Making plots for training sessions"):
+            process_session(raw_ss, proc_ss, overwrite, processes)
+
     else:
         print('Skipping plot making because dry_run=True in main()')
 
     # Then perform move
     rs('\n'*3 + '='*200)
     rs('Moving training sessions')
-    consider_for_transfer = list(zip(raw_server_sessions, proc_server_sessions))
-    transfer_to_training(preset, consider_for_transfer, overwrite)
+    transfer_to_training(preset, experimental_ss_pairs, overwrite)
 
 
 if __name__ == "__main__":

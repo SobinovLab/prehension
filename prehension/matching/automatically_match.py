@@ -133,6 +133,10 @@ def automatically_match(server, sessions, trials_sel, temp, processes, overwrite
             trials.append(trial)
             adjustment_filenames.append(adjustment_filename)
 
+        # Just continue if no trials
+        if not trials:
+            continue
+
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
 

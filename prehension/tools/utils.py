@@ -30,6 +30,81 @@ from .logs import rs, ws
 import traceback
 import sys
 
+def _filter_pairs(raw_ss_list, proc_ss_list):
+    pairs = []
+    for pair in list(zip(raw_ss_list, proc_ss_list)):
+        raw_exists = os.path.exists(pair[0])
+        proc_exists = os.path.exists(pair[1])
+        warn_msg = ''
+        if not raw_exists:
+            warn_msg += 'Raw server session {} does not exist.\n'.format(pair[0])
+        if not proc_exists:
+            warn_msg += 'Processed server session {} does not exist.\n'.format(pair[1])
+        if warn_msg:
+            ws(warn_msg)
+        if raw_exists and proc_exists:
+            pairs.append(pair)
+    return pairs
+
+
+def fetch_server_session_dirs(preset, sessions=[]):
+
+    # Decide if we are finding sessions or using the provided sessions
+    if not sessions:
+        exp_session_names = meta_session.find_session_dirs(preset['default_server'])
+        train_session_names = meta_session.find_session_dirs(preset['default_training_server'])
+    else:
+        exp_session_names = sessions
+        train_session_names = sessions
+
+    # Build initial list of raw and proc server session dirs
+    raw_server_sessions = [os.path.normpath(os.path.join(preset['default_server'], os.path.basename(ss)))
+                            for ss in exp_session_names]
+    proc_server_sessions = [os.path.normpath(os.path.join(preset['processed_server'], os.path.basename(ss)))
+                                for ss in exp_session_names]
+
+    # now raw and proc ss lists should be the same length, read through and filter out/warn
+    # on any that do not exist
+    assert len(raw_server_sessions) == len(proc_server_sessions)
+    experimental_raw_proc_pairs = _filter_pairs(raw_server_sessions, proc_server_sessions)
+
+
+    # Build initial list of raw and proc training session dirs
+    raw_training_sessions = []
+    proc_training_sessions = []
+    if does_trianing_servers_exist(preset):
+        raw_training_sessions += [os.path.normpath(os.path.join(
+            preset['default_training_server'], os.path.basename(ss))) for ss in train_session_names]
+
+        proc_training_sessions += [os.path.normpath(os.path.join(
+            preset['processed_training_server'], os.path.basename(ss))) for ss in train_session_names]
+
+    training_raw_proc_pairs = _filter_pairs(raw_training_sessions, proc_training_sessions)
+
+    return experimental_raw_proc_pairs, training_raw_proc_pairs
+
+
+
+def does_trianing_servers_exist(preset):
+    """Returns True if all training servers exist, prints warnings otherwise and returns False.
+    """
+    keys = ['default_training_server', 'processed_training_server']
+    assert all(k in preset for k in keys), 'Missing keys in preset: {}'.format(keys)
+
+    training_servers_not_none = all(v is not None for v in (preset[k] for k in keys))
+
+    training_servers_exist = False
+    if training_servers_not_none:
+        training_servers_exist = all(os.path.exists(v) for v in (preset[k] for k in keys))
+
+    if not training_servers_not_none:
+        ws('one or more training servers are None in preset: {}'.format(preset['names'][0]))
+
+    if not training_servers_exist:
+        ws('one or more training servers do not exist in preset: {}'.format(preset['names'][0]))
+
+    return training_servers_not_none and training_servers_exist
+
 
 def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=None, sessions=[]):
 
