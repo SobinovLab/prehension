@@ -382,7 +382,8 @@ def plot_force_traces(
                 cond_color = get_color(float((f0 + ff) / 2))
                 tf = 0  ## set for plotting bounds later
             else:
-                tf = cond[0][0]
+                # DEBUG
+                tf = cond[0]
                 cond_color = get_color(tf)
 
             # Get a list of all interpolated force arrays
@@ -434,7 +435,7 @@ def plot_force_traces(
 
         if b_isrange:
             title = "Residual " + title
-            fig.colorbar(sm, label="Target Force (N)")
+            fig.colorbar(sm, label="Target Force (N)", ax=ax)
             ax.set_ylabel('$\Delta F_{actual, target}$ (N)', fontsize=14)
             #cbar.set_clim(vmin=0, vmax=max_cond)
         else:
@@ -460,64 +461,85 @@ def plot_force_traces(
     return
 
 
-def plot_performance(raw_ss, proc_ss, savename=None,
-                      _lookback_timedelta=timedelta(days=3650), include_last_tick=False):
+def plot_performance(
+        raw_server,
+        proc_server,
+        ref_date,
+        savename=None,
+        lookback_timedelta=timedelta(days=3650),  ## 10 years
+        include_last_tick=False
+    ):
 
-    dates = []
-    pct_correct = []
-    pct_incorrect = []
-    num_correct = []
-    num_incorrect = []
-    total_trials = []
+    # This will hold our results
+    date_l_trial_success_dict = {}
 
-    # Get all sessions older than current sesssion
-    raw_server_sessions = get_date_folders(raw_ss, mode='before', lookback_timedelta=_lookback_timedelta)
-    print(f'Found {len(raw_server_sessions)} sessions < {raw_ss}')
+    # LOOP 1: build a dictionary of (key, value) == (date, [list success bools])
+    for dirname in tqdm.tqdm(os.listdir(raw_server), desc='Plotting performance new'):
 
-    proc_server = os.path.dirname(proc_ss)
+        # Perform 4 checks on folder validity
 
-    if len(raw_server_sessions) == 0:
-        ws(f'No raw server sessions found in: {raw_ss}, skipping performance plot...')
-        return
-
-    for rss in raw_server_sessions:
-
-        # Look for processed server session, continue if it doesn't exist
-        pss = os.path.join(proc_server, os.path.basename(rss))
-        if not os.path.isdir(pss):
-            ws(f'Could not find processed server session dir: {pss}')
+        rss = os.path.join(raw_server, dirname)
+        if not os.path.isdir(rss):
             continue
 
-        # Get correct and total trials
+        if not dirname[0].isdigit():
+            continue
+
+        datetime = date_from_folder(dirname)
+        if datetime > ref_date:
+            continue  # Too new
+
+        if datetime < ref_date - lookback_timedelta:
+            continue  # Too old
+
+        pss = os.path.join(proc_server, dirname)
+        if not os.path.isdir(pss):
+            continue
+
+        # Load metadata
         try:
             _, _, _, msession = meta_session.load_meta_information(rss, pss)
         except FileNotFoundError as fnfe:
             ws(f'Skipping {rss} due to error loading meta: {fnfe}')
             continue
         except meta_session.IncompleteMetaError as imfe:
-            ws(f'Skipping {rss} due to incomplete meta: {imfe}')
+            ws(f'Skipping {rss} due to incomplete meta (TRY workaround later): {imfe}')
             continue
 
-        successful = [tr.success for tr in msession]
-        dates.append(date_from_folder(os.path.basename(rss)))
+        # Add data to dictionary
+        trial_success_list = [tr.success for tr in msession]
+
+        if datetime not in date_l_trial_success_dict:
+            date_l_trial_success_dict[datetime] = trial_success_list
+        else:
+            rs('More than one session found for this date: {}'.format(dirname))
+            date_l_trial_success_dict[datetime].extend(trial_success_list)
+
+    # LOOP 2: plot the results
+    dates = []
+    total_trials = []
+    pct_correct = []
+    pct_incorrect = []
+    num_correct = []
+    num_incorrect = []
+
+    for date, successful in sorted(date_l_trial_success_dict.items(), reverse=True):
+        dates.append(date)
         ntrials = len(successful)
         total_trials.append(ntrials)
-        pct_correct.append(sum(successful)/len(successful))
+        pct_correct.append(sum(successful) / len(successful))
         pct_incorrect.append(1 - pct_correct[-1])
         num_correct.append(sum(successful))
         num_incorrect.append(ntrials - num_correct[-1])
 
-    import pdb; pdb.set_trace()
-
-    fig, axs = plt.subplots(1, 2, figsize=(15,7))
-    fig.suptitle('Training Progress')
+    fig, axs = plt.subplots(1, 2, figsize=(15, 7))
+    fig.suptitle(f'Training Progress (last {lookback_timedelta.days} days)')
 
     # Plot for Performance
     axs[0].set_title('Performance')
     axs[0].set_ylabel('Percent (%)')
     axs[0].set_ylim((0, 1))
 
-    # dates_seconds = [(now - dates[0]).total_seconds() for now in dates]  # Calculate seconds elapsed since the first date
     axs[0].plot(dates, pct_correct, color='green', label='correct')
     axs[0].tick_params(axis='x', labelrotation=45)
     axs[0].legend()
@@ -533,24 +555,17 @@ def plot_performance(raw_ss, proc_ss, savename=None,
     axs[1].legend()
 
     # -- DATE TICKS -- #
-    # 1. set desired number of tick lines (5 for example)
-    # 2. look at date span and find out what division (days, 1 week, 2 week, months, 3 months, 6 months, years)
-    # gives us a value closest to the target (for example maybe dividing by 3 months gives us 8)
-    # then we know our interval is 3 months
-    # 3. labeling the start date and working forward make tick marks at each interval
-    # add an option to include the one after the final interval or not
     desired_ticks = 5
     dt_range = max(dates) - min(dates)
     interval_options = [timedelta(days=1), timedelta(weeks=1), timedelta(weeks=2),
                         timedelta(weeks=4), timedelta(weeks=8), timedelta(weeks=12),
-                          timedelta(weeks=26), timedelta(weeks=52)]
+                        timedelta(weeks=26), timedelta(weeks=52)]
 
-    interval_counts = [abs(desired_ticks - (dt_range/inter)) for inter in interval_options]
-
+    interval_counts = [abs(desired_ticks - (dt_range / inter)) for inter in interval_options]
     i = np.argmin(np.array(interval_counts))
     interval = interval_options[i]
 
-    date_ticks = [min(dates)]
+    date_ticks = [min(dates), ]
     while date_ticks[-1] < max(dates):
         date_ticks.append(date_ticks[-1] + interval)
     if not include_last_tick:
@@ -559,16 +574,149 @@ def plot_performance(raw_ss, proc_ss, savename=None,
     for ax in axs:
         for date in date_ticks:
             ax.axvline(x=date, color='gray', linestyle='--', alpha=0.5)
-            # Setting tick locations and labels on the x-axis
         ax.set_xticks(date_ticks)
         ax.set_xticklabels([date.strftime('%y-%m-%d') for date in date_ticks], rotation=45)
+
+    # -- LABEL POINTS IF LOOKBACK IS <= 2 WEEKS -- #
+    if lookback_timedelta <= timedelta(weeks=2):
+        for i, date in enumerate(dates):
+            # Label each point on both subplots with the date (excluding time)
+            label = date.strftime('%Y-%m-%d')
+            axs[0].annotate(label, (dates[i], pct_correct[i]), textcoords="offset points", xytext=(0, 10), ha='center')
+            axs[1].annotate(label, (dates[i], total_trials[i]), textcoords="offset points", xytext=(0, 10), ha='center')
 
     if savename is not None:
         fig.savefig(savename)
         rs(f'saving performance as {os.path.normpath(savename)}')
     else:
         plt.show()
+
     plt.close(fig)
+
+
+
+# def plot_performance_old(raw_ss, proc_ss, savename=None,
+#                       _lookback_timedelta=timedelta(days=3650), include_last_tick=False):
+
+#     dates = []
+#     pct_correct = []
+#     pct_incorrect = []
+#     num_correct = []
+#     num_incorrect = []
+#     total_trials = []
+
+#     # Dictionary to keep track of the date - trial success list
+#     date_l_trial_success_dict = {}
+
+#     # Get all sessions older than current sesssion
+#     raw_server_sessions = get_date_folders(raw_ss, mode='before', lookback_timedelta=_lookback_timedelta)
+#     print(f'Found {len(raw_server_sessions)} sessions < {raw_ss}')
+
+#     proc_server = os.path.dirname(proc_ss)
+
+#     if len(raw_server_sessions) == 0:
+#         ws(f'No raw server sessions found in: {raw_ss}, skipping performance plot...')
+#         return
+
+
+#     for rss in raw_server_sessions:
+
+#         # Look for processed server session, continue if it doesn't exist
+#         pss = os.path.join(proc_server, os.path.basename(rss))
+#         if not os.path.isdir(pss):
+#             import pdb; pdb.set_trace()
+#             ws(f'Could not find processed server session dir (rss // pss): {rss} // {pss}')
+#             continue
+
+#         # Get correct and total trials
+#         try:
+#             _, _, _, msession = meta_session.load_meta_information(rss, pss)
+#         except FileNotFoundError as fnfe:
+#             ws(f'Skipping {rss} due to error loading meta: {fnfe}')
+#             continue
+#         except meta_session.IncompleteMetaError as imfe:
+#             ws(f'Skipping {rss} due to incomplete meta: {imfe}')
+#             continue
+
+#         folder_dt = date_from_folder(os.path.basename(rss))
+#         trial_success_list = [tr.success for tr in msession]
+
+#         if folder_dt not in date_l_trial_success_dict:
+#             date_l_trial_success_dict[folder_dt] = trial_success_list
+#         else:
+#             rs('More than one session found for this date: {}'.format(folder_dt))
+#             date_l_trial_success_dict[folder_dt].extend(trial_success_list)
+
+#     # Now loop through dict and compute values
+#     for date, successful in date_l_trial_success_dict.items():
+#         dates.append(date)
+#         ntrials = len(successful)
+#         total_trials.append(ntrials)
+#         pct_correct.append(sum(successful)/len(successful))
+#         pct_incorrect.append(1 - pct_correct[-1])
+#         num_correct.append(sum(successful))
+#         num_incorrect.append(ntrials - num_correct[-1])
+
+#     fig, axs = plt.subplots(1, 2, figsize=(15,7))
+#     fig.suptitle('Training Progress')
+
+#     # Plot for Performance
+#     axs[0].set_title('Performance')
+#     axs[0].set_ylabel('Percent (%)')
+#     axs[0].set_ylim((0, 1))
+
+#     # dates_seconds = [(now - dates[0]).total_seconds() for now in dates]  # Calculate seconds elapsed since the first date
+#     axs[0].plot(dates, pct_correct, color='green', label='correct')
+#     axs[0].tick_params(axis='x', labelrotation=45)
+#     axs[0].legend()
+
+#     # Plot for Trial count
+#     axs[1].set_title('Trial count')
+#     axs[1].set_ylabel('Trials')
+#     axs[1].plot(dates, total_trials, color='black', label='total trials')
+#     axs[1].plot(dates, num_correct, color='green', label='num correct')
+#     axs[1].plot(dates, num_incorrect, color='orange', label='num incorrect')
+#     axs[1].tick_params(axis='x', labelrotation=45)
+#     axs[1].set_ylim(bottom=0)
+#     axs[1].legend()
+
+#     # -- DATE TICKS -- #
+#     # 1. set desired number of tick lines (5 for example)
+#     # 2. look at date span and find out what division (days, 1 week, 2 week, months, 3 months, 6 months, years)
+#     # gives us a value closest to the target (for example maybe dividing by 3 months gives us 8)
+#     # then we know our interval is 3 months
+#     # 3. labeling the start date and working forward make tick marks at each interval
+#     # add an option to include the one after the final interval or not
+#     desired_ticks = 5
+#     dt_range = max(dates) - min(dates)
+#     interval_options = [timedelta(days=1), timedelta(weeks=1), timedelta(weeks=2),
+#                         timedelta(weeks=4), timedelta(weeks=8), timedelta(weeks=12),
+#                           timedelta(weeks=26), timedelta(weeks=52)]
+
+#     interval_counts = [abs(desired_ticks - (dt_range/inter)) for inter in interval_options]
+
+#     i = np.argmin(np.array(interval_counts))
+#     interval = interval_options[i]
+
+#     date_ticks = [min(dates)]
+#     while date_ticks[-1] < max(dates):
+#         date_ticks.append(date_ticks[-1] + interval)
+#     if not include_last_tick:
+#         date_ticks = date_ticks[:-1]
+
+#     for ax in axs:
+#         for date in date_ticks:
+#             ax.axvline(x=date, color='gray', linestyle='--', alpha=0.5)
+#             # Setting tick locations and labels on the x-axis
+#         ax.set_xticks(date_ticks)
+#         ax.set_xticklabels([date.strftime('%y-%m-%d') for date in date_ticks], rotation=45)
+
+#     if savename is not None:
+#         fig.savefig(savename)
+#         rs(f'saving performance as {os.path.normpath(savename)}')
+#     else:
+#         plt.show()
+#     plt.close(fig)
 
 
 def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=10, triple_key=True):
@@ -693,7 +841,7 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
         return
 
     # Sort trials by force condition
-    trial_cond_info = build_cond_trial_dict(mobject, msession)
+    trial_cond_info = build_cond_trial_dict(mobject, msession, triple_key=False)
     ft_reference_events = ['success_grasp_start', 'ttl_to_reward']
     ft_save_paths = [os.path.join(results_dir, f'ForceTrace_from_{evt}.png')
                       for evt in ft_reference_events]
@@ -704,9 +852,10 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
     perf_minus10_day_path = os.path.join(results_dir, 'PerformanceLast10Days.png')
 
     # Determine what we need to write
-    make_force_traces =  not all([os.path.isfile(f) for f in ft_save_paths]) or overwrite
-    make_cond_succ_mat = not os.path.isfile(cond_succ_path) or overwrite
-    make_avg_succ_mat = not os.path.isfile(avg_succ_path) or overwrite
+    # TODO uncomment
+    make_force_traces = False# not all([os.path.isfile(f) for f in ft_save_paths]) or overwrite
+    make_cond_succ_mat = False #not os.path.isfile(cond_succ_path) or overwrite
+    make_avg_succ_mat = False#not os.path.isfile(avg_succ_path) or overwrite
     make_perf_plot = not os.path.isfile(perf_path) or overwrite
     make_perf10day_plot = not os.path.isfile(perf_minus10_day_path) or overwrite
 
@@ -741,19 +890,21 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
 
     # Acumulate msessions and mobjects for avg_cond_success_matrix
     if make_avg_succ_mat:
-        plot_avg_cond_success_matrix(raw_ss, proc_ss,
-                                    savename=avg_succ_path)
+        plot_avg_cond_success_matrix(raw_ss, proc_ss, savename=avg_succ_path)
 
     # Longitudenal performance
+    raw_server = os.path.dirname(raw_ss)
+    proc_server = os.path.dirname(proc_ss)
+    ref_date = date_from_folder(os.path.basename(raw_ss))
+
     if make_perf_plot:
-        plot_performance(raw_ss, proc_ss,
-                        savename=perf_path)
+        plot_performance(raw_server, proc_server, ref_date, savename=perf_path)
 
     if make_perf10day_plot:
         # Longitudenal performance (current - 10 days)
-        plot_performance(raw_ss, proc_ss,
+        plot_performance(raw_server, proc_server, ref_date,
                          savename=perf_minus10_day_path,
-                         _lookback_timedelta=timedelta(days=10),
+                         lookback_timedelta=timedelta(days=10),
                            include_last_tick=True)
 
 
@@ -777,7 +928,6 @@ def get_sessions_from(server, sessions, from_session):
 
 
 def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=True):
-
 
     # Check if training servers is defined
     if not does_trianing_servers_exist(preset):
@@ -838,7 +988,13 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
         b_move_raw = os.path.isdir(raw_ss) and (overwrite or not os.path.isdir(rdst))
         if b_move_raw:
             premove_len = len(glob.glob(raw_ss))
-            shutil.move(raw_ss, rdst)
+
+            # If we are overwriting, remove the old directory
+            if overwrite:
+                shutil.rmtree(rdst, ignore_errors=True)
+
+            shutil.move(raw_ss, preset['default_training_server'])
+            assert os.path.exists(rdst), 'Expected tranferred dir {} not found'.format(rdst)
             transferred_pairs.append((raw_ss, rdst))
             assert len(glob.glob(rdst)) == premove_len
 
@@ -846,7 +1002,13 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
         b_move_proc = os.path.isdir(proc_ss) and (overwrite or not os.path.isdir(pdst))
         if b_move_proc:
             premove_len = len(glob.glob(proc_ss))
-            shutil.move(proc_ss, pdst)
+
+            # If we are overwriting, remove the old directory
+            if overwrite:
+                shutil.rmtree(pdst, ignore_errors=True)
+
+            shutil.move(proc_ss, preset['processed_training_server']) ## Note: dir moved INSIDE the destination path
+            assert os.path.exists(pdst), 'Expected tranferred dir {} not found'.format(pdst)
             transferred_pairs.append((proc_ss, pdst))
             assert len(glob.glob(pdst)) == premove_len
 
@@ -861,7 +1023,15 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
     if not os.path.exists(preset['default_server']):
         raise ValueError("Default server directory {} does not exist or is inaccessible.".format(preset['default_server']))
 
-    import pdb; pdb.set_trace() # check that sessions have just one elem
+    experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(preset, sessions)
+
+    # Move sessions from experiment to training
+    # Then perform move
+    rs('\n'*3 + '='*200)
+    rs('Moving training sessions')
+    transfer_to_training(preset, experimental_ss_pairs_pre_move, overwrite)
+    rs('\n'*3 + '='*200)
+
     experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions)
 
     # Process all sessions -- training and experiment
@@ -878,10 +1048,6 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
     else:
         print('Skipping plot making because dry_run=True in main()')
 
-    # Then perform move
-    rs('\n'*3 + '='*200)
-    rs('Moving training sessions')
-    transfer_to_training(preset, experimental_ss_pairs, overwrite)
 
 
 if __name__ == "__main__":
