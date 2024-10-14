@@ -187,7 +187,7 @@ def create_heatmaps_subplots(data, title, cmap, display_n=True, savename=None):
     plt.tight_layout()
     if savename is not None:
         fig.savefig(savename)
-        print(f'saving success matrix as {os.path.normpath(savename)}')
+        #rs(f'saving success matrix as {os.path.normpath(savename)}')
     else:
         plt.show()
     plt.close(fig)
@@ -450,7 +450,7 @@ def plot_force_traces(
 
         savename = os.path.join(savedir, f'ForceTrace_from_{ref_event}')
         plt.savefig(savename)
-        rs(f'saving forcetrace as {os.path.normpath(savename)}')
+        #rs(f'saving forcetrace as {os.path.normpath(savename)}')
         plt.close(fig)
 
     # 3. create a plot for each reference event desired
@@ -592,7 +592,7 @@ def plot_performance(
 
     if savename is not None:
         fig.savefig(savename)
-        rs(f'saving performance as {os.path.normpath(savename)}')
+        #rs(f'saving performance as {os.path.normpath(savename)}')
     else:
         plt.show()
 
@@ -639,7 +639,7 @@ def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=1
         obj_stub = mobject[tr.object_id]['def']
         if 'targetForce(N)' not in obj_stub.keys():
             msg = f"Expected targetForce(N) in keys of object stub but only found: {obj_stub}"
-            print(msg)
+            rs(msg)
             continue
         trial_target_dict[tr] = float(obj_stub['targetForce(N)'])
 
@@ -656,7 +656,6 @@ def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=1
 
     # Let the user know
     if b_continuous:
-        #print("Using continuous force ranges for this session.")
         # Create force range bins
         force_bins = []
         for lo_bound in range(rounded_min_cond,
@@ -732,17 +731,15 @@ def process_session(raw_ss, proc_ss, overwrite, processes):
     perf_minus10_day_path = os.path.join(results_dir, 'PerformanceLast10Days.png')
 
     # Determine what we need to write
-    # TODO uncomment
-    make_force_traces = False# not all([os.path.isfile(f) for f in ft_save_paths]) or overwrite
-    make_cond_succ_mat = False #not os.path.isfile(cond_succ_path) or overwrite
-    make_avg_succ_mat = False#not os.path.isfile(avg_succ_path) or overwrite
+    make_force_traces = not all([os.path.isfile(f) for f in ft_save_paths]) or overwrite
+    make_cond_succ_mat = not os.path.isfile(cond_succ_path) or overwrite
+    make_avg_succ_mat = not os.path.isfile(avg_succ_path) or overwrite
     make_perf_plot = not os.path.isfile(perf_path) or overwrite
     make_perf10day_plot = not os.path.isfile(perf_minus10_day_path) or overwrite
 
     # Return if nothing to make
     if not any([make_force_traces, make_cond_succ_mat, make_avg_succ_mat,
                 make_perf_plot, make_perf10day_plot]):
-        #print("No new plots to make. Skipping session.")
         return
 
     # Else create a message for plotting
@@ -803,7 +800,7 @@ def get_sessions_from(server, sessions, from_session):
         assert os.path.isdir(from_server_session), f'From session not found: {from_server_session}'
         total_sessions = len(sessions)
         server_sessions = get_date_folders(from_server_session, mode='after')
-        print(f'Processing {len(sessions)}/{total_sessions} sessions from {from_session} onwards')
+        rs(f'Processing {len(sessions)}/{total_sessions} sessions from {from_session} onwards')
         return server_sessions
 
 
@@ -834,13 +831,10 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
             if exp_contents <= train_contents:  ## Checks if experimental contents is a subset of training contents
                 # If so delete the experimental contents as they have already been moved
                 shutil.rmtree(raw_ss, ignore_errors=True)
-                #print(f'Removed redundant training session @ {raw_ss}')
 
-    print('\n' * 2)
+    rs('\n' * 2)
     transferred_pairs = []
     for raw_ss, proc_ss in tqdm.tqdm(consider_for_transfer, ncols=100, desc="Tranfering training sessions"):
-
-        #print(f'Considering moving: {raw_ss}')
 
         try:
             mstruct, _, _, _ = meta_session.load_meta_information(raw_ss, proc_ss)
@@ -892,7 +886,6 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
             transferred_pairs.append((proc_ss, pdst))
             assert len(glob.glob(pdst)) == premove_len
 
-        #print(f'\nMoved {len(transferred_pairs)} from experiment to training data')
 
 
 def main(preset, sessions, temp, overwrite, processes, dry_run=False):
@@ -926,8 +919,7 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
             process_session(raw_ss, proc_ss, overwrite, processes)
 
     else:
-        print('Skipping plot making because dry_run=True in main()')
-
+        rs('Skipping plot making because dry_run=True in main()')
 
 
 if __name__ == "__main__":
@@ -963,5 +955,5 @@ if __name__ == "__main__":
         args.processes
     )
 
-    print('Program took {}.'.format(
+    rs('Program took {}.'.format(
         timedelta(seconds=time.time() - start_time)))
