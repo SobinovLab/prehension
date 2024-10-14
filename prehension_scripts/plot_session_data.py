@@ -30,7 +30,6 @@ from prehension.tools import cmd_args
 from prehension.tools.forces import get_summed_force_data
 from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
 
-
 # --- HELPERS --- #
 def plot_avg_target_ft():
     # TODO: for each trial plot an x,y point
@@ -581,9 +580,15 @@ def plot_performance(
     if lookback_timedelta <= timedelta(weeks=2):
         for i, date in enumerate(dates):
             # Label each point on both subplots with the date (excluding time)
-            label = date.strftime('%Y-%m-%d')
-            axs[0].annotate(label, (dates[i], pct_correct[i]), textcoords="offset points", xytext=(0, 10), ha='center')
-            axs[1].annotate(label, (dates[i], total_trials[i]), textcoords="offset points", xytext=(0, 10), ha='center')
+            label = date.strftime('%m/%d')
+
+            axs[0].annotate(label, (dates[i], pct_correct[i]),
+                            textcoords="offset points", xytext=(0, 10),
+                            ha='center', rotation='vertical')
+
+            axs[1].annotate(label, (dates[i], total_trials[i]),
+                            textcoords="offset points", xytext=(0, 10),
+                            ha='center', rotation='vertical')
 
     if savename is not None:
         fig.savefig(savename)
@@ -592,131 +597,6 @@ def plot_performance(
         plt.show()
 
     plt.close(fig)
-
-
-
-# def plot_performance_old(raw_ss, proc_ss, savename=None,
-#                       _lookback_timedelta=timedelta(days=3650), include_last_tick=False):
-
-#     dates = []
-#     pct_correct = []
-#     pct_incorrect = []
-#     num_correct = []
-#     num_incorrect = []
-#     total_trials = []
-
-#     # Dictionary to keep track of the date - trial success list
-#     date_l_trial_success_dict = {}
-
-#     # Get all sessions older than current sesssion
-#     raw_server_sessions = get_date_folders(raw_ss, mode='before', lookback_timedelta=_lookback_timedelta)
-#     print(f'Found {len(raw_server_sessions)} sessions < {raw_ss}')
-
-#     proc_server = os.path.dirname(proc_ss)
-
-#     if len(raw_server_sessions) == 0:
-#         ws(f'No raw server sessions found in: {raw_ss}, skipping performance plot...')
-#         return
-
-
-#     for rss in raw_server_sessions:
-
-#         # Look for processed server session, continue if it doesn't exist
-#         pss = os.path.join(proc_server, os.path.basename(rss))
-#         if not os.path.isdir(pss):
-#             import pdb; pdb.set_trace()
-#             ws(f'Could not find processed server session dir (rss // pss): {rss} // {pss}')
-#             continue
-
-#         # Get correct and total trials
-#         try:
-#             _, _, _, msession = meta_session.load_meta_information(rss, pss)
-#         except FileNotFoundError as fnfe:
-#             ws(f'Skipping {rss} due to error loading meta: {fnfe}')
-#             continue
-#         except meta_session.IncompleteMetaError as imfe:
-#             ws(f'Skipping {rss} due to incomplete meta: {imfe}')
-#             continue
-
-#         folder_dt = date_from_folder(os.path.basename(rss))
-#         trial_success_list = [tr.success for tr in msession]
-
-#         if folder_dt not in date_l_trial_success_dict:
-#             date_l_trial_success_dict[folder_dt] = trial_success_list
-#         else:
-#             rs('More than one session found for this date: {}'.format(folder_dt))
-#             date_l_trial_success_dict[folder_dt].extend(trial_success_list)
-
-#     # Now loop through dict and compute values
-#     for date, successful in date_l_trial_success_dict.items():
-#         dates.append(date)
-#         ntrials = len(successful)
-#         total_trials.append(ntrials)
-#         pct_correct.append(sum(successful)/len(successful))
-#         pct_incorrect.append(1 - pct_correct[-1])
-#         num_correct.append(sum(successful))
-#         num_incorrect.append(ntrials - num_correct[-1])
-
-#     fig, axs = plt.subplots(1, 2, figsize=(15,7))
-#     fig.suptitle('Training Progress')
-
-#     # Plot for Performance
-#     axs[0].set_title('Performance')
-#     axs[0].set_ylabel('Percent (%)')
-#     axs[0].set_ylim((0, 1))
-
-#     # dates_seconds = [(now - dates[0]).total_seconds() for now in dates]  # Calculate seconds elapsed since the first date
-#     axs[0].plot(dates, pct_correct, color='green', label='correct')
-#     axs[0].tick_params(axis='x', labelrotation=45)
-#     axs[0].legend()
-
-#     # Plot for Trial count
-#     axs[1].set_title('Trial count')
-#     axs[1].set_ylabel('Trials')
-#     axs[1].plot(dates, total_trials, color='black', label='total trials')
-#     axs[1].plot(dates, num_correct, color='green', label='num correct')
-#     axs[1].plot(dates, num_incorrect, color='orange', label='num incorrect')
-#     axs[1].tick_params(axis='x', labelrotation=45)
-#     axs[1].set_ylim(bottom=0)
-#     axs[1].legend()
-
-#     # -- DATE TICKS -- #
-#     # 1. set desired number of tick lines (5 for example)
-#     # 2. look at date span and find out what division (days, 1 week, 2 week, months, 3 months, 6 months, years)
-#     # gives us a value closest to the target (for example maybe dividing by 3 months gives us 8)
-#     # then we know our interval is 3 months
-#     # 3. labeling the start date and working forward make tick marks at each interval
-#     # add an option to include the one after the final interval or not
-#     desired_ticks = 5
-#     dt_range = max(dates) - min(dates)
-#     interval_options = [timedelta(days=1), timedelta(weeks=1), timedelta(weeks=2),
-#                         timedelta(weeks=4), timedelta(weeks=8), timedelta(weeks=12),
-#                           timedelta(weeks=26), timedelta(weeks=52)]
-
-#     interval_counts = [abs(desired_ticks - (dt_range/inter)) for inter in interval_options]
-
-#     i = np.argmin(np.array(interval_counts))
-#     interval = interval_options[i]
-
-#     date_ticks = [min(dates)]
-#     while date_ticks[-1] < max(dates):
-#         date_ticks.append(date_ticks[-1] + interval)
-#     if not include_last_tick:
-#         date_ticks = date_ticks[:-1]
-
-#     for ax in axs:
-#         for date in date_ticks:
-#             ax.axvline(x=date, color='gray', linestyle='--', alpha=0.5)
-#             # Setting tick locations and labels on the x-axis
-#         ax.set_xticks(date_ticks)
-#         ax.set_xticklabels([date.strftime('%y-%m-%d') for date in date_ticks], rotation=45)
-
-#     if savename is not None:
-#         fig.savefig(savename)
-#         rs(f'saving performance as {os.path.normpath(savename)}')
-#     else:
-#         plt.show()
-#     plt.close(fig)
 
 
 def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=10, triple_key=True):
