@@ -5,7 +5,6 @@ import os
 import datetime
 import sys
 import tqdm
-import tsm
 import math
 import numbers
 import shutil
@@ -29,6 +28,254 @@ from prehension import meta_session
 from prehension.tools import cmd_args
 from prehension.tools.forces import get_summed_force_data
 from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
+
+
+class SessionGroup:
+
+    """
+    Wrapper for multiple session data and analysis,
+    Includes methods for plotting the following
+    - performance per session plots across time
+    - conditional success matrix for all sessions
+    """
+
+    def __init__(self, l_session_wrappers, warn_duplicates_per_date):
+        self.session_wrappers = l_session_wrappers
+
+        # dictionary of form -> datetime: list[SessionWrapper]
+        self.session_wrappers_by_date = {}
+        for sw in self.session_wrappers:
+            if sw.datetime not in self.session_wrappers_by_date:
+                self.session_wrappers_by_date[sw.datetime] = [sw]
+            else:
+                if warn_duplicates_per_date:
+                    ws(f'Duplicate session for {sw.datetime}')
+                self.session_wrappers_by_date[sw.datetime].append(sw)
+
+
+    def plot_avg_cond_success_matricies(self):
+
+        # First sort all of the session wrappers by ascending datetime
+        msession_l = []
+        mobject_l = []
+
+        for datetime in tqdm.tqdm(sorted(self.session_wrappers_by_date.keys()), desc='Plotting Performance'):
+
+            sessions_per_date = self.session_wrappers_by_date[datetime]
+
+            # Combine date from multiple sessions from the same day
+            datetime_msession = []
+            datetime_mobject = []
+            for sw in sessions_per_date:
+                datetime_msession += sw.msession_l
+                datetime_mobject += sw.mobject_l
+
+            msession_l.append(datetime_msession), mobject_l.append(datetime_mobject)
+
+            # Save a plot in all same day folders:
+            for i, sw in enumerate(sessions_per_date):
+                title = f'Daily performance ({i+1}/{len(sessions_per_date)}) sessions up to {datetime}'
+                plot_cond_success_matrix(msession_l, mobject_l, title, cmap='Greens',
+                                         savename=os.path.join(sw.results_dir, 'CondSuccessMatrix.png'))
+
+    @staticmethod
+    def plot_performace_fig(date_success_dict,
+                            last_n_days_label=None, include_last_tick=False,
+                            annotate_dates=False, savename=None):
+
+        fig, axs = plt.subplots(1, 2, figsize=(15, 7))
+        suptitle = f'Training Progress (last {last_n_days_label} days)' if last_n_days_label else 'Training Progress'
+        fig.suptitle(suptitle)
+
+        # Plot for Performance
+        axs[0].set_title('Performance')
+        axs[0].set_ylabel('Percent (%)')
+        axs[0].set_ylim((0, 1))
+
+        dates = sorted(date_success_dict.keys())
+        pct_correct = [100 * sum(date_success_dict[dt]) / len(date_success_dict[dt]) for dt in dates]
+        total_trials = [len(date_success_dict[dt]) for dt in dates]
+        num_correct = [sum(date_success_dict[dt]) for dt in dates]
+        num_incorrect = [len(date_success_dict[dt]) - sum(date_success_dict[dt]) for dt in dates]
+
+        axs[0].plot(dates, pct_correct, color='green', label='correct')
+        axs[0].tick_params(axis='x', labelrotation=45)
+        axs[0].legend()
+
+        # Plot for Trial count
+        axs[1].set_title('Trial count')
+        axs[1].set_ylabel('Trials')
+        axs[1].plot(dates, total_trials, color='black', label='total trials')
+        axs[1].plot(dates, num_correct, color='green', label='num correct')
+        axs[1].plot(dates, num_incorrect, color='orange', label='num incorrect')
+        axs[1].tick_params(axis='x', labelrotation=45)
+        axs[1].set_ylim(bottom=0)
+        axs[1].legend()
+
+        # -- DATE TICKS -- #
+        desired_ticks = 5
+        dt_range = max(dates) - min(dates)
+        interval_options = [timedelta(days=1), timedelta(weeks=1), timedelta(weeks=2),
+                            timedelta(weeks=4), timedelta(weeks=8), timedelta(weeks=12),
+                            timedelta(weeks=26), timedelta(weeks=52)]
+
+        interval_counts = [abs(desired_ticks - (dt_range / inter)) for inter in interval_options]
+        i = np.argmin(np.array(interval_counts))
+        interval = interval_options[i]
+
+        date_ticks = [min(dates), ]
+        while date_ticks[-1] < max(dates):
+            date_ticks.append(date_ticks[-1] + interval)
+        if not include_last_tick:
+            date_ticks = date_ticks[:-1]
+
+        for ax in axs:
+            for date in date_ticks:
+                ax.axvline(x=date, color='gray', linestyle='--', alpha=0.5)
+            ax.set_xticks(date_ticks)
+            ax.set_xticklabels([date.strftime('%y-%m-%d') for date in date_ticks], rotation=45)
+
+        # -- LABEL POINTS IF LOOKBACK IS <= 2 WEEKS -- #
+        if annotate_dates:
+            for i, date in enumerate(dates):
+                # Label each point on both subplots with the date (excluding time)
+                label = date.strftime('%m/%d')
+
+                axs[0].annotate(label, (dates[i], pct_correct[i]),
+                                textcoords="offset points", xytext=(0, 10),
+                                ha='center', rotation='vertical')
+
+                axs[1].annotate(label, (dates[i], total_trials[i]),
+                                textcoords="offset points", xytext=(0, 10),
+                                ha='center', rotation='vertical')
+
+        if savename is not None:
+            fig.savefig(savename)
+            #rs(f'saving performance as {os.path.normpath(savename)}')
+        else:
+            plt.show()
+
+        plt.close(fig)
+
+
+    def plot_performance(self):
+        # Build dictionary of form -> datetime: list[trial success bools for that date]
+        # Note we need to aggregate all sessions for the same date
+
+        date_l_trial_success_dict = {}
+
+        for datetime in self.session_wrappers_by_date:
+            trial_success_list_per_date = []
+            for sw in self.session_wrappers_by_date[datetime]:
+                trial_success_list_per_date += [tr.success for tr in sw.msession]
+
+            date_l_trial_success_dict[datetime] = trial_success_list_per_date
+
+        # Now loop through session wrappers and plot
+        for sw in tqdm.tqdm(self.session_wrappers, desc='Plotting Performance'):
+            # Find valid subset of keys within range for each session wrapper
+            dates_total = [dt for dt in list(date_l_trial_success_dict.keys()) if dt <= sw.datetime]
+            dates_10_day = [dt for dt in dates_total if dt >= sw.datetime - timedelta(days=10)]
+
+            date_success_dict_total = {dt: date_l_trial_success_dict[dt] for dt in dates_total}
+            date_success_dict_10_day = {dt: date_l_trial_success_dict[dt] for dt in dates_10_day}
+
+            SessionGroup.plot_performace_fig(date_success_dict_total,
+                                             savename=os.path.join(sw.results_dir, 'Performance.png'))
+            SessionGroup.plot_performace_fig(date_success_dict_10_day,
+                                             last_n_days_label='10',
+                                             include_last_tick=True,
+                                             annotate_dates=True,
+                                             savename=os.path.join(sw.results_dir, 'PerformanceLast10Days.png'))
+
+
+
+class SessionWrapper:
+
+    """
+    Wrapper for single session data and analysis,
+    Includes methods for plotting the following
+    - force traces for session
+    - conditional success matrix for session
+    """
+
+    def __init__(self, raw_ss, proc_ss):
+        assert os.path.isdir(raw_ss) and os.path.isdir(proc_ss)
+        self.raw_ss = raw_ss
+        self.proc_ss = proc_ss
+
+        self.sess_name = os.path.basename(self.raw_ss)
+        self.datetime = date_from_folder(self.sess_name)
+
+        # Create results and log folder
+        self.results_dir = os.path.join(self.proc_ss, 'prehension_plots')
+        os.makedirs(self.results_dir, exist_ok=True)
+
+        # Load meta
+        self.mstruct, self.mdof, self.mobject, self.msession = meta_session.load_meta_information(self.raw_ss, self.proc_ss)
+
+
+    def plot_force_trace(self, processes=17):
+        tp_path = os.path.join(self.proc_ss, "timepoints.csv")
+
+        if not os.path.isfile(tp_path):
+            ws(f"Could not find timepoints csv {tp_path}, skipping force trace")
+            return
+
+        trial_cond_info = build_cond_trial_dict(self.mobject, self.msession, triple_key=False)
+
+        if trial_cond_info is None:
+            ws('trial condition info is None, skipping..')
+        else:
+            tp_df = pd.read_csv(tp_path)
+            tp_df = pd.read_csv(tp_path)
+            plot_force_traces(*trial_cond_info[:-1], tp_df, self.results_dir,
+                              ref_events=['success_grasp_start', 'ttl_to_reward'],
+                                processes=processes)
+
+
+    def plot_cond_success_matrix(self):
+        cond_success_matrix_path = os.path.join(self.results_dir, 'CondSuccessMatrix.png')
+        SessionWrapper._plot_cond_success_matrix([self.msession,], [self.mobject,], title=self.sess_name,
+                                    cmap='Purples', savename=cond_success_matrix_path)
+
+
+    @staticmethod
+    def _plot_cond_success_matrix(msession_l, mobject_l, title, cmap, savename):
+
+        # Force conditions should be a list of [(lo, hi), ...]
+        # or [target1, target2]
+        cond_success_dict = {}
+
+        def get_pct_true(l):
+            return sum(l) / len(l)
+
+        # Accumulate data for diff conditions
+        n_trials = 0
+
+        # Accumulate all conditions
+        cond_all_trial_dict = {}
+
+        for msession, mobject in zip(msession_l, mobject_l):
+            # Get continuous force bins
+            cond_trial_dict, _, _, _ = build_cond_trial_dict(mobject, msession, max_discrete_conds=0, triple_key=True)
+            # Dictionary of form
+
+            cond_all_trial_dict = merge_dicts(cond_all_trial_dict, cond_trial_dict)
+
+        for cond, trials in cond_all_trial_dict.items():
+            # Cound values
+            n_trials += len(trials)
+            cond_success_dict[cond] = (get_pct_true([tr.success for tr in trials]), len(trials))
+            ## values are (pct success, ntrials)
+
+        create_heatmaps_subplots(cond_success_dict,
+                                f'Condition Success Matrices\n{title}\n(trials={n_trials})',
+                                cmap,
+                                savename=savename)
+
+
+
 
 # --- HELPERS --- #
 def plot_avg_target_ft():
@@ -473,7 +720,7 @@ def plot_performance(
     date_l_trial_success_dict = {}
 
     # LOOP 1: build a dictionary of (key, value) == (date, [list success bools])
-    for dirname in tqdm.tqdm(os.listdir(raw_server), desc='Plotting performance new'):
+    for dirname in os.listdir(raw_server):
 
         # Perform 4 checks on folder validity
 
@@ -499,10 +746,10 @@ def plot_performance(
         try:
             _, _, _, msession = meta_session.load_meta_information(rss, pss)
         except FileNotFoundError as fnfe:
-            ws(f'Skipping {rss} due to error loading meta: {fnfe}')
+            #ws(f'Skipping {rss} due to error loading meta: {fnfe}')
             continue
         except meta_session.IncompleteMetaError as imfe:
-            ws(f'Skipping {rss} due to incomplete meta (TRY workaround later): {imfe}')
+            #ws(f'Skipping {rss} due to incomplete meta (TRY workaround later): {imfe}')
             continue
 
         # Add data to dictionary
@@ -511,7 +758,7 @@ def plot_performance(
         if datetime not in date_l_trial_success_dict:
             date_l_trial_success_dict[datetime] = trial_success_list
         else:
-            rs('More than one session found for this date: {}'.format(dirname))
+            #rs('More than one session found for this date: {}'.format(dirname))
             date_l_trial_success_dict[datetime].extend(trial_success_list)
 
     # LOOP 2: plot the results
@@ -699,112 +946,117 @@ def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=1
     return retval
 
 
-def process_session(raw_ss, proc_ss, overwrite, processes):
+# def process_session(raw_ss, proc_ss, overwrite, processes):
 
-    # Create output dir with plots
-    session = os.path.basename(raw_ss)
-    rs("Processing session {}.".format(os.path.basename(session)))
+#     # Create output dir with plots
+#     session = os.path.basename(raw_ss)
+#     #rs("Processing session {}.".format(os.path.basename(session)))
 
-    # Create results and log folder
-    results_dir = os.path.join(proc_ss, 'prehension_plots')
-    os.makedirs(results_dir, exist_ok=True)
+#     # Create results and log folder
+#     results_dir = os.path.join(proc_ss, 'prehension_plots')
+#     os.makedirs(results_dir, exist_ok=True)
 
-    if not os.path.exists(proc_ss) or not os.path.exists(raw_ss):
-        ws("Session {} does not exist on the server.".format(session))
-        return
+#     if not os.path.exists(proc_ss) or not os.path.exists(raw_ss):
+#         ws("Session {} does not exist on the server.".format(session))
+#         return
 
-    try:
-        _, _, mobject, msession = meta_session.load_meta_information(raw_ss, proc_ss)
-    except Exception as e:
-        ws('Could not load meta data from session {} || {} ({}), skipping.'.format(raw_ss, proc_ss, repr(e)))
-        return
+#     try:
+#         mstruct, mdof, mobject, msession = meta_session.load_meta_information(raw_ss, proc_ss)
+#     except Exception as e:
+#         ws('Could not load meta data from session {} || {} ({}), skipping.'.format(raw_ss, proc_ss, repr(e)))
+#         return
 
-    # Sort trials by force condition
-    trial_cond_info = build_cond_trial_dict(mobject, msession, triple_key=False)
-    ft_reference_events = ['success_grasp_start', 'ttl_to_reward']
-    ft_save_paths = [os.path.join(results_dir, f'ForceTrace_from_{evt}.png')
-                      for evt in ft_reference_events]
-    tp_path = os.path.join(proc_ss, "timepoints.csv")
-    cond_succ_path=os.path.join(results_dir, 'CondSuccessMatrix.png')
-    avg_succ_path = os.path.join(results_dir, 'AvgCondSuccessMatrix.png')
-    perf_path = os.path.join(results_dir, 'Performance.png')
-    perf_minus10_day_path = os.path.join(results_dir, 'PerformanceLast10Days.png')
+#     # Sort trials by force condition
+#     trial_cond_info = build_cond_trial_dict(mobject, msession, triple_key=False)
+#     ft_reference_events = ['success_grasp_start', 'ttl_to_reward']
+#     ft_save_paths = [os.path.join(results_dir, f'ForceTrace_from_{evt}.png')
+#                       for evt in ft_reference_events]
+#     tp_path = os.path.join(proc_ss, "timepoints.csv")
+#     cond_succ_path=os.path.join(results_dir, 'CondSuccessMatrix.png')
+#     avg_succ_path = os.path.join(results_dir, 'AvgCondSuccessMatrix.png')
+#     perf_path = os.path.join(results_dir, 'Performance.png')
+#     perf_minus10_day_path = os.path.join(results_dir, 'PerformanceLast10Days.png')
 
-    # Determine what we need to write
-    make_force_traces = not all([os.path.isfile(f) for f in ft_save_paths]) or overwrite
-    make_cond_succ_mat = not os.path.isfile(cond_succ_path) or overwrite
-    make_avg_succ_mat = not os.path.isfile(avg_succ_path) or overwrite
-    make_perf_plot = not os.path.isfile(perf_path) or overwrite
-    make_perf10day_plot = not os.path.isfile(perf_minus10_day_path) or overwrite
+#     # Determine what we need to write
+#     # TODO reinstate expression when testing done
+#     make_force_traces = False #not all([os.path.isfile(f) for f in ft_save_paths]) or overwrite
+#     make_cond_succ_mat = not os.path.isfile(cond_succ_path) or overwrite
+#     make_avg_succ_mat = not os.path.isfile(avg_succ_path) or overwrite
+#     make_perf_plot = not os.path.isfile(perf_path) or overwrite
+#     make_perf10day_plot = not os.path.isfile(perf_minus10_day_path) or overwrite
 
-    # Return if nothing to make
-    if not any([make_force_traces, make_cond_succ_mat, make_avg_succ_mat,
-                make_perf_plot, make_perf10day_plot]):
-        return
+#     # Return if nothing to make
+#     if not any([make_force_traces, make_cond_succ_mat, make_avg_succ_mat,
+#                 make_perf_plot, make_perf10day_plot]):
+#         return
 
-    # Else create a message for plotting
-    msg = "Making"
-    if make_force_traces: msg += " force traces,"
-    if make_cond_succ_mat: msg += " conditional success plot,"
-    if make_avg_succ_mat: msg += " average success plot,"
-    if make_perf_plot: msg += " longitudinal performance plot"
-    if make_perf10day_plot: msg += " last 10 days performance plot"
+#     # Else create a message for plotting
+#     # msg = "Making"
+#     # if make_force_traces: msg += " force traces,"
+#     # if make_cond_succ_mat: msg += " conditional success plot,"
+#     # if make_avg_succ_mat: msg += " average success plot,"
+#     # if make_perf_plot: msg += " longitudinal performance plot"
+#     # if make_perf10day_plot: msg += " last 10 days performance plot"
 
-    if not os.path.isfile(tp_path):
-        ws(f"Could not find timepoints csv {tp_path}, skipping force trace")
-    elif make_force_traces:
-        if trial_cond_info is None:
-            ws('trial condition info is None, skipping..')
-        else:
-            tp_df = pd.read_csv(tp_path)
-            plot_force_traces(*trial_cond_info[:-1], tp_df, results_dir,
-                            ft_reference_events, processes=processes)
+#     if not os.path.isfile(tp_path):
+#         ws(f"Could not find timepoints csv {tp_path}, skipping force trace")
+#     elif make_force_traces:
+#         if trial_cond_info is None:
+#             ws('trial condition info is None, skipping..')
+#         else:
+#             tp_df = pd.read_csv(tp_path)
+#             plot_force_traces(*trial_cond_info[:-1], tp_df, results_dir,
+#                             ft_reference_events, processes=processes)
 
-    # Success Matrices
-    if make_cond_succ_mat:
-        plot_cond_success_matrix([msession,], [mobject,], title=session,
-                                  cmap='Purples', savename=cond_succ_path)
+#     # Success Matrices
+#     if make_cond_succ_mat:
+#         plot_cond_success_matrix([msession,], [mobject,], title=session,
+#                                   cmap='Purples', savename=cond_succ_path)
 
-    # Acumulate msessions and mobjects for avg_cond_success_matrix
-    if make_avg_succ_mat:
-        plot_avg_cond_success_matrix(raw_ss, proc_ss, savename=avg_succ_path)
+#     # Acumulate msessions and mobjects for avg_cond_success_matrix
+#     if make_avg_succ_mat:
+#         plot_avg_cond_success_matrix(raw_ss, proc_ss, savename=avg_succ_path)
 
-    # Longitudenal performance
-    raw_server = os.path.dirname(raw_ss)
-    proc_server = os.path.dirname(proc_ss)
-    ref_date = date_from_folder(os.path.basename(raw_ss))
+#     # Longitudenal performance
+#     raw_server = os.path.dirname(raw_ss)
+#     proc_server = os.path.dirname(proc_ss)
+#     ref_date = date_from_folder(os.path.basename(raw_ss))
 
-    if make_perf_plot:
-        plot_performance(raw_server, proc_server, ref_date, savename=perf_path)
+#     if make_perf_plot:
+#         plot_performance(raw_server, proc_server, ref_date, savename=perf_path)
 
-    if make_perf10day_plot:
-        # Longitudenal performance (current - 10 days)
-        plot_performance(raw_server, proc_server, ref_date,
-                         savename=perf_minus10_day_path,
-                         lookback_timedelta=timedelta(days=10),
-                           include_last_tick=True)
+#     if make_perf10day_plot:
+#         # Longitudenal performance (current - 10 days)
+#         plot_performance(raw_server, proc_server, ref_date,
+#                          savename=perf_minus10_day_path,
+#                          lookback_timedelta=timedelta(days=10),
+#                            include_last_tick=True)
 
 
-def get_sessions_from(server, sessions, from_session):
-    '''
-    from_session (str) : the folder name to parse the reference date from
 
-    Get all sessions with date greater than or equal to the reference date
-    returns full session paths
-    '''
+# def get_sessions_from(server, sessions, from_session):
+#     '''
+#     from_session (str) : the folder name to parse the reference date from
 
-    if from_session == '':
-        return [os.path.join(server, sess) for sess in sessions]
-    else:
-        from_server_session = os.path.join(server, from_session)
-        assert os.path.isdir(from_server_session), f'From session not found: {from_server_session}'
-        total_sessions = len(sessions)
-        server_sessions = get_date_folders(from_server_session, mode='after')
-        rs(f'Processing {len(sessions)}/{total_sessions} sessions from {from_session} onwards')
-        return server_sessions
+#     Get all sessions with date greater than or equal to the reference date
+#     returns full session paths
+#     '''
+
+#     if from_session == '':
+#         return [os.path.join(server, sess) for sess in sessions]
+#     else:
+#         from_server_session = os.path.join(server, from_session)
+#         assert os.path.isdir(from_server_session), f'From session not found: {from_server_session}'
+#         total_sessions = len(sessions)
+#         server_sessions = get_date_folders(from_server_session, mode='after')
+#         rs(f'Processing {len(sessions)}/{total_sessions} sessions from {from_session} onwards')
+#         return server_sessions
+
 
 
 def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=True):
+
+    import pdb; pdb.set_trace()
 
     # Check if training servers is defined
     if not does_trianing_servers_exist(preset):
@@ -814,11 +1066,14 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
     ## HACK clean up any training sessions that have already been transfered but that,
     # for some reason, still exist in sessions
     if clean:
-        for raw_ss, proc_ss in tqdm.tqdm(consider_for_transfer, ncols=100, desc="Attempting to clean (sometimes fails due to permissions)"):
+        for raw_ss, proc_ss in consider_for_transfer:
 
             raw_training_dir = os.path.join(preset['default_training_server'], os.path.basename(raw_ss))
             if not os.path.isdir(raw_training_dir):
+                #print(f'Could not find {raw_training_dir}, skipping')
                 continue  ## skip if we don't have corresponding training dir
+
+            #print(f'Considering removing {raw_ss}')
 
             # check raw session contents
             exp_contents = set([os.path.basename(pth) for pth in
@@ -830,52 +1085,62 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
 
             if exp_contents <= train_contents:  ## Checks if experimental contents is a subset of training contents
                 # If so delete the experimental contents as they have already been moved
+
                 shutil.rmtree(raw_ss, ignore_errors=True)
+                print(f'Attempted to remove {raw_ss}')
 
     rs('\n' * 2)
     transferred_pairs = []
     for raw_ss, proc_ss in tqdm.tqdm(consider_for_transfer, ncols=100, desc="Tranfering training sessions"):
 
+        # Load meta information
         try:
             mstruct, _, _, _ = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
             ws('Could not load meta data from session {} ({}), skipping.'.format(raw_ss, repr(e)))
             continue
 
+        # Check if it is an experiment or not
         experiment_expected_dirnames = [
             os.path.join(raw_ss, mstruct['videos_dir']),
             os.path.join(raw_ss, mstruct['raw_ps_dir'])
         ]
-
-        # Check if training session
         is_training_session = not all([os.path.exists(dname) for dname
                                         in experiment_expected_dirnames])
 
+        # Print a message if not
         sess_name = os.path.basename(raw_ss)
-
         if not is_training_session:
-            #rs(f'{sess_name} is an experiment session')
+            rs(f'{sess_name} is an experiment session')
             continue
 
         # Do transfers
         rdst = os.path.join(preset['default_training_server'], sess_name)
         b_move_raw = os.path.isdir(raw_ss) and (overwrite or not os.path.isdir(rdst))
         if b_move_raw:
-            premove_len = len(glob.glob(raw_ss))
+            premove_len = len(glob.glob(raw_ss, '**', recursive=True))
 
             # If we are overwriting, remove the old directory
             if overwrite:
                 shutil.rmtree(rdst, ignore_errors=True)
 
             shutil.move(raw_ss, preset['default_training_server'])
+
             assert os.path.exists(rdst), 'Expected tranferred dir {} not found'.format(rdst)
-            transferred_pairs.append((raw_ss, rdst))
             assert len(glob.glob(rdst)) == premove_len
+
+            print('moved {raw_ss} to raw training server')
+
+            if os.path.exists(raw_ss):
+                print('Removing raw session {}'.format(raw_ss))
+                shutil.rmtree(raw_ss, ignore_errors=True)
+
+            transferred_pairs.append((raw_ss, rdst))
 
         pdst = os.path.join(preset['processed_training_server'], sess_name)
         b_move_proc = os.path.isdir(proc_ss) and (overwrite or not os.path.isdir(pdst))
         if b_move_proc:
-            premove_len = len(glob.glob(proc_ss))
+            premove_len = len(glob.glob(proc_ss, '**', recursive=True))
 
             # If we are overwriting, remove the old directory
             if overwrite:
@@ -883,9 +1148,14 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
 
             shutil.move(proc_ss, preset['processed_training_server']) ## Note: dir moved INSIDE the destination path
             assert os.path.exists(pdst), 'Expected tranferred dir {} not found'.format(pdst)
-            transferred_pairs.append((proc_ss, pdst))
             assert len(glob.glob(pdst)) == premove_len
 
+            print('moved {proc_ss} to processed training server')
+
+            if os.path.exists(proc_ss):
+                shutil.rmtree(proc_ss, ignore_errors=True)
+
+            transferred_pairs.append((proc_ss, pdst))
 
 
 def main(preset, sessions, temp, overwrite, processes, dry_run=False):
@@ -896,7 +1166,7 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
     if not os.path.exists(preset['default_server']):
         raise ValueError("Default server directory {} does not exist or is inaccessible.".format(preset['default_server']))
 
-    experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(preset, sessions)
+    experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(preset, sessions, filter=False)
 
     # Move sessions from experiment to training
     # Then perform move
@@ -905,18 +1175,34 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
     transfer_to_training(preset, experimental_ss_pairs_pre_move, overwrite)
     rs('\n'*3 + '='*200)
 
-    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions)
+    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions, filter=True)
 
     # Process all sessions -- training and experiment
     if not dry_run:
 
         # process experiment sessions
-        for raw_ss, proc_ss in tqdm.tqdm(experimental_ss_pairs, ncols=100, desc="Making plots for experimental sessions"):
-            process_session(raw_ss, proc_ss, overwrite, processes)
+        exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
+        train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
 
-        # process training sessions
-        for raw_ss, proc_ss in tqdm.tqdm(training_ss_pairs, ncols=100, desc="Making plots for training sessions"):
-            process_session(raw_ss, proc_ss, overwrite, processes)
+        # Experiment single sess analysis
+        for exp_session in exp_session_wrappers:
+            exp_session.plot_force_trace()
+            exp_session.plot_cond_success_matrix()
+
+        # Training single sess analysis
+        # for train_session in train_session_wrappers:
+        #     train_session.plot_force_trace()
+        #     train_session.plot_cond_success_matrix()
+
+        # # Experiment multi sess analysis
+        # exp_group = SessionGroup(exp_session_wrappers)
+        # exp_group.plot_avg_cond_success_matricies()
+        # exp_group.plot_performance()
+
+        # # Training multi sess analysis
+        # exp_group = SessionGroup(train_session_wrappers)
+        # exp_group.plot_avg_cond_success_matricies()
+        # exp_group.plot_performance()
 
     else:
         rs('Skipping plot making because dry_run=True in main()')

@@ -47,7 +47,7 @@ def _filter_pairs(raw_ss_list, proc_ss_list):
     return pairs
 
 
-def fetch_server_session_dirs(preset, sessions=[]):
+def fetch_server_session_dirs(preset, sessions=[], filter=False):
 
     # Decide if we are finding sessions or using the provided sessions
     if not sessions:
@@ -66,8 +66,10 @@ def fetch_server_session_dirs(preset, sessions=[]):
     # now raw and proc ss lists should be the same length, read through and filter out/warn
     # on any that do not exist
     assert len(raw_server_sessions) == len(proc_server_sessions)
-    experimental_raw_proc_pairs = _filter_pairs(raw_server_sessions, proc_server_sessions)
-
+    if filter:
+        experimental_raw_proc_pairs = _filter_pairs(raw_server_sessions, proc_server_sessions)
+    else:
+        experimental_raw_proc_pairs = zip(raw_server_sessions, proc_server_sessions)
 
     # Build initial list of raw and proc training session dirs
     raw_training_sessions = []
@@ -79,7 +81,10 @@ def fetch_server_session_dirs(preset, sessions=[]):
         proc_training_sessions += [os.path.normpath(os.path.join(
             preset['processed_training_server'], os.path.basename(ss))) for ss in train_session_names]
 
-    training_raw_proc_pairs = _filter_pairs(raw_training_sessions, proc_training_sessions)
+    if filter:
+        training_raw_proc_pairs = _filter_pairs(raw_training_sessions, proc_training_sessions)
+    else:
+        training_raw_proc_pairs = zip(raw_training_sessions, proc_training_sessions)
 
     return experimental_raw_proc_pairs, training_raw_proc_pairs
 
