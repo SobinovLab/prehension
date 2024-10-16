@@ -30,6 +30,10 @@ from prehension.tools.forces import get_summed_force_data
 from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
 
 
+# DEBUGGING SWITCHES
+SKIP_FORCE_TRACES = True
+
+
 class SessionGroup:
 
     """
@@ -39,8 +43,13 @@ class SessionGroup:
     - conditional success matrix for all sessions
     """
 
-    def __init__(self, l_session_wrappers, warn_duplicates_per_date):
-        self.session_wrappers = l_session_wrappers
+    def __init__(self, l_session_wrappers, warn_duplicates_per_date, group_label=''):
+
+        # Filter out sessions with no meta
+        self.session_wrappers = [sw for sw in l_session_wrappers if sw.has_meta]
+
+        # Group label for tqdm later
+        self.group_label = group_label
 
         # dictionary of form -> datetime: list[SessionWrapper]
         self.session_wrappers_by_date = {}
@@ -52,8 +61,22 @@ class SessionGroup:
                     ws(f'Duplicate session for {sw.datetime}')
                 self.session_wrappers_by_date[sw.datetime].append(sw)
 
+    def do_all_analysis(self):
+        self.do_single_sess_analysis()
+        self.do_group_analysis()
 
-    def plot_avg_cond_success_matricies(self):
+    def do_single_sess_analysis(self):
+        # Experiment single sess analysis
+        for session in self.session_wrappers:
+            if not SKIP_FORCE_TRACES:
+                session.plot_force_trace()
+            session.plot_cond_success_matrix()
+
+    def do_group_analysis(self):
+        self._plot_avg_cond_success_matricies()
+        self._plot_performance()
+
+    def _plot_avg_cond_success_matricies(self):
 
         # First sort all of the session wrappers by ascending datetime
         msession_l = []
@@ -64,13 +87,14 @@ class SessionGroup:
             sessions_per_date = self.session_wrappers_by_date[datetime]
 
             # Combine date from multiple sessions from the same day
-            datetime_msession = []
-            datetime_mobject = []
+            datetime_msessions = []
+            datetime_mobjects = []
             for sw in sessions_per_date:
-                datetime_msession += sw.msession_l
-                datetime_mobject += sw.mobject_l
+                import pdb; pdb.set_trace()
+                datetime_msessions += sw.msession
+                datetime_mobjects += sw.mobject
 
-            msession_l.append(datetime_msession), mobject_l.append(datetime_mobject)
+            msession_l.append(datetime_msessions), mobject_l.append(datetime_mobjects)
 
             # Save a plot in all same day folders:
             for i, sw in enumerate(sessions_per_date):
@@ -79,7 +103,7 @@ class SessionGroup:
                                          savename=os.path.join(sw.results_dir, 'CondSuccessMatrix.png'))
 
     @staticmethod
-    def plot_performace_fig(date_success_dict,
+    def _plot_performace_fig(date_success_dict,
                             last_n_days_label=None, include_last_tick=False,
                             annotate_dates=False, savename=None):
 
@@ -157,8 +181,7 @@ class SessionGroup:
 
         plt.close(fig)
 
-
-    def plot_performance(self):
+    def _plot_performance(self):
         # Build dictionary of form -> datetime: list[trial success bools for that date]
         # Note we need to aggregate all sessions for the same date
 
@@ -210,9 +233,21 @@ class SessionWrapper:
         # Create results and log folder
         self.results_dir = os.path.join(self.proc_ss, 'prehension_plots')
         os.makedirs(self.results_dir, exist_ok=True)
+        self.has_meta = False
 
         # Load meta
-        self.mstruct, self.mdof, self.mobject, self.msession = meta_session.load_meta_information(self.raw_ss, self.proc_ss)
+        try:
+            self.mstruct, self.mdof, self.mobject, self.msession = meta_session.load_meta_information(self.raw_ss, self.proc_ss)
+            self.has_meta = True
+        except meta_session.IncompleteMetaError as ime:
+            ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)}, skipping')
+            return
+        ## Other errors should stop the program -- this is intentional right now for testing
+
+        (self.cond_trial_dict,
+        self.min_cond,
+        self.max_cond,
+        self.continuous) = self.build_cond_trial_dict(max_discrete_conds=0, triple_key=True)
 
 
     def plot_force_trace(self, processes=17):
@@ -222,26 +257,23 @@ class SessionWrapper:
             ws(f"Could not find timepoints csv {tp_path}, skipping force trace")
             return
 
-        trial_cond_info = build_cond_trial_dict(self.mobject, self.msession, triple_key=False)
-
-        if trial_cond_info is None:
+        if self.cond_trial_dict is None:
             ws('trial condition info is None, skipping..')
         else:
             tp_df = pd.read_csv(tp_path)
             tp_df = pd.read_csv(tp_path)
-            plot_force_traces(*trial_cond_info[:-1], tp_df, self.results_dir,
+            plot_force_traces(self.cond_trial_dict, self.min_cond,
+                              self.max_cond, tp_df, self.results_dir,
                               ref_events=['success_grasp_start', 'ttl_to_reward'],
-                                processes=processes)
+                              processes=processes)
 
 
     def plot_cond_success_matrix(self):
         cond_success_matrix_path = os.path.join(self.results_dir, 'CondSuccessMatrix.png')
-        SessionWrapper._plot_cond_success_matrix([self.msession,], [self.mobject,], title=self.sess_name,
-                                    cmap='Purples', savename=cond_success_matrix_path)
+        self.plot_single_cond_success_matrix(title=self.sess_name, cmap='Purples', savename=cond_success_matrix_path)
 
 
-    @staticmethod
-    def _plot_cond_success_matrix(msession_l, mobject_l, title, cmap, savename):
+    def plot_single_cond_success_matrix(self, title, cmap, savename):
 
         # Force conditions should be a list of [(lo, hi), ...]
         # or [target1, target2]
@@ -253,17 +285,7 @@ class SessionWrapper:
         # Accumulate data for diff conditions
         n_trials = 0
 
-        # Accumulate all conditions
-        cond_all_trial_dict = {}
-
-        for msession, mobject in zip(msession_l, mobject_l):
-            # Get continuous force bins
-            cond_trial_dict, _, _, _ = build_cond_trial_dict(mobject, msession, max_discrete_conds=0, triple_key=True)
-            # Dictionary of form
-
-            cond_all_trial_dict = merge_dicts(cond_all_trial_dict, cond_trial_dict)
-
-        for cond, trials in cond_all_trial_dict.items():
+        for cond, trials in self.cond_trial_dict.items():
             # Cound values
             n_trials += len(trials)
             cond_success_dict[cond] = (get_pct_true([tr.success for tr in trials]), len(trials))
@@ -273,6 +295,106 @@ class SessionWrapper:
                                 f'Condition Success Matrices\n{title}\n(trials={n_trials})',
                                 cmap,
                                 savename=savename)
+
+
+    def build_cond_trial_dict(self, bin_width_N=1, max_discrete_conds=10, triple_key=True):
+        """Determine if there are more than max_discrete_conds number of force conditions.
+        If there is, create a range of force bins to use as force conditions (continuous mode)
+        Else use the existing force conditions as keys. Return a dictionary of
+        -> {(force condition) : [trials that use given condition]}
+
+        Args:
+            mobject (meta.MOBJECT): Meta object
+            msession (meta.MSESSION): Meta session (list of trial objects)
+            bin_width_N (int, optional): Bin width in Newtons. Defaults to 1.
+            max_discrete_conds (int, optional): The number of force conditions,
+            above which we use continuous force modes. Defaults to 10.
+
+        Returns:
+            Dictionary: {force condition: [trials matching force condition]}
+        """
+
+        def attach_fields_cond_fields(trial, mobject, target_condition, target_force):
+            # 1. bind force bound differences to trial
+            # 2. bind target condition to trial
+            # 3. bind target force to trial
+            trial.target_condition = target_condition
+            trial.target_force = target_force
+            stub = mobject[trial.object_id]['def']
+            bound_keys = ['targetForceRelRangeMin(N)', 'targetForceRelRangeMax(N)']
+            # Check if keys exist in the stub
+            trial.range_delta = None
+            if all([k in stub.keys() for k in bound_keys]):
+                trial.range_delta = [float(stub[bk]) for bk in bound_keys]
+
+            # Add aperture and rotation information
+            trial.rotation = stub['pos_aperture(mm)']
+            trial.aperture = stub['pos_tilt(deg)']
+
+        # Find target force for each trial
+        trial_target_dict = {}
+        for tr in self.msession:
+            obj_stub = self.mobject[tr.object_id]['def']
+            if 'targetForce(N)' not in obj_stub.keys():
+                msg = f"Expected targetForce(N) in keys of object stub but only found: {obj_stub}"
+                rs(msg)
+                continue
+            trial_target_dict[tr] = float(obj_stub['targetForce(N)'])
+
+        # Find num discrete target forces
+        discrete_targets = set(trial_target_dict.values())
+        if not discrete_targets:
+            return  [None, None, None, None] ## empty set
+
+        rounded_min_cond = int(math.floor(min(discrete_targets)))
+        rounded_max_cond = int(math.ceil(max(discrete_targets)))
+
+        # Determine if we should use continous mode
+        b_continuous = len(discrete_targets) > max_discrete_conds
+
+        # Let the user know
+        if b_continuous:
+            # Create force range bins
+            force_bins = []
+            for lo_bound in range(rounded_min_cond,
+                                rounded_max_cond,
+                                bin_width_N):
+                force_bins.append((lo_bound, lo_bound + bin_width_N))
+
+            cond_trials_dict = {k: [] for k in force_bins}
+            for trial, force in trial_target_dict.items():
+                for condition, trials_in_condition in cond_trials_dict.items():
+                    if condition[0] <= force <= condition[1]:
+                        attach_fields_cond_fields(trial, self.mobject, condition, force)
+                        trials_in_condition.append(trial)
+
+        # Discrete force ranges
+        else:
+            cond_trials_dict = {(tf, ): [] for tf in discrete_targets}
+            for trial, force in trial_target_dict.items():
+                attach_fields_cond_fields(trial, self.mobject, (force, ), force)
+                cond_trials_dict[(force, )].append(trial)
+
+        # If triple_key, reformat key to be target,
+        cond_trials_dict_triple = {}
+        if triple_key:
+            for cond0, trials in cond_trials_dict.items():
+                sub_d = {} # Should all have the same first element of key
+                for tr in trials:
+                    tri_key = (cond0, tr.rotation, tr.aperture)
+                    if tri_key in sub_d.keys():
+                        sub_d[tri_key].append(tr)
+                    else:
+                        sub_d[tri_key] = [tr, ]
+                cond_trials_dict_triple.update(sub_d)
+            cond_trials_dict = cond_trials_dict_triple
+
+        # Return (cond, [trials])
+        # Sort by the first force level
+        sort_fxn = lambda x: x if isinstance(x, numbers.Number) else sort_fxn(x[0])
+        cond_trials_dict_sorted = {k: v for k, v in sorted(cond_trials_dict.items(), key=sort_fxn)}
+        retval = [cond_trials_dict_sorted, rounded_min_cond, rounded_max_cond, b_continuous]
+        return retval
 
 
 
@@ -456,7 +578,7 @@ def plot_avg_cond_success_matrix(raw_ss, proc_ss, savename):
     plot_cond_success_matrix(msession_l, mobject_l, title, cmap='Greens', savename=savename)
 
 
-def plot_cond_success_matrix(msession_l, mobject_l, title, cmap, savename):
+def plot_cond_success_matrix(sess_wrapper_l, title, cmap, savename):
 
     # Force conditions should be a list of [(lo, hi), ...]
     # or [target1, target2]
@@ -471,12 +593,8 @@ def plot_cond_success_matrix(msession_l, mobject_l, title, cmap, savename):
     # Accumulate all conditions
     cond_all_trial_dict = {}
 
-    for msession, mobject in zip(msession_l, mobject_l):
-        # Get continuous force bins
-        cond_trial_dict, _, _, _ = build_cond_trial_dict(mobject, msession, max_discrete_conds=0, triple_key=True)
-        # Dictionary of form
-
-        cond_all_trial_dict = merge_dicts(cond_all_trial_dict, cond_trial_dict)
+    for sess_wrapper in sess_wrapper_l:
+        cond_all_trial_dict = merge_dicts(cond_all_trial_dict, sess_wrapper.cond_trial_dict)
 
     for cond, trials in cond_all_trial_dict.items():
         # Cound values
@@ -846,106 +964,9 @@ def plot_performance(
     plt.close(fig)
 
 
-def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=10, triple_key=True):
-    """Determine if there are more than max_discrete_conds number of force conditions.
-    If there is, create a range of force bins to use as force conditions (continuous mode)
-    Else use the existing force conditions as keys. Return a dictionary of
-    -> {(force condition) : [trials that use given condition]}
-
-    Args:
-        mobject (meta.MOBJECT): Meta object
-        msession (meta.MSESSION): Meta session (list of trial objects)
-        bin_width_N (int, optional): Bin width in Newtons. Defaults to 1.
-        max_discrete_conds (int, optional): The number of force conditions,
-        above which we use continuous force modes. Defaults to 10.
-
-    Returns:
-        Dictionary: {force condition: [trials matching force condition]}
-    """
-
-    def attach_fields_cond_fields(trial, mobject, target_condition, target_force):
-        # 1. bind force bound differences to trial
-        # 2. bind target condition to trial
-        # 3. bind target force to trial
-        trial.target_condition = target_condition
-        trial.target_force = target_force
-        stub = mobject[trial.object_id]['def']
-        bound_keys = ['targetForceRelRangeMin(N)', 'targetForceRelRangeMax(N)']
-        # Check if keys exist in the stub
-        trial.range_delta = None
-        if all([k in stub.keys() for k in bound_keys]):
-            trial.range_delta = [float(stub[bk]) for bk in bound_keys]
-
-        # Add aperture and rotation information
-        trial.rotation = stub['pos_aperture(mm)']
-        trial.aperture = stub['pos_tilt(deg)']
-
-    # Find target force for each trial
-    trial_target_dict = {}
-    for tr in msession:
-        obj_stub = mobject[tr.object_id]['def']
-        if 'targetForce(N)' not in obj_stub.keys():
-            msg = f"Expected targetForce(N) in keys of object stub but only found: {obj_stub}"
-            rs(msg)
-            continue
-        trial_target_dict[tr] = float(obj_stub['targetForce(N)'])
-
-    # Find num discrete target forces
-    discrete_targets = set(trial_target_dict.values())
-    if not discrete_targets:
-        return  [None, None, None, None] ## empty set
-
-    rounded_min_cond = int(math.floor(min(discrete_targets)))
-    rounded_max_cond = int(math.ceil(max(discrete_targets)))
-
-    # Determine if we should use continous mode
-    b_continuous = len(discrete_targets) > max_discrete_conds
-
-    # Let the user know
-    if b_continuous:
-        # Create force range bins
-        force_bins = []
-        for lo_bound in range(rounded_min_cond,
-                              rounded_max_cond,
-                              bin_width_N):
-            force_bins.append((lo_bound, lo_bound + bin_width_N))
-
-        cond_trials_dict = {k: [] for k in force_bins}
-        for trial, force in trial_target_dict.items():
-            for condition, trials_in_condition in cond_trials_dict.items():
-                if condition[0] <= force <= condition[1]:
-                    attach_fields_cond_fields(trial, mobject, condition, force)
-                    trials_in_condition.append(trial)
-
-    # Discrete force ranges
-    else:
-        cond_trials_dict = {(tf, ): [] for tf in discrete_targets}
-        for trial, force in trial_target_dict.items():
-            attach_fields_cond_fields(trial, mobject, (force, ), force)
-            cond_trials_dict[(force, )].append(trial)
-
-    # If triple_key, reformat key to be target,
-    cond_trials_dict_triple = {}
-    if triple_key:
-        for cond0, trials in cond_trials_dict.items():
-            sub_d = {} # Should all have the same first element of key
-            for tr in trials:
-                tri_key = (cond0, tr.rotation, tr.aperture)
-                if tri_key in sub_d.keys():
-                    sub_d[tri_key].append(tr)
-                else:
-                    sub_d[tri_key] = [tr, ]
-            cond_trials_dict_triple.update(sub_d)
-        cond_trials_dict = cond_trials_dict_triple
-
-    # Return (cond, [trials])
-    # Sort by the first force level
-    sort_fxn = lambda x: x if isinstance(x, numbers.Number) else sort_fxn(x[0])
-    d = {k: v for k, v in sorted(cond_trials_dict.items(), key=sort_fxn)}
-    retval = [d, rounded_min_cond, rounded_max_cond, b_continuous]
-    return retval
 
 
+"""
 # def process_session(raw_ss, proc_ss, overwrite, processes):
 
 #     # Create output dir with plots
@@ -1051,20 +1072,17 @@ def build_cond_trial_dict(mobject, msession, bin_width_N=1, max_discrete_conds=1
 #         server_sessions = get_date_folders(from_server_session, mode='after')
 #         rs(f'Processing {len(sessions)}/{total_sessions} sessions from {from_session} onwards')
 #         return server_sessions
-
+"""
 
 
 def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=True):
 
-    import pdb; pdb.set_trace()
 
     # Check if training servers is defined
     if not does_trianing_servers_exist(preset):
         ws('WARNING: no training server location defined, not transfering session')
         return
 
-    ## HACK clean up any training sessions that have already been transfered but that,
-    # for some reason, still exist in sessions
     if clean:
         for raw_ss, proc_ss in consider_for_transfer:
 
@@ -1132,7 +1150,7 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
             print('moved {raw_ss} to raw training server')
 
             if os.path.exists(raw_ss):
-                print('Removing raw session {}'.format(raw_ss))
+                print('Removing raw session post-transfer {}'.format(raw_ss))
                 shutil.rmtree(raw_ss, ignore_errors=True)
 
             transferred_pairs.append((raw_ss, rdst))
@@ -1153,6 +1171,7 @@ def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=T
             print('moved {proc_ss} to processed training server')
 
             if os.path.exists(proc_ss):
+                print('Removing processed session post-transfer {}'.format(proc_ss))
                 shutil.rmtree(proc_ss, ignore_errors=True)
 
             transferred_pairs.append((proc_ss, pdst))
@@ -1184,25 +1203,12 @@ def main(preset, sessions, temp, overwrite, processes, dry_run=False):
         exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
         train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
 
-        # Experiment single sess analysis
-        for exp_session in exp_session_wrappers:
-            exp_session.plot_force_trace()
-            exp_session.plot_cond_success_matrix()
+        exp_grp = SessionGroup(exp_session_wrappers, warn_duplicates_per_date=True, group_label='Experiment')
+        train_grp = SessionGroup(train_session_wrappers, warn_duplicates_per_date=True, group_label='Training')
 
-        # Training single sess analysis
-        # for train_session in train_session_wrappers:
-        #     train_session.plot_force_trace()
-        #     train_session.plot_cond_success_matrix()
-
-        # # Experiment multi sess analysis
-        # exp_group = SessionGroup(exp_session_wrappers)
-        # exp_group.plot_avg_cond_success_matricies()
-        # exp_group.plot_performance()
-
-        # # Training multi sess analysis
-        # exp_group = SessionGroup(train_session_wrappers)
-        # exp_group.plot_avg_cond_success_matricies()
-        # exp_group.plot_performance()
+        exp_grp.do_all_analysis()
+        rs('\n'*3 + '='*200)
+        train_grp.do_all_analysis()
 
     else:
         rs('Skipping plot making because dry_run=True in main()')
