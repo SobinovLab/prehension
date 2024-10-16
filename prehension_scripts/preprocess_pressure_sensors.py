@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     ppps.preprocess_pressure_sensors(
         current_preset, args.trials, args.temp,
-        args.overwrite, args.processes)
+        args.overwrite, args.processes, sessions_sel=args.sessions)
 
     print('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

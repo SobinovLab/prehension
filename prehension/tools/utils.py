@@ -30,7 +30,7 @@ from .logs import rs, ws
 import traceback
 import sys
 
-def _filter_pairs(raw_ss_list, proc_ss_list):
+def _filter_pairs(raw_ss_list, proc_ss_list, verbose=False):
     pairs = []
     for pair in list(zip(raw_ss_list, proc_ss_list)):
         raw_exists = os.path.exists(pair[0])
@@ -40,7 +40,7 @@ def _filter_pairs(raw_ss_list, proc_ss_list):
             warn_msg += 'Raw server session {} does not exist.\n'.format(pair[0])
         if not proc_exists:
             warn_msg += 'Processed server session {} does not exist.\n'.format(pair[1])
-        if warn_msg:
+        if warn_msg and verbose:
             ws(warn_msg)
         if raw_exists and proc_exists:
             pairs.append(pair)
@@ -128,7 +128,7 @@ def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=None, sessio
     else:
         found_sessions = [s for s in sessions if os.path.exists(os.path.join(rserv, s))]
 
-    found_sessions.sort()
+    found_sessions.sort(reverse=True)
     rs('Found {} sessions: {}'.format(len(found_sessions), ', '.join(found_sessions)))
 
     failed_sessions = []

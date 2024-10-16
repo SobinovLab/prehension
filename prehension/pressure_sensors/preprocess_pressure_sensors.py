@@ -279,7 +279,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     failed_trial_reports = []
 
     if len(p_args) > 0:
-        pool = reporting_pool.ReportingPool(process_trial, p_args, processes=processes,
+        pool = reporting_pool.ReportingPool(process_trial, p_args, processes=os.cpu_count(),
                                             report_on_change=True, track_failures=True)
         pool.start()
 
@@ -297,7 +297,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         for failed_trial_report in failed_trial_reports:
             ws('\t{}'.format(failed_trial_report))
 
-def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes):
+def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]):
     """Creates meta information for a session.
 
     Arguments:
@@ -319,7 +319,8 @@ def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, pro
         current_preset,
         temp,
         ppps_helper,
-        args=(trials_sel, overwrite, processes))
+        args=(trials_sel, overwrite, processes),
+        sessions=sessions_sel)
 
     # Step 2: process training sessions
     if current_preset['default_training_server']:

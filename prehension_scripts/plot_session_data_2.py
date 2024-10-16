@@ -30,6 +30,9 @@ from prehension.tools import cmd_args
 from prehension.tools.forces import get_summed_force_data
 from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
 
+# TODO
+# Plot performance should consider all sessions with red dot for experimental sessions
+# Add slight x offset for training on same data
 
 
 SKIP_FORCE_TRACES = True
@@ -38,7 +41,7 @@ SKIP_FORCE_TRACES = True
 # Plotting functions =====================================
 
 
-def create_heatmap_from_trials_list(tr_list, title, cmap, max_discrete_conds=9, bin_width_N=1, savename=None):
+def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_width_N=1, savename=None):
 
     """Create heatmap for conditional success matrix based on a list of trials
 
@@ -57,10 +60,21 @@ def create_heatmap_from_trials_list(tr_list, title, cmap, max_discrete_conds=9, 
     # List all force targets
     discrete_force_targets = sorted(set([tr.target_force for tr in tr_list]))
 
+    # All unique session names
+    session_names = sorted(set([tr.session_name for tr in tr_list]))
+
+    if len(session_names) > 1:
+        title = f'Avg Condition Success Matrices'
+        title += f'\n{len(session_names)} sessions ({session_names[0]} - {session_names[-1]})'
+        title += f'\n{len(tr_list)} trials'
+    else:
+        title = f'Condition Success Matrices'
+        title += f'\nsession: {session_names[0]}'
+        title += f'\n{len(tr_list)} trials'
+
     if len(discrete_force_targets) == 0:
         ws("No force targets found returning.")
         return
-
 
     # Decide if we should bin the force targets or use the exact values from each trial
     use_force_bins = len(discrete_force_targets) > max_discrete_conds
@@ -125,8 +139,8 @@ def create_heatmap_from_trials_list(tr_list, title, cmap, max_discrete_conds=9, 
         title = (f"Force Range: {force_target[0]}-{force_target[1]} N" if use_force_bins
                   else f"Force: {force_target} N")
         ax.set_title(title)
-        ax.set_xlabel('Aperture (mm)')
-        ax.set_ylabel('Rotation (deg)')
+        ax.set_ylabel('Aperture (mm)')
+        ax.set_xlabel('Rotation (deg)')
 
 
     # Loop th over force bins
@@ -165,7 +179,7 @@ class SessionGroup:
     """
 
 
-    def __init__(self, l_session_wrappers, warn_duplicates_per_date, group_label=''):
+    def __init__(self, l_session_wrappers, group_label=''):
 
         # Filter out sessions with no meta
         self.session_wrappers = [sw for sw in l_session_wrappers if sw.has_meta]
@@ -197,10 +211,9 @@ class SessionGroup:
         all_trials = []
         for sw in tqdm.tqdm(self.session_wrappers, desc='Plotting Average Conditional Success Matrix'):
             all_trials += sw.msession ## Extend list of all trials
-            title = f'Condition Success Matrices\n{sw.sess_name}\n(trials={len(all_trials)})'
+
             create_heatmap_from_trials_list(
                 all_trials,
-                title,
                 'Greens',
                 savename=os.path.join(sw.results_dir, 'AvgCondSuccessMatrix.png')
             )
@@ -377,8 +390,10 @@ class SessionWrapper:
             bound_keys = ['targetForceRelRangeMin(N)', 'targetForceRelRangeMax(N)']
             # Check if keys exist in the stub
             trial.range_delta = None
+            trial.target_range = None
             if all([k in stub.keys() for k in bound_keys]):
                 trial.range_delta = [float(stub[bk]) for bk in bound_keys]
+                trial.target_range = [trial.target_force + delta for delta in trial.range_delta]
 
             # Add aperture and rotation information
             trial.rotation = float(stub['pos_aperture(mm)'])
@@ -450,6 +465,7 @@ class SessionWrapper:
         # 1. get raw tsm data (times and forces) for each trial
         # feed trials from self.msession
         trials_flattened = self.msession[:]
+        print(f"Plotting force traces for {len(trials_flattened)} trials")
         p_args = list(zip(*[trials_flattened]))
         results = ReportingPool(SessionWrapper.get_trial_force, p_args, processes=processes,
                     report_on_change=True, track_failures=True).start()
@@ -460,6 +476,7 @@ class SessionWrapper:
         max_cond = max(force_conditions)
 
         b_continous = len(set(force_conditions)) > max_discrete_conds
+        print(f'b_continous: {b_continous}')
 
         # Bind times and forces to each trial
         for res, tr in zip(results, self.msession):
@@ -469,6 +486,8 @@ class SessionWrapper:
                 continue
             tr.tsm_times = res[0]
             tr.forces_summed = res[1]
+
+        import pdb; pdb.set_trace()
 
         # Only include trials that have tsm data
         trials_flattened = [tr for tr in trials_flattened if
@@ -495,8 +514,10 @@ class SessionWrapper:
         def get_color(value):
             return cmap(norm(value))
 
+        # Make a plot for each reference event
         for ref_event in ref_events:
 
+            # Bind interpolated forces to each trial (this depends on reference event)
             for trial in trials_flattened:
 
                 if only_successful_trials and not trial.success:
@@ -548,65 +569,77 @@ class SessionWrapper:
             fig, ax = plt.subplots(figsize=(15,10))
             total_trials = 0
 
-            all_bounds = set()
-            all_colors = list()
+            #all_bounds = set()
+            #all_colors = list()
 
-            for tr in trials_flattened:
+            # for tr in trials_flattened:
 
-                # Check if the condition is a range or not
-                if b_continous:
-                    f0, ff = tr.range_delta
-                    cond_color = get_color(float((f0 + ff) / 2))
-                    tf = 0  ## set for plotting bounds later
-                else:
-                    # DEBUG
-                    tf = tr.target_force
-                    cond_color = get_color(tf)
+            #     # Check if the condition is a range or not
+            #     if b_continous:
+            #         f0, ff = tr.range_delta
+            #         cond_color = get_color(float((f0 + ff) / 2))
+            #         tf = 0  ## set for plotting bounds later
+            #     else:
+            #         # DEBUG
+            #         tf = tr.target_force
+            #         cond_color = get_color(tf)
 
-                # Get a list of all interpolated force arrays
-                good_trials = [tr for tr in trials_flattened if hasattr(tr, 'force_interped')]
-                interped_list = [tr.force_interped for tr in good_trials if tr.force_interped is not None]
+            # Get a list of all interpolated force arrays
+            filtered_trials = [tr for tr in trials_flattened if hasattr(tr, 'force_interped')]
+            filtered_trials = [tr for tr in filtered_trials if tr.force_interped is not None]
 
-                if len(interped_list) == 0:
-                    ws(f'No interpolated forces for trial {tr.trial_number}. Continuing')
-                    continue
+            assert len(filtered_trials) > 0, 'No trials with interpolated force data'
 
-                if not b_continous:
-                    # NORMAL MODE
-                    # For each force condition create the plot
-                    for f_interp in interped_list:
-                        ax.plot(interp_times, f_interp, linewidth=0.75,
-                                color=cond_color, alpha=0.2)
-                        total_trials += 1
+            # Start plotting ...
+            # 1. Normal mode (discrete targets)
+            if not b_continous:
+                # NORMAL MODE
+                # For each force condition create the plot
 
-                    # Compute avg force trace
+                # keep track of all forces at a given target for avg
+                dict_trials_per_target = {}
+
+                for tr in filtered_trials:
+                    ax.plot(interp_times, tr.force_interped, linewidth=0.75,
+                            color=get_color(tr.target_force), alpha=0.2)
+                    total_trials += 1
+
+                    # Append trial to appropriate list
+                    if tr.target_force not in dict_trials_per_target:
+                        dict_trials_per_target[tr.target_force] = [tr]
+                    else:
+                        dict_trials_per_target[tr.target_force].append(tr)
+
+                # plot avg per target force
+                for tf in dict_trials_per_target:
+                    interped_list = [tr.force_interped for tr in dict_trials_per_target[tf]]
                     force_sum = np.sum(interped_list, axis=0)
                     force_sum /= len(interped_list)
 
                     # Plot the force sum
                     ax.plot(interp_times, force_sum, linewidth=2,
-                            color=cond_color, alpha=1, label=f'Force Target: {tf} N')
+                            color=get_color(tf), alpha=1, label=f'Force Target: {tf} N')
 
-                else:
-                    # Residual (difference from target force) mode
-                    targets_list = [tr.target_force for tr in trials_flattened]
-                    for f_array, target_force in zip(interped_list, targets_list):
-                        # Plot residual force
-                        ax.plot(interp_times, (f_array - target_force), linewidth=0.75,
-                                color=cond_color, alpha=0.2)
+            # 2. Continuous mode (residual force)
+            else:
+                # Residual (difference from target force) mode
+                for tr in filtered_trials:
+                    # Plot residual force
+                    ax.plot(interp_times, (tr.force_interped - tr.target_force), linewidth=0.75,
+                            color=get_color(tr.target_force), alpha=0.2)
 
-                        # TODO: Make avg force vs target force plot here
-                        total_trials += 1
+                    # TODO: Make avg force vs target force plot here
+                    total_trials += 1
 
-                # Add bounds to set to draw later
-                interped_list = [tr for tr in good_trials if tr.range_delta is not None]
-                all_bounds |= {(tf + tr.range_delta[0], tf + tr.range_delta[1]) for tr in interped_list}
-                all_colors.append(cond_color)
+            # Add bounds to set to draw later
+            # interped_list = [tr for tr in good_trials if tr.range_delta is not None]
+            # all_bounds |= {(tf + tr.range_delta[0], tf + tr.range_delta[1]) for tr in interped_list}
+            # all_colors.append(cond_color)
 
             # Draw unique bounds
-            if draw_bounds:
-                for bnds, color in zip(all_bounds, all_colors):
-                    ax.fill_between(interp_times, *bnds, color=color, alpha=0.1, edgecolor='none')
+            # if draw_bounds:
+            #     for bnds, color in zip(all_bounds, all_colors):
+            #         ax.fill_between(interp_times, *bnds, color=color, alpha=0.1, edgecolor='none')
 
             title = f'Force Traces ({total_trials} Trials)'
 
@@ -628,7 +661,7 @@ class SessionWrapper:
 
             savename = os.path.join(savedir, f'ForceTrace_from_{ref_event}')
             plt.savefig(savename)
-            #rs(f'saving forcetrace as {os.path.normpath(savename)}')
+            rs(f'saving forcetrace as {os.path.normpath(savename)}')
             plt.close(fig)
 
 
@@ -640,7 +673,6 @@ class SessionWrapper:
     def __plot_single_cond_success_matrix(self, cmap='Blues', savename=None):
         create_heatmap_from_trials_list(
             self.msession,
-            f'Condition Success Matrices\n{self.sess_name}\n(trials={len(self.msession)})',
             cmap,
             savename=savename
         )
@@ -661,16 +693,17 @@ def main(preset, sessions, temp, overwrite, processes=os.cpu_count()):
 
     # TODO: add session transfers from experiment to training here
 
-    # Get raw/processed session dirs for preset, filter out any with missing dirs
+    # Get raw/processed session dirs for preset
     experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions, filter=True)
 
     exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
-    #train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
+    train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
 
-    exp_grp = SessionGroup(exp_session_wrappers, warn_duplicates_per_date=True, group_label='Experiment')
-    #train_grp = SessionGroup(train_session_wrappers, warn_duplicates_per_date=True, group_label='Training')
+    exp_grp = SessionGroup(exp_session_wrappers, group_label='Experiment')
+    train_grp = SessionGroup(train_session_wrappers, group_label='Training')
 
     exp_grp.do_all_analysis()
+    train_grp.do_all_analysis()
     #rs('\n'*3 + '='*200)
     #train_grp.do_all_analysis()
 
