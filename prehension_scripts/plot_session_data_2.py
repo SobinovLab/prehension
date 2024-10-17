@@ -30,12 +30,101 @@ from prehension.tools import cmd_args
 from prehension.tools.forces import get_summed_force_data
 from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
 
+from colorama import Fore, Style, init
+
+# Initialize colorama to work across different operating systems
+
 # TODO
 # Plot performance should consider all sessions with red dot for experimental sessions
 # Add slight x offset for training on same data
+# Add transfer
+# Add overwrite
 
 
 SKIP_FORCE_TRACES = True
+
+# Visualization functions =====================================
+
+
+def display_session_info(experimental_server_wrappers, training_server_wrappers):
+
+    # Function to format and color the session status
+    def format_status(session_path):
+        if session_path and os.path.exists(session_path):
+            return f"{Fore.GREEN}{os.path.basename(session_path)}{Style.RESET_ALL}"
+        else:
+            return f"{Fore.RED}{'MISSING'}{Style.RESET_ALL}"
+
+    # Function to check if specific folders (behavior, sensors) exist in sw.raw_ss
+    def check_folders(session_path):
+        behavior_exists = os.path.exists(os.path.join(session_path, 'behavior'))
+        sensors_exists = os.path.exists(os.path.join(session_path, 'sensors'))
+
+        behavior_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if behavior_exists else f" {Fore.RED}✘{Style.RESET_ALL} "
+        sensors_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if sensors_exists else f" {Fore.RED}✘{Style.RESET_ALL} "
+
+        return f"{behavior_symbol}{sensors_symbol}"
+
+    # Function to check if specific directories (filtered_sensors, prehension_plots, transformed_sensors) exist in sw.proc_ss
+    def check_proc_folders(proc_path):
+        filtered_sensors = os.path.exists(os.path.join(proc_path, 'filtered_sensors'))
+        prehension_plots = os.path.exists(os.path.join(proc_path, 'prehension_plots'))
+        transformed_sensors = os.path.exists(os.path.join(proc_path, 'transformed_sensors'))
+
+        filtered_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if filtered_sensors else f" {Fore.RED}✘{Style.RESET_ALL} "
+        prehension_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if prehension_plots else f" {Fore.RED}✘{Style.RESET_ALL} "
+        transformed_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if transformed_sensors else f" {Fore.RED}✘{Style.RESET_ALL} "
+
+        return f"{filtered_symbol}{prehension_symbol}{transformed_symbol}"
+
+    # Function to check for timepoints.csv in sw.proc_ss
+    def check_timepoints(proc_path):
+        timepoints_exist = os.path.exists(os.path.join(proc_path, 'timepoints.csv'))
+        return f" {Fore.GREEN}✔{Style.RESET_ALL} " if timepoints_exist else f" {Fore.RED}✘{Style.RESET_ALL} "
+
+    # Function to check and format the has_meta property
+    def format_meta(has_meta):
+        return f" {Fore.GREEN}✔{Style.RESET_ALL} " if has_meta else f" {Fore.RED}✘{Style.RESET_ALL} "
+
+    # Helper function to format the table rows
+    def format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status, meta_status):
+        return (f"{raw_status:<25} {folder_status_raw:<40} {proc_status:<25} {folder_status_proc:<25} "
+                f"{timepoints_status:<7} {meta_status:<7}")
+
+    # Print a nicely formatted table for experimental sessions
+    def print_header():
+        print(f"{Fore.CYAN}~~~~~~~~~~~ EXPERIMENTAL SESSIONS ~~~~~~~~~~~{Style.RESET_ALL}")
+        print(f"{'raw session':<16} {'(behavior/sensors)':<21} {'processed session':<22} "
+              f"{'(filtered/plots/transformed/timepoints/meta)':<20}")
+        print('-' * 135)
+
+    print_header()
+    for sw in sorted(experimental_server_wrappers, key=lambda x: (x.datetime, x.set_number)):
+        raw_status = format_status(sw.raw_ss)
+        proc_status = format_status(sw.proc_ss)
+        folder_status_raw = check_folders(sw.raw_ss)
+        folder_status_proc = check_proc_folders(sw.proc_ss)
+        timepoints_status = check_timepoints(sw.proc_ss)
+        meta_status = format_meta(sw.has_meta)
+        print(format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status, meta_status))
+
+    print()  # Line break between sections
+
+    print_header()
+    for sw in sorted(training_server_wrappers, key=lambda x: (x.datetime, x.set_number)):
+        raw_status = format_status(sw.raw_ss)
+        proc_status = format_status(sw.proc_ss)
+        folder_status_raw = check_folders(sw.raw_ss)
+        folder_status_proc = check_proc_folders(sw.proc_ss)
+        timepoints_status = check_timepoints(sw.proc_ss)
+        meta_status = format_meta(sw.has_meta)
+        print(format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status, meta_status))
+
+    print()  # Extra line break for spacing
+    input('Press Enter to continue...')
+
+
+
 
 
 # Plotting functions =====================================
@@ -61,7 +150,7 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
     discrete_force_targets = sorted(set([tr.target_force for tr in tr_list]))
 
     # All unique session names
-    session_names = sorted(set([tr.session_name for tr in tr_list]))
+    session_names = sorted(set([tr.session for tr in tr_list]))
 
     if len(session_names) > 1:
         title = f'Avg Condition Success Matrices'
@@ -374,6 +463,91 @@ class SessionWrapper:
         self.attach_fields_to_trials()
 
 
+    def ensure_transfer_to_training_server(self, raw_training_server, proc_training_server, overwrite=False):
+
+        if not self.is_training_session:
+            return
+
+        if not self.has_meta:
+            return
+
+        def _move_helper(src_session_dir, dst_parent_dir):
+
+            # inputs:
+            # [src_session_dir] - raw_(experimental)_server_session: the directory to be transferred
+            # [dst_parent_dir] - training server destination directory (not a session dir but a dir containing sessions)
+            # [overwrite] - bool to determine if we are overwriting
+
+            # defined vars:
+            # [dst_session_dir] - raw_(training)_server_session: the expected directory name after transfer
+            dst_session_dir = os.path.join(dst_parent_dir, os.path.basename(src_session_dir))
+
+            # logic:
+            src_exists = os.path.exists(src_session_dir)
+            # This should always exist
+            if not src_exists:
+                raise Exception(f'Source session directory {src_session_dir} does not exist')
+
+            # Store length of src_session_dir to check success of transfer later
+            premove_len = len(glob.glob(os.path.join(src_session_dir, '**'), recursive=True))
+
+            # Check if dst_session_dir exists
+            already_transferred = os.path.exists(dst_session_dir)
+
+            # To keep track of transfer status
+            transferred = False
+
+            if not already_transferred:
+                rs('fresh transfer')
+                # copy src to dst_parent_dir
+                try:
+                    shutil.move(src_session_dir, dst_parent_dir)
+                    transferred = True
+                except:
+                    rs(f'failed to transfer {src_session_dir}')
+
+            else:
+                if overwrite:
+                    rs('overwrite transfer')
+                    # copy src to dst_parent_dir but remove dst first
+                    shutil.rmtree(dst_session_dir, ignore_errors=False)
+                    try:
+                        shutil.move(src_session_dir, dst_parent_dir)
+                        transferred = True
+                    except:
+                        rs(f'failed to overwrite {dst_session_dir}')
+
+            # Integrity check and cleanup
+            if transferred:
+                # Do integrity check and remove src if successful
+                assert os.path.exists(dst_session_dir), 'Expected tranferred dir {} not found'.format(dst_session_dir)
+                assert len(glob.glob(os.path.join(dst_session_dir, '**'), recursive=True)) == premove_len
+
+                # remove src locally now that we have passed checks and if it exists
+                if os.path.exists(src_session_dir):
+                    shutil.rmtree(src_session_dir, ignore_errors=False)
+
+
+        # Transfer from experiment to training server
+        _move_helper(self.raw_ss, raw_training_server)
+        _move_helper(self.proc_ss, proc_training_server)
+
+
+
+    @property
+    def is_training_session(self):
+        if not self.has_meta:
+            return False
+        # Check if it is an experiment or not
+        experiment_expected_dirnames = [
+            os.path.join(self.raw_ss, self.mstruct['videos_dir']),
+            os.path.join(self.raw_ss, self.mstruct['raw_ps_dir'])
+        ]
+        is_training_session = not all([os.path.exists(dname) for dname
+                                        in experiment_expected_dirnames])
+        return is_training_session
+
+
     def attach_fields_to_trials(self):
 
         """Bind the following to each trial object in self.msession
@@ -398,7 +572,6 @@ class SessionWrapper:
             # Add aperture and rotation information
             trial.rotation = float(stub['pos_aperture(mm)'])
             trial.aperture = float(stub['pos_tilt(deg)'])
-
 
     @staticmethod
     def date_from_folder(folder):
@@ -664,11 +837,9 @@ class SessionWrapper:
             rs(f'saving forcetrace as {os.path.normpath(savename)}')
             plt.close(fig)
 
-
     def plot_cond_success_matrix(self):
         cond_success_matrix_path = os.path.join(self.results_dir, 'CondSuccessMatrix.png')
         self.__plot_single_cond_success_matrix(cmap='Purples', savename=cond_success_matrix_path)
-
 
     def __plot_single_cond_success_matrix(self, cmap='Blues', savename=None):
         create_heatmap_from_trials_list(
@@ -678,8 +849,111 @@ class SessionWrapper:
         )
 
 
+'''
+def transfer_to_training(preset, consider_for_transfer, overwrite=False, clean=True):
 
-def main(preset, sessions, temp, overwrite, processes=os.cpu_count()):
+
+    # Check if training servers is defined
+    if not does_trianing_servers_exist(preset):
+        ws('WARNING: no training server location defined, not transfering session')
+        return
+
+    if clean:
+        for raw_ss, proc_ss in consider_for_transfer:
+            raw_training_dir = os.path.join(preset['default_training_server'], os.path.basename(raw_ss))
+            if not os.path.isdir(raw_training_dir):
+                #print(f'Could not find {raw_training_dir}, skipping')
+                continue  ## skip if we don't have corresponding training dir
+
+            #print(f'Considering removing {raw_ss}')
+
+            # check raw session contents
+            exp_contents = set([os.path.basename(pth) for pth in
+                                glob.glob(os.path.join(raw_ss, '**'), recursive=True)])
+
+            # see if they are a subset of raw_training contents
+            train_contents = set([os.path.basename(pth) for pth in
+                                  glob.glob(os.path.join(raw_training_dir, '**'), recursive=True)])
+
+            if exp_contents <= train_contents:  ## Checks if experimental contents is a subset of training contents
+                # If so delete the experimental contents as they have already been moved
+
+                shutil.rmtree(raw_ss, ignore_errors=True)
+                print(f'Attempted to remove {raw_ss}')
+
+    rs('\n' * 2)
+    transferred_pairs = []
+    import pdb; pdb.set_trace()
+    for raw_ss, proc_ss in tqdm.tqdm(consider_for_transfer, ncols=100, desc="Tranfering training sessions"):
+
+        # Load meta information
+        try:
+            mstruct, _, _, _ = meta_session.load_meta_information(raw_ss, proc_ss)
+        except Exception as e:
+            ws('Could not load meta data from session {} ({}), skipping.'.format(raw_ss, repr(e)))
+            continue
+
+        # Check if it is an experiment or not
+        experiment_expected_dirnames = [
+            os.path.join(raw_ss, mstruct['videos_dir']),
+            os.path.join(raw_ss, mstruct['raw_ps_dir'])
+        ]
+        is_training_session = not all([os.path.exists(dname) for dname
+                                        in experiment_expected_dirnames])
+
+        # Print a message if not
+        sess_name = os.path.basename(raw_ss)
+        if not is_training_session:
+            rs(f'{sess_name} is an experiment session')
+            continue
+
+        # Do transfers
+        rdst = os.path.join(preset['default_training_server'], sess_name)
+        b_move_raw = os.path.isdir(raw_ss) and not os.path.isdir(rdst)
+        if b_move_raw:
+            premove_len = len(glob.glob(raw_ss, '**', recursive=True))
+
+            # If we are overwriting, remove the old directory
+            if overwrite:
+                shutil.rmtree(rdst, ignore_errors=True)
+
+            shutil.move(raw_ss, preset['default_training_server'])
+
+            assert os.path.exists(rdst), 'Expected tranferred dir {} not found'.format(rdst)
+            assert len(glob.glob(rdst)) == premove_len
+
+            print('moved {raw_ss} to raw training server')
+
+            if os.path.exists(raw_ss):
+                print('Removing raw session post-transfer {}'.format(raw_ss))
+                shutil.rmtree(raw_ss, ignore_errors=True)
+
+            transferred_pairs.append((raw_ss, rdst))
+
+        pdst = os.path.join(preset['processed_training_server'], sess_name)
+        b_move_proc = os.path.isdir(proc_ss) and (overwrite or not os.path.isdir(pdst))
+        if b_move_proc:
+            premove_len = len(glob.glob(proc_ss, '**', recursive=True))
+
+            # If we are overwriting, remove the old directory
+            if overwrite:
+                shutil.rmtree(pdst, ignore_errors=True)
+
+            shutil.move(proc_ss, preset['processed_training_server']) ## Note: dir moved INSIDE the destination path
+            assert os.path.exists(pdst), 'Expected tranferred dir {} not found'.format(pdst)
+            assert len(glob.glob(pdst)) == premove_len
+
+            print('moved {proc_ss} to processed training server')
+
+            if os.path.exists(proc_ss):
+                print('Removing processed session post-transfer {}'.format(proc_ss))
+                shutil.rmtree(proc_ss, ignore_errors=True)
+
+            transferred_pairs.append((proc_ss, pdst))
+'''
+
+
+def main(preset, sessions, temp, overwrite):
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset['default_server']):
@@ -691,26 +965,44 @@ def main(preset, sessions, temp, overwrite, processes=os.cpu_count()):
     # Setup logging
     setup_logging(temp, sessions_dir=preset['processed_server'])
 
-    # TODO: add session transfers from experiment to training here
+    # Check if preset defines training servers, if so we try transferring sessions to training,
+    # Otherwise do nothing
+    has_training_server = all([os.path.isdir(preset[k])
+                               for k in (
+                                   'default_training_server',
+                                     'processed_training_server')])
+
+    # Move sessions from experiment to training
+    rs('\n'*3 + '='*200)
+    if has_training_server:
+        rs('Moving training sessions')
+        experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(preset, sessions, filter=False)
+        for sw in tqdm.tqdm([SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs_pre_move]):
+            sw.ensure_transfer_to_training_server(preset['default_training_server'], preset['processed_training_server'], overwrite)
+        rs('\n'*3 + '='*200)
+    else:
+        rs(f"No training servers defined for preset {preset['names'][0]}, skipping transfer step.")
 
     # Get raw/processed session dirs for preset
-    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions, filter=True)
+    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions=sessions, filter=True)
 
     exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
     train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
+
+    if False:
+        display_session_info(exp_session_wrappers, train_session_wrappers)
 
     exp_grp = SessionGroup(exp_session_wrappers, group_label='Experiment')
     train_grp = SessionGroup(train_session_wrappers, group_label='Training')
 
     exp_grp.do_all_analysis()
+    rs('\n'*3 + '='*200)
     train_grp.do_all_analysis()
-    #rs('\n'*3 + '='*200)
-    #train_grp.do_all_analysis()
-
 
 
 # Entry
 if __name__ == "__main__":
+    init(autoreset=True) # for colorama
 
     preset_name = sys.argv[1]
     if preset_name not in PRESETS.keys():
@@ -727,11 +1019,10 @@ if __name__ == "__main__":
         description=("Create plots for a given monkey"))
 
     cmd_args.add_default_arguments(
-        parser, ("sessions", "temp", "processes", "overwrite")
+        parser, ("sessions", "temp", "overwrite")
     )
 
     args = parser.parse_args(sys.argv[2:])
-
     start_time = time.time()
 
     main(
@@ -739,7 +1030,6 @@ if __name__ == "__main__":
         args.sessions,
         args.temp,
         args.overwrite,
-        args.processes
     )
 
     rs('Program took {}.'.format(

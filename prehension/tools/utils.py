@@ -69,7 +69,7 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
     if filter:
         experimental_raw_proc_pairs = _filter_pairs(raw_server_sessions, proc_server_sessions)
     else:
-        experimental_raw_proc_pairs = zip(raw_server_sessions, proc_server_sessions)
+        experimental_raw_proc_pairs = list(zip(raw_server_sessions, proc_server_sessions))
 
     # Build initial list of raw and proc training session dirs
     raw_training_sessions = []
@@ -84,7 +84,7 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
     if filter:
         training_raw_proc_pairs = _filter_pairs(raw_training_sessions, proc_training_sessions)
     else:
-        training_raw_proc_pairs = zip(raw_training_sessions, proc_training_sessions)
+        training_raw_proc_pairs = list(zip(raw_training_sessions, proc_training_sessions))
 
     return experimental_raw_proc_pairs, training_raw_proc_pairs
 
