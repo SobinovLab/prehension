@@ -71,7 +71,7 @@ ORIGINAL_OPENSIM_MODEL = os.path.join(
 # CALIBRATIONS_DIR = os.path.join(
 #     r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'DeepLabCut', 'CameraConfigs')
 CALIBRATIONS_DIR = os.path.join(
-    r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'CameraConfigs')
+    r'\\192.170.210.120', 'RawData', 'ProjectFolders', 'Prehension', 'CameraConfigs')
 
 THORAX_DOF_NAMES = ('Thorax_tra1', 'Thorax_tra2', 'Thorax_tra3',
                     'Thorax_rot1', 'Thorax_rot2', 'Thorax_rot3')

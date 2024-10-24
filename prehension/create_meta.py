@@ -353,7 +353,7 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
     if overwrite or not os.path.exists(os.path.join(processed_dir, 'meta_structure.json')):
         mstruct_rel = meta_session.get_default_meta_structure()
 
-        meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
+        meta_session.fill_meta_structure(mstruct_rel, raw_dir, processed_dir, session)
         mstruct_rel['ncams_config'] = find_ncams_config(session, CALIBRATIONS_DIR)
         mstruct_rel['hand'] = preset['hand']
         mstruct_rel['ps_dic'] = preset['ps_dic']
