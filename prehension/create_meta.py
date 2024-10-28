@@ -356,9 +356,10 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
     assert os.path.exists(raw_ss), 'server session {} does not exist on the server.'.format(raw_ss)
 
     if overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_structure.json')):
+      
         mstruct_rel = meta_session.get_default_meta_structure()
-
         meta_session.fill_meta_structure(mstruct_rel, raw_ss, session)
+        
         mstruct_rel['ncams_config'] = find_ncams_config(session, CALIBRATIONS_DIR)
         mstruct_rel['hand'] = preset['hand']
         mstruct_rel['ps_dic'] = preset['ps_dic']
