@@ -34,7 +34,7 @@ if __name__ == '__main__':
         description=('Creates meta information for a session.'))
     cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
-    cmd_args.add_default_arguments(parser, ('temp', 'overwrite'))
+    cmd_args.add_default_arguments(parser, ('temp', 'overwrite', 'sessions'))
 
     # custom
     parser.add_argument(
@@ -52,7 +52,8 @@ if __name__ == '__main__':
         current_preset,
         args.temp,
         args.overwrite,
-        args.export_roms
+        args.export_roms,
+        sessions=args.sessions
     )
 
     print('Program took {}.'.format(

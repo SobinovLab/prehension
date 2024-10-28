@@ -531,7 +531,7 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
 #             ws('\t{}: {}'.format(fs, fse))
 
 
-def create_meta(current_preset, temp, overwrite, export_roms):
+def create_meta(current_preset, temp, overwrite, export_roms, sessions=[]):
 
     # Step 1: process experiment sessions
     apply_to_sessions_helper(
@@ -540,7 +540,8 @@ def create_meta(current_preset, temp, overwrite, export_roms):
         current_preset,
         temp,
         create_session_meta,
-        args=(overwrite, export_roms))
+        args=(overwrite, export_roms),
+        sessions=sessions)
 
     # Step 2: process training sessions
     if not current_preset['default_training_server']:
@@ -558,5 +559,6 @@ def create_meta(current_preset, temp, overwrite, export_roms):
         current_preset,
         temp,
         create_session_meta,
-        args=(overwrite, export_roms))
+        args=(overwrite, export_roms),
+        sessions=sessions)
 

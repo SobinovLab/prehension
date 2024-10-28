@@ -29,8 +29,6 @@ from prehension.tools import cmd_args
 from prehension.tools.forces import get_summed_force_data
 from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
 
-from colorama import Fore, Style, init
-
 # Initialize colorama to work across different operating systems
 
 # TODO
@@ -40,12 +38,7 @@ from colorama import Fore, Style, init
 # Add overwrite
 
 
-SKIP_FORCE_TRACES = True
-
-
-
-
-
+SKIP_FORCE_TRACES = False
 # Plotting functions =====================================
 
 
@@ -198,33 +191,47 @@ class SessionGroup:
         # Group label for tqdm later
         self.group_label = group_label
 
-    def do_all_analysis(self):
-        self.do_single_sess_analysis()
-        self.do_group_analysis()
+    def do_all_analysis(self, sessions=[]):
+        self.do_single_sess_analysis(sessions=sessions)
+        self.do_group_analysis(sessions=sessions)
 
-    def do_single_sess_analysis(self):
+    def do_single_sess_analysis(self, sessions=[]):
         # Experiment single sess analysis
-        for sw in tqdm.tqdm(self.session_wrappers, 'Plotting Single Session Analysis'):
+        if sessions:
+            to_process = [sw for sw in self.session_wrappers if sw.sess_name in sessions]
+        else:
+            to_process = self.session_wrappers
+        for sw in tqdm.tqdm(to_process, 'Plotting Single Session Analysis'):
             if not SKIP_FORCE_TRACES:
                 sw.plot_force_trace()
             sw.plot_cond_success_matrix()
 
-    def do_group_analysis(self):
-        self._plot_avg_cond_success_matricies()
+    def do_group_analysis(self, sessions=[]):
+        self._plot_avg_cond_success_matricies(sessions)
         self._plot_performance()
 
-    def _plot_avg_cond_success_matricies(self):
+    def _plot_avg_cond_success_matricies(self, sessions=[]):
 
         # First sort all of the session wrappers by ascending datetime
         all_trials = []
+
         for sw in tqdm.tqdm(self.session_wrappers, desc='Plotting Average Conditional Success Matrix'):
             all_trials += sw.msession ## Extend list of all trials
 
-            create_heatmap_from_trials_list(
-                all_trials,
-                'Greens',
-                savename=os.path.join(sw.results_dir, 'AvgCondSuccessMatrix.png')
-            )
+            if sessions:
+                if sw.sess_name in sessions:
+                    create_heatmap_from_trials_list(
+                        all_trials,
+                        'Greens',
+                        savename=os.path.join(sw.results_dir, 'AvgCondSuccessMatrix.png')
+                    )
+            else:
+                create_heatmap_from_trials_list(
+                        all_trials,
+                        'Greens',
+                        savename=os.path.join(sw.results_dir, 'AvgCondSuccessMatrix.png')
+                    )
+
 
     @staticmethod
     def plot_performace_fig(date_success_dict,
@@ -505,8 +512,8 @@ class SessionWrapper:
             trial.range_delta = None
             trial.target_range = None
             if all([k in stub.keys() for k in bound_keys]):
-                trial.range_delta = [float(stub[bk]) for bk in bound_keys]
-                trial.target_range = [trial.target_force + delta for delta in trial.range_delta]
+                trial.range_delta = tuple([float(stub[bk]) for bk in bound_keys])
+                trial.target_range = tuple([trial.target_force + delta for delta in trial.range_delta])
 
             # Add aperture and rotation information
             trial.rotation = float(stub['pos_aperture(mm)'])
@@ -570,7 +577,6 @@ class SessionWrapper:
         pre_event_pad=1,
         post_event_pad=1,
         processes=os.cpu_count() - 1,
-        draw_bounds=True,
         only_successful_trials=True
     ):
 
@@ -680,11 +686,10 @@ class SessionWrapper:
             fig, ax = plt.subplots(figsize=(15,10))
             total_trials = 0
 
-            #all_bounds = set()
-            #all_colors = list()
+            # all_bounds = set()
+            # all_colors = list()
 
             # for tr in trials_flattened:
-
             #     # Check if the condition is a range or not
             #     if b_continous:
             #         f0, ff = tr.range_delta
@@ -743,14 +748,12 @@ class SessionWrapper:
                     total_trials += 1
 
             # Add bounds to set to draw later
-            # interped_list = [tr for tr in good_trials if tr.range_delta is not None]
-            # all_bounds |= {(tf + tr.range_delta[0], tf + tr.range_delta[1]) for tr in interped_list}
+            # all_bounds |= {tr.range_delta for tr in filtered_trials}
             # all_colors.append(cond_color)
 
-            # Draw unique bounds
-            # if draw_bounds:
-            #     for bnds, color in zip(all_bounds, all_colors):
-            #         ax.fill_between(interp_times, *bnds, color=color, alpha=0.1, edgecolor='none')
+            # # Draw unique bounds
+            # for bnds, color in zip(all_bounds, all_colors):
+            #     ax.fill_between(interp_times, *bnds, color=color, alpha=0.1, edgecolor='none')
 
             title = f'Force Traces ({total_trials} Trials)'
 
@@ -788,7 +791,7 @@ class SessionWrapper:
 
 
 
-def main(preset, sessions, temp, overwrite):
+def main(preset, sessions, temp, overwrite, transfer=False):
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset['default_server']):
@@ -808,18 +811,20 @@ def main(preset, sessions, temp, overwrite):
                                      'processed_training_server')])
 
     # Move sessions from experiment to training
-    rs('\n'*3 + '='*200)
-    if has_training_server:
-        rs('Moving training sessions')
-        experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(preset, sessions, filter=False)
-        for sw in tqdm.tqdm([SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs_pre_move]):
-            sw.ensure_transfer_to_training_server(preset['default_training_server'], preset['processed_training_server'], overwrite)
+    if transfer:
         rs('\n'*3 + '='*200)
-    else:
-        rs(f"No training servers defined for preset {preset['names'][0]}, skipping transfer step.")
+        if has_training_server:
+            rs('Moving training sessions')
+            experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(preset, sessions, filter=False)
+            for sw in tqdm.tqdm([SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs_pre_move]):
+                sw.ensure_transfer_to_training_server(preset['default_training_server'], preset['processed_training_server'], overwrite)
+            rs('\n'*3 + '='*200)
+        else:
+            rs(f"No training servers defined for preset {preset['names'][0]}, skipping transfer step.")
 
     # Get raw/processed session dirs for preset
-    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, sessions=sessions, filter=True)
+    # Note: we want to fetch all sessions here for performance analysis
+    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, filter=True)
 
     exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
     train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
@@ -827,14 +832,13 @@ def main(preset, sessions, temp, overwrite):
     exp_grp = SessionGroup(exp_session_wrappers, group_label='Experiment')
     train_grp = SessionGroup(train_session_wrappers, group_label='Training')
 
-    exp_grp.do_all_analysis()
+    exp_grp.do_all_analysis(sessions=sessions)
     rs('\n'*3 + '='*200)
-    train_grp.do_all_analysis()
+    train_grp.do_all_analysis(sessions=sessions)
 
 
 # Entry
 if __name__ == "__main__":
-    init(autoreset=True) # for colorama
 
     preset_name = sys.argv[1]
     if preset_name not in PRESETS.keys():
