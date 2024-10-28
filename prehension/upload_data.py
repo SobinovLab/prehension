@@ -90,7 +90,7 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
     start_time = time.time()
     copy_function = filesystem.PrintCopyAccumulateSize(dry_run, 1)
 
-    ## upload general monkey stuff like models
+    # upload general monkey stuff like models
     filesystem.copy_folder_contents(
         server, target_dir,
         dir_names=GENERAL_DIRS, file_names=GENERAL_FILES, copy_function=copy_function,

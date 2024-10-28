@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from reporting_pool import ReportingPool
 from matplotlib.colors import LinearSegmentedColormap
 
-#from prehension import tools, meta_session
+# from prehension import tools, meta_session
 from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.logs import rs, ws, setup_logging
 from prehension import meta_session
@@ -43,7 +43,6 @@ SKIP_FORCE_TRACES = False
 
 
 def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_width_N=1, savename=None):
-
     """Create heatmap for conditional success matrix based on a list of trials
 
     Parameters
@@ -85,8 +84,8 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
 
         force_bins = []
         for lo_bound in range(rounded_min_cond,
-                            rounded_max_cond,
-                            bin_width_N):
+                              rounded_max_cond,
+                              bin_width_N):
             force_bins.append((lo_bound, lo_bound + bin_width_N))
     else:
         force_bins = discrete_force_targets
@@ -118,9 +117,11 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
             row = []
             for j, ap in enumerate(unique_aps):
 
-                trials_rot_ap_match = [tr for tr in sub_trial_list if tr.aperture == ap and tr.rotation == rot]
+                trials_rot_ap_match = [
+                    tr for tr in sub_trial_list if tr.aperture == ap and tr.rotation == rot]
                 if trials_rot_ap_match:
-                    pct = sum([tr.success for tr in trials_rot_ap_match]) / len(trials_rot_ap_match)
+                    pct = sum([tr.success for tr in trials_rot_ap_match]
+                              ) / len(trials_rot_ap_match)
                     row.append(pct)
                     color = 'white' if pct >= 0.5 else 'black'
                     txt = f'{pct:.2f}'
@@ -138,11 +139,10 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
         ax.set_yticks(np.arange(len(unique_rots)))
         ax.set_yticklabels(unique_rots)
         title = (f"Force Range: {force_target[0]}-{force_target[1]} N" if use_force_bins
-                  else f"Force: {force_target} N")
+                 else f"Force: {force_target} N")
         ax.set_title(title)
         ax.set_ylabel('Aperture (mm)')
         ax.set_xlabel('Rotation (deg)')
-
 
     # Loop th over force bins
     for plot_idx, target_force in enumerate(force_bins):
@@ -150,9 +150,11 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
         # Get the trials that either fall in the force range or are the exact target force
         if use_force_bins:
             force_range = (target_force[0], target_force[1])
-            cond_trials = [tr for tr in tr_list if tr.target_force >= force_range[0] and tr.target_force <= force_range[1]]
+            cond_trials = [tr for tr in tr_list if tr.target_force >=
+                           force_range[0] and tr.target_force <= force_range[1]]
         else:
-            cond_trials = [tr for tr in tr_list if tr.target_force == target_force]
+            cond_trials = [
+                tr for tr in tr_list if tr.target_force == target_force]
 
         # make the subplot for each force condition
         _make_subplot(axs[plot_idx], cond_trials, use_force_bins, target_force)
@@ -164,7 +166,7 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
     plt.tight_layout()
     if savename is not None:
         fig.savefig(savename)
-        #rs(f'saving success matrix as {os.path.normpath(savename)}')
+        # rs(f'saving success matrix as {os.path.normpath(savename)}')
     else:
         plt.show()
     plt.close(fig)
@@ -179,11 +181,11 @@ class SessionGroup:
     - conditional success matrix for all sessions
     """
 
-
     def __init__(self, l_session_wrappers, group_label=''):
 
         # Filter out sessions with no meta
-        self.session_wrappers = [sw for sw in l_session_wrappers if sw.has_meta]
+        self.session_wrappers = [
+            sw for sw in l_session_wrappers if sw.has_meta]
 
         # Sort by date and then set number ascending
         self.session_wrappers.sort(key=lambda x: (x.datetime, x.set_number))
@@ -198,7 +200,8 @@ class SessionGroup:
     def do_single_sess_analysis(self, sessions=[]):
         # Experiment single sess analysis
         if sessions:
-            to_process = [sw for sw in self.session_wrappers if sw.sess_name in sessions]
+            to_process = [
+                sw for sw in self.session_wrappers if sw.sess_name in sessions]
         else:
             to_process = self.session_wrappers
         for sw in tqdm.tqdm(to_process, 'Plotting Single Session Analysis'):
@@ -216,22 +219,23 @@ class SessionGroup:
         all_trials = []
 
         for sw in tqdm.tqdm(self.session_wrappers, desc='Plotting Average Conditional Success Matrix'):
-            all_trials += sw.msession ## Extend list of all trials
+            all_trials += sw.msession  # Extend list of all trials
 
             if sessions:
                 if sw.sess_name in sessions:
                     create_heatmap_from_trials_list(
                         all_trials,
                         'Greens',
-                        savename=os.path.join(sw.results_dir, 'AvgCondSuccessMatrix.png')
+                        savename=os.path.join(
+                            sw.results_dir, 'AvgCondSuccessMatrix.png')
                     )
             else:
                 create_heatmap_from_trials_list(
-                        all_trials,
-                        'Greens',
-                        savename=os.path.join(sw.results_dir, 'AvgCondSuccessMatrix.png')
-                    )
-
+                    all_trials,
+                    'Greens',
+                    savename=os.path.join(
+                        sw.results_dir, 'AvgCondSuccessMatrix.png')
+                )
 
     @staticmethod
     def plot_performace_fig(date_success_dict,
@@ -248,10 +252,12 @@ class SessionGroup:
         axs[0].set_ylim((0, 1))
 
         dates = sorted(date_success_dict.keys())
-        pct_correct = [sum(date_success_dict[dt]) / len(date_success_dict[dt]) for dt in dates]
+        pct_correct = [sum(date_success_dict[dt]) /
+                       len(date_success_dict[dt]) for dt in dates]
         total_trials = [len(date_success_dict[dt]) for dt in dates]
         num_correct = [sum(date_success_dict[dt]) for dt in dates]
-        num_incorrect = [len(date_success_dict[dt]) - sum(date_success_dict[dt]) for dt in dates]
+        num_incorrect = [len(date_success_dict[dt]) -
+                         sum(date_success_dict[dt]) for dt in dates]
 
         axs[0].plot(dates, pct_correct, color='green', label='correct')
         axs[0].tick_params(axis='x', labelrotation=45)
@@ -262,7 +268,8 @@ class SessionGroup:
         axs[1].set_ylabel('Trials')
         axs[1].plot(dates, total_trials, color='black', label='total trials')
         axs[1].plot(dates, num_correct, color='green', label='num correct')
-        axs[1].plot(dates, num_incorrect, color='orange', label='num incorrect')
+        axs[1].plot(dates, num_incorrect, color='orange',
+                    label='num incorrect')
         axs[1].tick_params(axis='x', labelrotation=45)
         axs[1].set_ylim(bottom=0)
         axs[1].legend()
@@ -271,10 +278,12 @@ class SessionGroup:
         desired_ticks = 5
         dt_range = max(dates) - min(dates)
         interval_options = [timedelta(days=1), timedelta(weeks=1), timedelta(weeks=2),
-                            timedelta(weeks=4), timedelta(weeks=8), timedelta(weeks=12),
+                            timedelta(weeks=4), timedelta(
+                                weeks=8), timedelta(weeks=12),
                             timedelta(weeks=26), timedelta(weeks=52)]
 
-        interval_counts = [abs(desired_ticks - (dt_range / inter)) for inter in interval_options]
+        interval_counts = [abs(desired_ticks - (dt_range / inter))
+                           for inter in interval_options]
         i = np.argmin(np.array(interval_counts))
         interval = interval_options[i]
 
@@ -288,7 +297,8 @@ class SessionGroup:
             for date in date_ticks:
                 ax.axvline(x=date, color='gray', linestyle='--', alpha=0.5)
             ax.set_xticks(date_ticks)
-            ax.set_xticklabels([date.strftime('%y-%m-%d') for date in date_ticks], rotation=45)
+            ax.set_xticklabels([date.strftime('%y-%m-%d')
+                               for date in date_ticks], rotation=45)
 
         # -- LABEL POINTS IF LOOKBACK IS <= 2 WEEKS -- #
         if annotate_dates:
@@ -306,7 +316,7 @@ class SessionGroup:
 
         if savename is not None:
             fig.savefig(savename)
-            #rs(f'saving performance as {os.path.normpath(savename)}')
+            # rs(f'saving performance as {os.path.normpath(savename)}')
         else:
             plt.show()
 
@@ -331,18 +341,23 @@ class SessionGroup:
         for datetime in session_wrappers_by_date:
             trial_success_list_per_date = []
             for sw in session_wrappers_by_date[datetime]:
-                trial_success_list_per_date += [tr.success for tr in sw.msession]
+                trial_success_list_per_date += [
+                    tr.success for tr in sw.msession]
 
             date_l_trial_success_dict[datetime] = trial_success_list_per_date
 
         # Now loop through session wrappers and plot
         for sw in tqdm.tqdm(self.session_wrappers, desc='Plotting Performance'):
             # Find valid subset of keys within range for each session wrapper
-            dates_total = [dt for dt in list(date_l_trial_success_dict.keys()) if dt <= sw.datetime]
-            dates_10_day = [dt for dt in dates_total if dt >= sw.datetime - timedelta(days=10)]
+            dates_total = [dt for dt in list(
+                date_l_trial_success_dict.keys()) if dt <= sw.datetime]
+            dates_10_day = [dt for dt in dates_total if dt >=
+                            sw.datetime - timedelta(days=10)]
 
-            date_success_dict_total = {dt: date_l_trial_success_dict[dt] for dt in dates_total}
-            date_success_dict_10_day = {dt: date_l_trial_success_dict[dt] for dt in dates_10_day}
+            date_success_dict_total = {
+                dt: date_l_trial_success_dict[dt] for dt in dates_total}
+            date_success_dict_10_day = {
+                dt: date_l_trial_success_dict[dt] for dt in dates_10_day}
 
             SessionGroup.plot_performace_fig(date_success_dict_total,
                                              savename=os.path.join(sw.results_dir, 'Performance.png'))
@@ -351,7 +366,6 @@ class SessionGroup:
                                              include_last_tick=True,
                                              annotate_dates=True,
                                              savename=os.path.join(sw.results_dir, 'PerformanceLast10Days.png'))
-
 
 
 class SessionWrapper:
@@ -369,14 +383,16 @@ class SessionWrapper:
         self.proc_ss = proc_ss
 
         self.sess_name = os.path.basename(self.raw_ss)
-        self.datetime, self.set_number = SessionWrapper.date_from_folder(self.sess_name)
+        self.datetime, self.set_number = SessionWrapper.date_from_folder(
+            self.sess_name)
 
         # Create results and log folder
         self.results_dir = os.path.join(self.proc_ss, 'prehension_plots')
         os.makedirs(self.results_dir, exist_ok=True)
         self.has_meta = False
 
-        potential_logs = glob.glob(os.path.join(self.raw_ss, 'behavior', '*.csv'))
+        potential_logs = glob.glob(os.path.join(
+            self.raw_ss, 'behavior', '*.csv'))
         if len(potential_logs) > 1:
             ws(f'Found more than one log for session: {os.path.basename(self.raw_ss)}, skipping')
         if len(potential_logs) == 1:
@@ -386,18 +402,18 @@ class SessionWrapper:
 
         # Load meta
         try:
-            self.mstruct, self.mdof, self.mobject, self.msession = meta_session.load_meta_information(self.raw_ss, self.proc_ss)
+            self.mstruct, self.mdof, self.mobject, self.msession = meta_session.load_meta_information(
+                self.raw_ss, self.proc_ss)
             self.has_meta = True
             if len(self.mstruct['auto_log']) > 0:
                 self.log_full = self.mstruct['auto_log'][0]
         except meta_session.IncompleteMetaError as _:
-            #ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)}, skipping')
+            # ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)}, skipping')
             return
-        ## Other errors should stop the program -- this is intentional right now for testing
+        # Other errors should stop the program -- this is intentional right now for testing
 
         # Bind conditional data to each trial within msession
         self.attach_fields_to_trials()
-
 
     def ensure_transfer_to_training_server(self, raw_training_server, proc_training_server, overwrite=False):
 
@@ -406,7 +422,6 @@ class SessionWrapper:
 
         if not self.has_meta:
             return
-
 
         def _folder_contents_set(d1, d2):
             """return src/dst folder contents as sets"""
@@ -419,7 +434,6 @@ class SessionWrapper:
 
             return contents_rel_1, contents_rel_2
 
-
         def _move_helper(src_session_dir, dst_parent_dir):
 
             # inputs:
@@ -429,17 +443,20 @@ class SessionWrapper:
 
             # defined vars:
             # [dst_session_dir] - raw_(training)_server_session: the expected directory name after transfer
-            dst_session_dir = os.path.join(dst_parent_dir, os.path.basename(src_session_dir))
+            dst_session_dir = os.path.join(
+                dst_parent_dir, os.path.basename(src_session_dir))
 
             # logic:
             src_exists = os.path.exists(src_session_dir)
             if not src_exists:             # This should always exist
-                raise Exception(f'Source session directory {src_session_dir} does not exist')
+                raise Exception(
+                    f'Source session directory {src_session_dir} does not exist')
 
             # Check if dst_session_dir exists
             already_transferred = False
             if os.path.exists(dst_session_dir):
-                src_contents, dst_contents = _folder_contents_set(src_session_dir, dst_session_dir)
+                src_contents, dst_contents = _folder_contents_set(
+                    src_session_dir, dst_session_dir)
                 if src_contents.issubset(dst_contents):
                     already_transferred = True
 
@@ -447,7 +464,7 @@ class SessionWrapper:
             transferred = False
 
             if not already_transferred or overwrite:
-                #rs('transferring')
+                # rs('transferring')
                 # copy src to dst_parent_dir but remove dst first
                 if os.path.exists(dst_session_dir):
                     try:
@@ -464,12 +481,14 @@ class SessionWrapper:
             # Integrity check if we did a transfer
             if transferred:
                 # Do integrity check and remove src if successful
-                src_contents, dst_contents = _folder_contents_set(src_session_dir, dst_session_dir)
+                src_contents, dst_contents = _folder_contents_set(
+                    src_session_dir, dst_session_dir)
                 assert src_contents.issubset(dst_contents)
 
             # now remove src locally because we should have already transferred
             if os.path.exists(src_session_dir):
-                assert os.path.exists(dst_session_dir), 'Expected tranferred dir {} not found'.format(dst_session_dir)
+                assert os.path.exists(
+                    dst_session_dir), 'Expected tranferred dir {} not found'.format(dst_session_dir)
                 try:
                     shutil.rmtree(src_session_dir, ignore_errors=False)
                 except:
@@ -478,7 +497,6 @@ class SessionWrapper:
         # Transfer from experiment to training server
         _move_helper(self.raw_ss, raw_training_server)
         _move_helper(self.proc_ss, proc_training_server)
-
 
     @property
     def is_training_session(self):
@@ -490,12 +508,10 @@ class SessionWrapper:
             os.path.join(self.raw_ss, self.mstruct['raw_ps_dir'])
         ]
         is_training_session = not all([os.path.exists(dname) for dname
-                                        in experiment_expected_dirnames])
+                                       in experiment_expected_dirnames])
         return is_training_session
 
-
     def attach_fields_to_trials(self):
-
         """Bind the following to each trial object in self.msession
             - target force
             - range delta (if exists)
@@ -504,16 +520,19 @@ class SessionWrapper:
         """
 
         for trial in self.msession:
-            #trial.target_condition = target_condition
+            # trial.target_condition = target_condition
             stub = self.mobject[trial.object_id]['def']
             trial.target_force = float(stub['targetForce(N)'])
-            bound_keys = ['targetForceRelRangeMin(N)', 'targetForceRelRangeMax(N)']
+            bound_keys = [
+                'targetForceRelRangeMin(N)', 'targetForceRelRangeMax(N)']
             # Check if keys exist in the stub
             trial.range_delta = None
             trial.target_range = None
             if all([k in stub.keys() for k in bound_keys]):
-                trial.range_delta = tuple([float(stub[bk]) for bk in bound_keys])
-                trial.target_range = tuple([trial.target_force + delta for delta in trial.range_delta])
+                trial.range_delta = tuple(
+                    [float(stub[bk]) for bk in bound_keys])
+                trial.target_range = tuple(
+                    [trial.target_force + delta for delta in trial.range_delta])
 
             # Add aperture and rotation information
             trial.rotation = float(stub['pos_aperture(mm)'])
@@ -558,8 +577,8 @@ class SessionWrapper:
         medTsmFile = trial_info.filtered_ps_filenames['medial_sensor']
 
         if not os.path.isfile(latTsmFile) or not os.path.isfile(medTsmFile):
-            print(f'Skipping trial {trial_info.trial_number} | missing at least one' \
-                f' ps file:\n{latTsmFile}\n{medTsmFile}')
+            print(f'Skipping trial {trial_info.trial_number} | missing at least one'
+                  f' ps file:\n{latTsmFile}\n{medTsmFile}')
             return ([], [])
 
         times, forces_summed = get_summed_force_data(latTsmFile, medTsmFile)
@@ -586,7 +605,7 @@ class SessionWrapper:
         print(f"Plotting force traces for {len(trials_flattened)} trials")
         p_args = list(zip(*[trials_flattened]))
         results = ReportingPool(SessionWrapper.get_trial_force, p_args, processes=processes,
-                    report_on_change=True, track_failures=True).start()
+                                report_on_change=True, track_failures=True).start()
 
         # Get min and max force targets (needed for normalizing cmap)
         force_conditions = [tr.target_force for tr in trials_flattened]
@@ -605,7 +624,6 @@ class SessionWrapper:
             tr.tsm_times = res[0]
             tr.forces_summed = res[1]
 
-
         # Only include trials that have tsm data
         trials_flattened = [tr for tr in trials_flattened if
                             hasattr(tr, 'tsm_times') and hasattr(tr, 'forces_summed')]
@@ -614,7 +632,8 @@ class SessionWrapper:
                             len(tr.tsm_times) > 0 and len(tr.forces_summed) > 0]
 
         # Create times to interp over since this will stay constant
-        interp_times = np.arange(-pre_event_pad, post_event_pad + time_bin_width, time_bin_width)
+        interp_times = np.arange(-pre_event_pad,
+                                 post_event_pad + time_bin_width, time_bin_width)
 
         # Define cmap for plotting
         cmap = plt.cm.Oranges
@@ -638,17 +657,19 @@ class SessionWrapper:
             for trial in trials_flattened:
 
                 if only_successful_trials and not trial.success:
-                    continue ## skip failed trial
+                    continue  # skip failed trial
 
-                #trial.tsm_times = np.array(trial.tsm_times)
-                assert isinstance(trial.tsm_times, np.ndarray), f'trial.tsm times is type ({type(trial.tsm_times)})'
+                # trial.tsm_times = np.array(trial.tsm_times)
+                assert isinstance(
+                    trial.tsm_times, np.ndarray), f'trial.tsm times is type ({type(trial.tsm_times)})'
 
                 # Set default value
                 trial.force_interped = None
 
                 # 1. zero to reference time (in place modification of trial object)
                 if ref_event in timepoints_df.columns:
-                    row = timepoints_df[timepoints_df['trial_number'] == trial.trial_number]
+                    row = timepoints_df[timepoints_df['trial_number']
+                                        == trial.trial_number]
                     if len(row[ref_event].values) < 1:
                         ws('No zero time point reference value found in this csv {}, skipping')
                         continue
@@ -660,15 +681,19 @@ class SessionWrapper:
                     shifted_times = trial.tsm_times - float(zeroTimeVal)
 
                 elif hasattr(trial, ref_event):
-                    shifted_times = trial.tsm_times - float(getattr(trial, ref_event))
+                    shifted_times = trial.tsm_times - \
+                        float(getattr(trial, ref_event))
 
                 else:
                     continue
 
                 # 2. trim to pad region (in place)
-                assert isinstance(shifted_times, np.ndarray), f'shifted times check 1 is type ({type(trial.tsm_times)})'
-                valid_idx = (shifted_times >= -pre_event_pad) & (shifted_times <= post_event_pad)
-                assert isinstance(shifted_times, np.ndarray), f'shifted times check 2 is type ({type(trial.tsm_times)})'
+                assert isinstance(
+                    shifted_times, np.ndarray), f'shifted times check 1 is type ({type(trial.tsm_times)})'
+                valid_idx = (shifted_times >= -
+                             pre_event_pad) & (shifted_times <= post_event_pad)
+                assert isinstance(
+                    shifted_times, np.ndarray), f'shifted times check 2 is type ({type(trial.tsm_times)})'
                 shifted_times = shifted_times[valid_idx]
                 interp_forces = trial.forces_summed[valid_idx]
 
@@ -678,12 +703,12 @@ class SessionWrapper:
 
                 # 3. Interpolate
                 fxn = interp1d(shifted_times, interp_forces,
-                                kind='linear', fill_value='extrapolate')
+                               kind='linear', fill_value='extrapolate')
                 trial.force_interped = fxn(interp_times).clip(min=0)
                 # Clip to fix weird case of very negative values
 
             # Create line plot with avg
-            fig, ax = plt.subplots(figsize=(15,10))
+            fig, ax = plt.subplots(figsize=(15, 10))
             total_trials = 0
 
             # all_bounds = set()
@@ -701,10 +726,13 @@ class SessionWrapper:
             #         cond_color = get_color(tf)
 
             # Get a list of all interpolated force arrays
-            filtered_trials = [tr for tr in trials_flattened if hasattr(tr, 'force_interped')]
-            filtered_trials = [tr for tr in filtered_trials if tr.force_interped is not None]
+            filtered_trials = [
+                tr for tr in trials_flattened if hasattr(tr, 'force_interped')]
+            filtered_trials = [
+                tr for tr in filtered_trials if tr.force_interped is not None]
 
-            assert len(filtered_trials) > 0, 'No trials with interpolated force data'
+            assert len(
+                filtered_trials) > 0, 'No trials with interpolated force data'
 
             # Start plotting ...
             # 1. Normal mode (discrete targets)
@@ -728,7 +756,8 @@ class SessionWrapper:
 
                 # plot avg per target force
                 for tf in dict_trials_per_target:
-                    interped_list = [tr.force_interped for tr in dict_trials_per_target[tf]]
+                    interped_list = [
+                        tr.force_interped for tr in dict_trials_per_target[tf]]
                     force_sum = np.sum(interped_list, axis=0)
                     force_sum /= len(interped_list)
 
@@ -761,7 +790,7 @@ class SessionWrapper:
                 title = "Residual " + title
                 fig.colorbar(sm, label="Target Force (N)", ax=ax)
                 ax.set_ylabel('$\Delta F_{actual, target}$ (N)', fontsize=14)
-                #cbar.set_clim(vmin=0, vmax=max_cond)
+                # cbar.set_clim(vmin=0, vmax=max_cond)
             else:
                 ax.legend(loc='upper right')
                 ax.set_ylabel(f"L/R summed force (N)", fontsize=14)
@@ -779,8 +808,10 @@ class SessionWrapper:
             plt.close(fig)
 
     def plot_cond_success_matrix(self):
-        cond_success_matrix_path = os.path.join(self.results_dir, 'CondSuccessMatrix.png')
-        self.__plot_single_cond_success_matrix(cmap='Purples', savename=cond_success_matrix_path)
+        cond_success_matrix_path = os.path.join(
+            self.results_dir, 'CondSuccessMatrix.png')
+        self.__plot_single_cond_success_matrix(
+            cmap='Purples', savename=cond_success_matrix_path)
 
     def __plot_single_cond_success_matrix(self, cmap='Blues', savename=None):
         create_heatmap_from_trials_list(
@@ -790,15 +821,16 @@ class SessionWrapper:
         )
 
 
-
 def main(preset, sessions, temp, overwrite, transfer=False):
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset['default_server']):
-        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(preset['default_server']))
+        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(
+            preset['default_server']))
 
     if not os.path.exists(preset['processed_server']):
-        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(preset['default_server']))
+        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(
+            preset['default_server']))
 
     # Setup logging
     setup_logging(temp, sessions_dir=preset['processed_server'])
@@ -808,26 +840,31 @@ def main(preset, sessions, temp, overwrite, transfer=False):
     has_training_server = all([os.path.isdir(preset[k])
                                for k in (
                                    'default_training_server',
-                                     'processed_training_server')])
+        'processed_training_server')])
 
     # Move sessions from experiment to training
     if transfer:
         rs('\n'*3 + '='*200)
         if has_training_server:
             rs('Moving training sessions')
-            experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(preset, sessions, filter=False)
+            experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(
+                preset, sessions, filter=False)
             for sw in tqdm.tqdm([SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs_pre_move]):
-                sw.ensure_transfer_to_training_server(preset['default_training_server'], preset['processed_training_server'], overwrite)
+                sw.ensure_transfer_to_training_server(
+                    preset['default_training_server'], preset['processed_training_server'], overwrite)
             rs('\n'*3 + '='*200)
         else:
             rs(f"No training servers defined for preset {preset['names'][0]}, skipping transfer step.")
 
     # Get raw/processed session dirs for preset
     # Note: we want to fetch all sessions here for performance analysis
-    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, filter=True)
+    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(
+        preset, filter=True)
 
-    exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
-    train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
+    exp_session_wrappers = [SessionWrapper(
+        *exp_pair) for exp_pair in experimental_ss_pairs]
+    train_session_wrappers = [SessionWrapper(
+        *train_pair) for train_pair in training_ss_pairs]
 
     exp_grp = SessionGroup(exp_session_wrappers, group_label='Experiment')
     train_grp = SessionGroup(train_session_wrappers, group_label='Training')
@@ -842,7 +879,8 @@ if __name__ == "__main__":
 
     preset_name = sys.argv[1]
     if preset_name not in PRESETS.keys():
-        raise ValueError(f'preset_name {preset_name} not found in presets {list(PRESETS.keys())}')
+        raise ValueError(
+            f'preset_name {preset_name} not found in presets {list(PRESETS.keys())}')
 
     current_preset = PRESETS[preset_name]
 

@@ -40,7 +40,8 @@ if __name__ == '__main__':
     cmd_args.add_default_arguments(
         parser, ('sessions', 'temp', 'overwrite'))
 
-    default_target_dir = os.path.join(os.environ['USERPROFILE'], 'Box', 'PrehensionProject')
+    default_target_dir = os.path.join(
+        os.environ['USERPROFILE'], 'Box', 'PrehensionProject')
     parser.add_argument(
         '--target_dir',
         type=str, default=default_target_dir,

@@ -62,7 +62,8 @@ if __name__ == "__main__":
     cmd_args.add_default_kwarguments(
         parser, {"server": current_preset["default_server"]})
     cmd_args.add_default_arguments(
-        parser, ("sessions", "trials", "temp", "overwrite", "processes", "make_plots")
+        parser, ("sessions", "trials", "temp",
+                 "overwrite", "processes", "make_plots")
     )
 
     parser.add_argument(

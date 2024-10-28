@@ -25,6 +25,7 @@ import os
 
 class TrialInfo():
     """Contains all relevant information about a trial, including all filenames"""
+
     def __init__(self, session, trial_number, object_id, success, other_info=None):
         self.session = session
         self.trial_number = int(trial_number)
@@ -37,9 +38,9 @@ class TrialInfo():
             for k, v in other_info.items():
                 setattr(self, k, v)
 
-
     def generate_filenames(self, mstruct):
-        trial_name = mstruct['kin_trialname_template'].format(trial_number=self.trial_number)
+        trial_name = mstruct['kin_trialname_template'].format(
+            trial_number=self.trial_number)
         self.trial_name = trial_name
 
         # recorded images from all cameras
@@ -65,14 +66,17 @@ class TrialInfo():
         else:
             # inverted_dir_structure
             self.videos = {
-                k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.mp4')
+                k: form_cam_inverted_fname(
+                    mstruct['videos_dir'], trial_name, v, '.mp4')
                 for k, v in mstruct['cameras'].items()}
             self.videos_logs = {
-                k: form_cam_inverted_fname(mstruct['videos_dir'], trial_name, v, '.csv')
+                k: form_cam_inverted_fname(
+                    mstruct['videos_dir'], trial_name, v, '.csv')
                 for k, v in mstruct['cameras'].items()}
 
-        #import pdb; pdb.set_trace()
-        self.jarvis_video_dir = os.path.join(mstruct['jarvis_video_dir'], trial_name)
+        # import pdb; pdb.set_trace()
+        self.jarvis_video_dir = os.path.join(
+            mstruct['jarvis_video_dir'], trial_name)
         self.jarvis_videos = {
             k: os.path.join(self.jarvis_video_dir, v + '.mp4')
             for k, v in mstruct['cameras'].items()

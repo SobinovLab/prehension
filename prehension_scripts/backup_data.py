@@ -33,7 +33,8 @@ import tqdm
 from prehension.tools import filesystem
 
 # Not sure we need this, leave for now though ...
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+currentdir = os.path.dirname(os.path.abspath(
+    inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
@@ -96,7 +97,8 @@ def transfer_one(transfer_name, src, dst, dry_run, verbose_level,
         print('Found {} {} files for copying. Search took {}.'.format(
             pcas, transfer_name, timedelta))
     else:
-        print('Copied {} {} files over {}.'.format(pcas, transfer_name, timedelta))
+        print('Copied {} {} files over {}.'.format(
+            pcas, transfer_name, timedelta))
 
 
 def main():
@@ -153,7 +155,8 @@ def main_bci():
         882, 887, 892, 901, 902, 910, 911, 916, 920, 923, 926, 947, 959, 961, 965, 966]
     crs02b_locations = ['Lab']*len(crs02b_sessions)
     crs07_sessions = [68, 69, 73, 74, 74, 86, 87, 89, 92]
-    crs07_locations = ['Lab', 'Lab', 'Home', 'Home', 'Lab', 'Home', 'Home', 'Home', 'Home']
+    crs07_locations = ['Lab', 'Lab', 'Home', 'Home',
+                       'Lab', 'Home', 'Home', 'Home', 'Home']
 
     pcas = filesystem.PrintCopyAccumulateSize(dry_run, verbose_level - 1)
     make_dir = not dry_run
@@ -162,7 +165,8 @@ def main_bci():
     else:
         overwrite_existing = filesystem.overwrite_existing_never
 
-    subjects = ['CRS02b'] * len(crs02b_sessions) + ['CRS07'] * len(crs07_sessions)
+    subjects = ['CRS02b'] * len(crs02b_sessions) + \
+        ['CRS07'] * len(crs07_sessions)
     sessions = crs02b_sessions + crs07_sessions
     locations = crs02b_locations + crs07_locations
 
