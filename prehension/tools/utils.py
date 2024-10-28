@@ -90,7 +90,7 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
 
 
 
-def does_trianing_servers_exist(preset):
+def does_trianing_servers_exist(preset, verbose=False):
     """Returns True if all training servers exist, prints warnings otherwise and returns False.
     """
     keys = ['default_training_server', 'processed_training_server']
@@ -102,10 +102,10 @@ def does_trianing_servers_exist(preset):
     if training_servers_not_none:
         training_servers_exist = all(os.path.exists(v) for v in (preset[k] for k in keys))
 
-    if not training_servers_not_none:
+    if not training_servers_not_none and verbose:
         ws('one or more training servers are None in preset: {}'.format(preset['names'][0]))
 
-    if not training_servers_exist:
+    if not training_servers_exist and verbose:
         ws('one or more training servers do not exist in preset: {}'.format(preset['names'][0]))
 
     return training_servers_not_none and training_servers_exist

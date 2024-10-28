@@ -15,9 +15,9 @@ import glob
 import shutil
 import argparse
 
-preset_names = ['daiquiri_right_hemisphere', 'pappy_left_hemisphere_training_v1', 'pimms_left_hemisphere_training_k1']
+preset_names = ['daiquiri_right_hemisphere', 'pimms_left_hemisphere_training_k1', 'pappy_left_hemisphere_training_v1',]
 
-def display_session_info(experimental_server_wrappers, training_server_wrappers, clean):
+def display_session_info(experimental_server_wrappers, training_server_wrappers, clean, last_n):
 
 
     # Function to format and color the session status
@@ -93,7 +93,10 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         print('-' * 135)
 
     print_header('EXPERIMENTAL SESSIONS')
-    for sw in sorted(experimental_server_wrappers, key=lambda x: (x.datetime, x.set_number)):
+    sorted_exp_sessions = sorted(experimental_server_wrappers, key=lambda x: (x.datetime, x.set_number))
+    if last_n > 0:
+        sorted_exp_sessions = sorted_exp_sessions[-last_n:]
+    for sw in sorted_exp_sessions:
         raw_status = format_status(sw.raw_ss)
         proc_status = format_status(sw.proc_ss)
         folder_status_raw = check_folders(sw.raw_ss)
@@ -109,7 +112,10 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
     print()  # Line break between sections
 
     print_header('TRAINING SESSIONS')
-    for sw in sorted(training_server_wrappers, key=lambda x: (x.datetime, x.set_number)):
+    sorted_training_sessions = sorted(training_server_wrappers, key=lambda x: (x.datetime, x.set_number))
+    if last_n > 0:
+        sorted_training_sessions = sorted_training_sessions[-last_n:]
+    for sw in sorted_training_sessions:
         raw_status = format_status(sw.raw_ss)
         proc_status = format_status(sw.proc_ss)
         folder_status_raw = check_folders(sw.raw_ss)
@@ -140,7 +146,7 @@ def main(args):
         exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
         train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
 
-        display_session_info(exp_session_wrappers, train_session_wrappers, args.clean)
+        display_session_info(exp_session_wrappers, train_session_wrappers, args.clean, args.last)
         print()
         print()
 
@@ -157,6 +163,11 @@ if __name__ == "__main__":
         help=('Remove session folders if the log file is found somewhere else and there is'
                ' no sensor data in raw'),
         default=False
+    )
+
+    parser.add_argument(
+        '--last', type=int, default=-1,
+        help=('Number of sessions to display. Default: -1 (all)')
     )
 
     args = parser.parse_args(sys.argv[1:])
