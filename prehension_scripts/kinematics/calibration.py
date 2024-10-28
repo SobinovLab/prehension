@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     calibration(args.server, args.sessions, args.temp, args.overwrite, args.relocate,
-                args.run_extrinsic_calibration)
+                args.run_extrinsic_calibration, current_preset)
 
     rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

@@ -52,7 +52,7 @@ PS_CENTROID_RADIUS = 80
 
 
 def analyze_videos(server, sessions, trials_sel, temp, overwrite,
-                   dlc_config_path, analyze, make_videos):
+                   dlc_config_path, analyze, make_videos, preset):
     """Uses pretrained machine vision network to label videos.
 
     Arguments:
@@ -88,6 +88,7 @@ def analyze_videos(server, sessions, trials_sel, temp, overwrite,
         print()
         rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
+        processed_session = os.path.join(preset['processed_server'], session)
 
         if not os.path.exists(server_session):
             ws('Session {} does not exist on the server.'.format(session))
@@ -95,7 +96,8 @@ def analyze_videos(server, sessions, trials_sel, temp, overwrite,
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(
+                server_session, processed_session)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
@@ -149,7 +151,8 @@ def parallel_analyze_videos(dlc_config_path, video, markers_2D_dirname):
         gputouse=0, save_as_csv=True, destfolder=markers_2D_dirname)
 
 
-def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calibration):
+def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calibration,
+                preset):
     """Copies session extrinsic calibration images into their own directory and
     runs extrinsic calibration for each session.
 
@@ -182,6 +185,7 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
         print()
         rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
+        processed_session = os.path.join(preset['processed_server'], session)
 
         if not os.path.exists(server_session):
             ws('Session {} does not exist on the server.'.format(session))
@@ -189,7 +193,7 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
 
         # load session meta
         try:
-            mstruct = meta_session.import_meta_structure(server_session)
+            mstruct = meta_session.import_meta_structure(server_session, processed_session)
         except Exception as e:
             ws('Could not load meta structure from session {}, skipping.'.format(session))
             continue
@@ -323,7 +327,7 @@ def triangulate(trial, ncams_config, intrinsics_config, extrinsics_config, thres
 
 
 def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, threshold,
-                    do_triangulate):
+                    do_triangulate, preset):
     """Triangulates marker positions from 2D to 3D and creates inverse kinematics files.
 
     Arguments:
@@ -361,6 +365,7 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
         print()
         rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
+        processed_session = os.path.join(preset['processed_server'], session)
 
         if not os.path.exists(server_session):
             ws('Session {} does not exist on the server.'.format(session))
@@ -368,7 +373,8 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(
+                server_session, processed_session)
         except Exception as e:
             ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
             continue
