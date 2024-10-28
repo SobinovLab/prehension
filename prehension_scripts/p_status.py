@@ -8,7 +8,7 @@ import sys
 import time
 from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.utils import fetch_server_session_dirs
-from prehension_scripts.plot_session_data_2 import SessionWrapper
+from prehension_scripts.plot_session_data import SessionWrapper
 from colorama import init, Fore, Style
 import os
 import glob
