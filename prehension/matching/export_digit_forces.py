@@ -6,15 +6,16 @@ import numpy as np
 import tqdm
 from reporting_pool import ReportingPool
 
-from .. import io_tools
-from .. import meta_session
-from .. import tools
-from ..tools import rs, ws
+from prehension.tools import io as io_tools
+from prehension import meta_session
+from prehension import tools
+from prehension.tools.logs import rs, ws
+from prehension.tools import constants
 
-DIGITS = tools.DIGITS
-SEGMENTS = tools.SEGMENTS
-UNCLAIMED_NAME = tools.UNCLAIMED_NAME
-UNCLAIMED_INDEX = tools.UNCLAIMED_INDEX
+DIGITS = constants.DIGITS
+SEGMENTS = constants.SEGMENTS
+UNCLAIMED_NAME = constants.UNCLAIMED_NAME
+UNCLAIMED_INDEX = constants.UNCLAIMED_INDEX
 
 
 def calculate_force_traces(
