@@ -497,59 +497,6 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
             ORIGINAL_OPENSIM_MODEL, meta_dof_filename))
 
 
-# def create_meta_helper(rserv, pserv, preset, overwrite, export_roms):
-
-#     if not os.path.exists(rserv):
-#         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-#             rserv))
-
-#     found_sessions = meta_session.find_session_dirs(rserv)
-#     found_sessions.sort()
-#     rs('Found {} sessions: {}'.format(len(found_sessions), ', '.join(found_sessions)))
-
-#     failed_sessions = []
-#     failed_sessions_errors = []
-#     for session in tqdm.tqdm(found_sessions, ncols=100, desc='Sessions'):
-#         print()
-#         rs('Processing session {}.'.format(session))
-
-#         r_server_session = os.path.normpath(os.path.join(rserv, session))
-#         p_server_session = os.path.normpath(os.path.join(pserv, session))
-
-#         if not os.path.exists(r_server_session):
-#             ws('Session {} does not exist on the server.'.format(r_server_session))
-#             continue
-
-#         if not os.path.exists(p_server_session):
-#             rs('Creating processed server session directory {}'.format(p_server_session))
-#             os.makedirs(p_server_session)
-
-#         try:
-#             create_session_meta(
-#                 r_server_session,
-#                 p_server_session,
-#                 preset,
-#                 session,
-#                 overwrite,
-#                 export_roms
-#             )
-
-#         except Exception:
-#             print()
-#             ws('Meta creation for session {} failed.'.format(session))
-#             _, exc_value, exc_traceback = sys.exc_info()
-#             error_str = ''.join(traceback.format_exception(None, exc_value, exc_traceback))
-#             ws(error_str)
-#             failed_sessions.append(session)
-#             failed_sessions_errors.append(error_str)
-
-#     if len(failed_sessions) > 0:
-#         print()
-#         ws('Failed creating meta files for sessions:')
-#         for fs, fse in zip(failed_sessions, failed_sessions_errors):
-#             ws('\t{}: {}'.format(fs, fse))
-
-
 def create_meta(current_preset, temp, overwrite, export_roms, sessions=[]):
 
     # Step 1: process experiment sessions
