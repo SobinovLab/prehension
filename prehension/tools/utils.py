@@ -31,6 +31,19 @@ import traceback
 import sys
 
 def _filter_pairs(raw_ss_list, proc_ss_list, verbose=False):
+    """Filters out pairs of raw session folders and processed session folders that do not exist,
+    and returns them as a list of tuples. warns user if verbose == True
+
+    Args:
+        raw_ss_list (list of paths): the list of raw session folders to process
+        proc_ss_list (list of paths): the list of processed session folders to process
+        verbose (bool, optional): boolean for whether to print warnings. Defaults to False.
+
+    Returns:
+        list of tuples: pairs of raw and processed session folders that exist
+        (raw session path, processed session path)
+    """
+
     pairs = []
     for pair in list(zip(raw_ss_list, proc_ss_list)):
         raw_exists = os.path.exists(pair[0])
@@ -91,7 +104,14 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
 
 
 def does_trianing_servers_exist(preset, verbose=False):
-    """Returns True if all training servers exist, prints warnings otherwise and returns False.
+    """Returns True if all training servers exist in preset
+
+    Args:
+        preset (dict): the preset in question
+        verbose (bool, optional): Whether or not to print warnings. Defaults to False.
+
+    Returns:
+        bool: True if all training servers exist in preset else False
     """
     keys = ['default_training_server', 'processed_training_server']
     assert all(k in preset for k in keys), 'Missing keys in preset: {}'.format(keys)
@@ -111,12 +131,29 @@ def does_trianing_servers_exist(preset, verbose=False):
     return training_servers_not_none and training_servers_exist
 
 
-def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=None, sessions=[]):
+def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions=[]):
 
-    '''Apply a function to raw and processed session folders.
-       Assumes that the function takes the following call signature:
-       func(r_server_session, p_server_session, preset, session, *args)
-    '''
+    """Apply a function to raw and processed session folders found in rserv and pserv. Will create
+    the processed session folder if it does not exist.
+
+    Args:
+        rserv (str): Raw server sessions directory.
+        pserv (str): Processed server sessions directory.
+        preset (dict): Session preset.
+        temp (str): Temporary directory for logging usually C:\tmp.
+        func (callable): The function to apply.
+        - Assumes that the function takes the following call signature:
+        - func(r_server_session, p_server_session, preset, session, *args)
+        args (list, optional): Additional arguments to pass to the function. Defaults to ().
+        sessions (list, optional): List of sessions to process. Defaults to [] (i.e. all sessions).
+
+    Raises:
+        ValueError: if server directory does not exist or is inaccessible.
+
+    Returns:
+        list: List of failed sessions.
+    """
+
     logs.setup_logging(temp, sessions_dir=pserv)
 
     if not os.path.exists(rserv):
@@ -154,7 +191,7 @@ def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=None, sessio
                 p_server_session,
                 preset,
                 session,
-                *(args if args is not None else ())
+                *args
             )
 
         except Exception:
