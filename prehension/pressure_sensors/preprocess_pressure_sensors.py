@@ -127,9 +127,19 @@ def process_trial(trial, trial_timestamp):
 
 
 def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
-    # func(r_server_session, p_server_session, preset (SKIPPED WITH _), session, *args)
-    # args = (trials_sel, overwrite, processes)
-    # load session meta
+    """preprocess_pressure_sensors helper function. Runs preprocess_pressure_sensors on single
+    session.
+
+    Args:
+        raw_ss (dir): raw session folder - used for loading meta
+        proc_ss (dir): processed session folder - used for loading meta
+        _ (dict): Placeholder for preset, unused but passed by apply_to_sessions
+        session (str): the session name (e.g. '2022_03_08_Set1
+        trials_sel (list[int]): the selected trial numbers, defaults to [] (all trials)
+        overwrite (bool): whether to overwrite existing files
+        processes (int): number of processes in the pool
+    """
+    
     try:
         mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
     except Exception as e:
@@ -174,7 +184,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     failed_trial_reports = []
 
     if len(p_args) > 0:
-        pool = reporting_pool.ReportingPool(process_trial, p_args, processes=os.cpu_count(),
+        pool = reporting_pool.ReportingPool(process_trial, p_args, processes=processes,
                                             report_on_change=True, track_failures=True)
         pool.start()
 
