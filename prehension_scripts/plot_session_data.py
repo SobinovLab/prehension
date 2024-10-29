@@ -27,35 +27,32 @@ from prehension.tools.logs import rs, ws, setup_logging
 from prehension import meta_session
 from prehension.tools import cmd_args
 from prehension.tools.forces import get_summed_force_data
-from prehension.tools.utils import fetch_server_session_dirs, does_trianing_servers_exist
+from prehension.tools.utils import does_trianing_servers_exist, fetch_server_session_dirs
 
-# Initialize colorama to work across different operating systems
-
-# TODO
+# --- future features ---
 # Plot performance should consider all sessions with red dot for experimental sessions
 # Add slight x offset for training on same data
 # Add transfer
 # Add overwrite
 
-
+## Flag for debuging
 SKIP_FORCE_TRACES = False
 # Plotting functions =====================================
 
 
 def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_width_N=1, savename=None):
-    """Create heatmap for conditional success matrix based on a list of trials
+    """create performance heatmap from a list of trials
 
-    Parameters
-    ----------
-    tr_list : list
-        List of Trial objects
-    max_discrete_conds : int
-        Maximum number of discrete conditions to plot
-
-    Returns
-    -------
-    None
+    Args:
+        tr_list (list[TrialInfo]): list of trials
+        cmap (str): colormap to use
+        max_discrete_conds (int, optional): The maximum number of discrete force targets before we
+            switch to using force bins for continuous ranges. Defaults to 9.
+        bin_width_N (int, optional): the bin width in Newtons we want to use. Defaults to 1.
+        savename (path, optional): The path where we want to save.
+            Defaults to None (i.e. don't save).
     """
+
 
     # List all force targets
     discrete_force_targets = sorted(set([tr.target_force for tr in tr_list]))
@@ -821,7 +818,27 @@ class SessionWrapper:
         )
 
 
-def main(preset, sessions, temp, overwrite, transfer=False):
+def main(preset, sessions, temp, overwrite, transfer=True):
+    """Does the following steps:
+    1. Moves sessions from experiment to training if they don't have both cam and sensor data
+    2. Groups these sessions into experimental sessions and training sessions
+    3. For each group make the following plots
+        3.1. Force traces
+        3.2. Condition success x2(this session and all previous sessions in same group)
+        3.3 Performance x2 (all time and last 10 days)
+
+    Args:
+        preset (dict): the preset in question
+        sessions (list[str]): the sessions to process, if empty, process all
+        temp (dir): the temporary directory for logging, usually C:\tmp
+        overwrite (bool): if true, overwrite existing files
+        transfer (bool, optional): if true, transfer sessions from experiment to training.
+            This can be time consuming.Defaults to True.
+
+    Raises:
+        ValueError: If either the raw or processed servers do not exist
+    """
+
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset['default_server']):
@@ -836,11 +853,7 @@ def main(preset, sessions, temp, overwrite, transfer=False):
     setup_logging(temp, sessions_dir=preset['processed_server'])
 
     # Check if preset defines training servers, if so we try transferring sessions to training,
-    # Otherwise do nothing
-    has_training_server = all([os.path.isdir(preset[k])
-                               for k in (
-                                   'default_training_server',
-        'processed_training_server')])
+    has_training_server = does_trianing_servers_exist(preset)
 
     # Move sessions from experiment to training
     if transfer:
