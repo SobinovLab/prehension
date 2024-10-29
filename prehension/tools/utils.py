@@ -22,13 +22,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import tqdm
+import traceback
+import sys
 
 from .. import meta_session
 from . import logs
 from .logs import rs, ws
 
-import traceback
-import sys
 
 def _filter_pairs(raw_ss_list, proc_ss_list, verbose=False):
     """Filters out pairs of raw session folders and processed session folders that do not exist,
@@ -61,6 +61,18 @@ def _filter_pairs(raw_ss_list, proc_ss_list, verbose=False):
 
 
 def fetch_server_session_dirs(preset, sessions=[], filter=False):
+    """Returns a list of raw and processed session folders that exist for a given preset
+
+    Args:
+        preset (dict): the preset in question
+        sessions (list, optional): list of sessions we want to process.
+            Defaults to [] (i.e. all sessions)
+        filter (bool, optional): filter out sessions that do not exist. Defaults to False.
+
+    Returns:
+        list[tuple(dir, dir)], list[tuple[dir, dir]]: matched pairs of raw and processed
+        session folders, first element is the experimental pairs, second is the training pairs
+    """
 
     # Decide if we are finding sessions or using the provided sessions
     if not sessions:
