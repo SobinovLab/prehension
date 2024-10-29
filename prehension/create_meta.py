@@ -168,19 +168,6 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
         # Case where we don't have any incoming data (if no cam logs are found for example)
         return np.array([]), np.array([])
 
-    # OLD VERSION THROWS ERROR ON DUPLICATES
-    # def get_logs_and_check_duplicates(data, data_columns, log_label):
-    #     if 'trial_num' in data_columns:
-    #         #pdb.set_trace()
-    #         trials = data[:, data_columns.index('trial_num')].astype(int)
-    #         if len(np.unique(trials)) != len(trials):
-    #             #ws(f'{log_label} trial logs contains duplicates! excluding all but last trial')
-    #             raise ValueError(f'{log_label} trial logs contains duplicates!
-    #             #{find_duplicates(trials)} Aborting...')
-    #         return trials
-    #     # Case where we don't have any incoming data (if no cam logs are found for example)
-    #     return np.array([])
-
     def print_absent_trials(a_trials, b_trials, common, a_label, b_label):
         # In a but not b
         a_trials = np.array(a_trials)
@@ -360,6 +347,27 @@ def find_ncams_config(session, calibrations_dir):
 
 
 def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export_roms):
+    """Create meta information for the given raw session dir and write the meta information to the
+    processed session dir.
+
+    Creates the following files
+    1. meta_dof.csv
+    2. meta_object.csv
+    3. meta_session.csv
+    4. meta_structure.json
+
+    Args:
+        raw_ss (dir): the raw session dir
+        processed_ss (dir): the processed session dir
+        preset (dict): the preset to use
+        session (str): the session name, should exist in the path of procesed_ss and raw_ss
+        overwrite (bool): if True overwrite existing meta
+        export_roms (bool): if True export range of motion data
+
+    Raises:
+        ValueError: raise if no log file is found for session
+    """
+
     # handle meta structure
     # Create output directory if it doesn't exist already
     # processed_ss = os.path.join(preset['processed_server'], session)
@@ -498,6 +506,17 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
 
 
 def create_meta(current_preset, temp, overwrite, export_roms, sessions=[]):
+    """Create meta information for
+    1. all experimental sessions
+    2. all training sessions if preset specifies a raw/processed training server
+
+    Args:
+        current_preset (dict): the preset to use
+        temp (path): a temporary directory for logging usually C:\tmp
+        overwrite (bool): whether to overwrite existing files
+        export_roms (bool): whether to export range of motion data
+        sessions (list, optional): the session names to process. Defaults to [] (i.e. all sessions)
+    """
 
     # Step 1: process experiment sessions
     apply_to_sessions_helper(
