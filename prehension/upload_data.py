@@ -85,7 +85,8 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     start_time = time.time()
     copy_function = filesystem.PrintCopyAccumulateSize(dry_run, 1)
@@ -110,9 +111,11 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
             dir_names=SESSION_DIRS, file_names=SESSION_FILES, copy_function=copy_function,
             overwrite=overwrite, box=True)
 
-    timedelta = str(datetime.timedelta(seconds=time.time() - start_time))
+    timedelta = str(datetime.timedelta(
+        seconds=time.time() - start_time))
     if dry_run:
         rs('In total, found {} files for copying. Search took {}.'.format(
             copy_function, timedelta))
     else:
-        rs('In total, copied {} files over {}.'.format(copy_function, timedelta))
+        rs('In total, copied {} files over {}.'.format(
+            copy_function, timedelta))

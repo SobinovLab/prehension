@@ -32,7 +32,8 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
     def check_folders(session_path):
         behavior_exists = os.path.exists(
             os.path.join(session_path, 'behavior'))
-        sensors_exists = os.path.exists(os.path.join(session_path, 'sensors'))
+        sensors_exists = os.path.exists(
+            os.path.join(session_path, 'sensors'))
 
         behavior_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if behavior_exists else f" {Fore.RED}✘{Style.RESET_ALL} "
         sensors_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if sensors_exists else f" {Fore.RED}✘{Style.RESET_ALL} "
@@ -94,7 +95,8 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
     # Print a nicely formatted table for experimental sessions
     def print_header(header_text):
-        print(f"{Fore.CYAN}~~~~~~~~~~~ {header_text} ~~~~~~~~~~~{Style.RESET_ALL}")
+        print(
+            f"{Fore.CYAN}~~~~~~~~~~~ {header_text} ~~~~~~~~~~~{Style.RESET_ALL}")
         print(f"{'raw session':<16} {'(behavior/sensors)':<21} {'processed session':<22} "
               f"{'(filtered/plots/transformed/timepoints/meta)':<20} {'cleanup status':<7}")
         print('-' * 135)

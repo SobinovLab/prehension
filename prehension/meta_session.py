@@ -255,7 +255,8 @@ def import_meta_structure(meta_structure_path, raw_dir=None, proc_dir=None):
     if raw_dir is not None:
         for ptr in pth_2_resolve_raw:
             if ptr in pth_2_resolve_proc:
-                raise Exception(f'Attempting to resolve path for {ptr} twice.')
+                raise Exception(
+                    f'Attempting to resolve path for {ptr} twice.')
             add_key(ptr, raw_dir)
     else:
         ws(f'No raw directory provided, skipping {len(pth_2_resolve_raw)} paths')
@@ -300,7 +301,8 @@ def import_meta_dof(meta_dof_path):
 
 def import_manual_log(filename):
     if not os.path.isfile(filename):
-        raise ValueError('Could not find manual_log in {}'.format(filename))
+        raise ValueError(
+            'Could not find manual_log in {}'.format(filename))
 
     column_names, values = import_csv(filename, cast=str)
     mlog = {int(trial_number): code.split(',')
@@ -338,12 +340,14 @@ class IncompleteMetaError(Exception):
 def import_all_meta(raw_dir, proc_dir):
     # Check if proc dir exists
     if not os.path.isdir(proc_dir):
-        raise ValueError(f'Processed directory {proc_dir} does not exist.')
+        raise ValueError(
+            f'Processed directory {proc_dir} does not exist.')
 
     assert 'ProcessedData' in proc_dir, 'ProcessedData directory not found in {}'.format(
         proc_dir)
 
-    meta_structure_path = os.path.join(proc_dir, 'meta_structure.json')
+    meta_structure_path = os.path.join(
+        proc_dir, 'meta_structure.json')
     meta_dof_path = os.path.join(proc_dir, 'meta_dof.csv')
     meta_object_path = os.path.join(proc_dir, 'meta_object.csv')
     meta_session_path = os.path.join(proc_dir, 'meta_session.csv')
@@ -389,9 +393,11 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
             try:
                 mlog = import_manual_log(mstruct['manual_log'])
                 # total fail or multigrasp or multireach or ?
-                mlog_failed_numbers = ['0', '2', '3', '4', '5', '?', '14']
+                mlog_failed_numbers = [
+                    '0', '2', '3', '4', '5', '?', '14']
             except Exception as e:
-                warnings.warn('Could not load manual log: {}'.format(repr(e)))
+                warnings.warn(
+                    'Could not load manual log: {}'.format(repr(e)))
                 check_manual_log = False
 
     msession = []
@@ -442,7 +448,8 @@ def get_trial_log_info(mstruct, trial_number, column_names):
     # sy_data = np.array(sy_data).transpose()
 
     # TODO check if the trial not in the list
-    row = sy_data[sy_column_names.index('trial_num')].index(trial_number)
+    row = sy_data[sy_column_names.index(
+        'trial_num')].index(trial_number)
 
     column_ids = [sy_column_names.index(cn) for cn in column_names]
 

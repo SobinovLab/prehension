@@ -35,7 +35,7 @@ from prehension.tools.utils import does_trianing_servers_exist, fetch_server_ses
 # Add transfer
 # Add overwrite
 
-## Flag for debuging
+# Flag for debuging
 SKIP_FORCE_TRACES = False
 # Plotting functions =====================================
 
@@ -53,9 +53,9 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
             Defaults to None (i.e. don't save).
     """
 
-
     # List all force targets
-    discrete_force_targets = sorted(set([tr.target_force for tr in tr_list]))
+    discrete_force_targets = sorted(
+        set([tr.target_force for tr in tr_list]))
 
     # All unique session names
     session_names = sorted(set([tr.session for tr in tr_list]))
@@ -76,7 +76,8 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
     # Decide if we should bin the force targets or use the exact values from each trial
     use_force_bins = len(discrete_force_targets) > max_discrete_conds
     if use_force_bins:
-        rounded_min_cond = int(math.floor(min(discrete_force_targets)))
+        rounded_min_cond = int(
+            math.floor(min(discrete_force_targets)))
         rounded_max_cond = int(math.ceil(max(discrete_force_targets)))
 
         force_bins = []
@@ -105,7 +106,8 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
         # Sub trial list contains only trials with the same force target
 
         # Get unique rotations and apertures
-        unique_rots = sorted(set(tr.rotation for tr in sub_trial_list))
+        unique_rots = sorted(
+            set(tr.rotation for tr in sub_trial_list))
         unique_aps = sorted(set(tr.aperture for tr in sub_trial_list))
 
         # Create a heatmap matrix
@@ -123,7 +125,8 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
                     color = 'white' if pct >= 0.5 else 'black'
                     txt = f'{pct:.2f}'
                     txt += f"\n(n={len(trials_rot_ap_match)})"
-                    ax.text(j, i, txt, ha="center", va="center", color=color)
+                    ax.text(j, i, txt, ha="center",
+                            va="center", color=color)
                 else:
                     # No data found for the current combination
                     row.append(0)
@@ -154,7 +157,8 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
                 tr for tr in tr_list if tr.target_force == target_force]
 
         # make the subplot for each force condition
-        _make_subplot(axs[plot_idx], cond_trials, use_force_bins, target_force)
+        _make_subplot(axs[plot_idx], cond_trials,
+                      use_force_bins, target_force)
 
     # Hide any unused subplots because we make a grid
     for i in range(len(force_bins), num_rows * num_cols):
@@ -185,7 +189,8 @@ class SessionGroup:
             sw for sw in l_session_wrappers if sw.has_meta]
 
         # Sort by date and then set number ascending
-        self.session_wrappers.sort(key=lambda x: (x.datetime, x.set_number))
+        self.session_wrappers.sort(
+            key=lambda x: (x.datetime, x.set_number))
 
         # Group label for tqdm later
         self.group_label = group_label
@@ -256,15 +261,18 @@ class SessionGroup:
         num_incorrect = [len(date_success_dict[dt]) -
                          sum(date_success_dict[dt]) for dt in dates]
 
-        axs[0].plot(dates, pct_correct, color='green', label='correct')
+        axs[0].plot(dates, pct_correct,
+                    color='green', label='correct')
         axs[0].tick_params(axis='x', labelrotation=45)
         axs[0].legend()
 
         # Plot for Trial count
         axs[1].set_title('Trial count')
         axs[1].set_ylabel('Trials')
-        axs[1].plot(dates, total_trials, color='black', label='total trials')
-        axs[1].plot(dates, num_correct, color='green', label='num correct')
+        axs[1].plot(dates, total_trials, color='black',
+                    label='total trials')
+        axs[1].plot(dates, num_correct, color='green',
+                    label='num correct')
         axs[1].plot(dates, num_incorrect, color='orange',
                     label='num incorrect')
         axs[1].tick_params(axis='x', labelrotation=45)
@@ -292,7 +300,8 @@ class SessionGroup:
 
         for ax in axs:
             for date in date_ticks:
-                ax.axvline(x=date, color='gray', linestyle='--', alpha=0.5)
+                ax.axvline(x=date, color='gray',
+                           linestyle='--', alpha=0.5)
             ax.set_xticks(date_ticks)
             ax.set_xticklabels([date.strftime('%y-%m-%d')
                                for date in date_ticks], rotation=45)
@@ -384,7 +393,8 @@ class SessionWrapper:
             self.sess_name)
 
         # Create results and log folder
-        self.results_dir = os.path.join(self.proc_ss, 'prehension_plots')
+        self.results_dir = os.path.join(
+            self.proc_ss, 'prehension_plots')
         os.makedirs(self.results_dir, exist_ok=True)
         self.has_meta = False
 
@@ -424,10 +434,12 @@ class SessionWrapper:
             """return src/dst folder contents as sets"""
 
             g1 = glob.glob(os.path.join(d1, '**'), recursive=True)
-            contents_rel_1 = set([os.path.relpath(path, d1) for path in g1])
+            contents_rel_1 = set(
+                [os.path.relpath(path, d1) for path in g1])
 
             g2 = glob.glob(os.path.join(d2, '**'), recursive=True)
-            contents_rel_2 = set([os.path.relpath(path, d2) for path in g2])
+            contents_rel_2 = set(
+                [os.path.relpath(path, d2) for path in g2])
 
             return contents_rel_1, contents_rel_2
 
@@ -465,7 +477,8 @@ class SessionWrapper:
                 # copy src to dst_parent_dir but remove dst first
                 if os.path.exists(dst_session_dir):
                     try:
-                        shutil.rmtree(dst_session_dir, ignore_errors=False)
+                        shutil.rmtree(dst_session_dir,
+                                      ignore_errors=False)
                     except:
                         ws(f'failed to remove {dst_session_dir}')
 
@@ -487,7 +500,8 @@ class SessionWrapper:
                 assert os.path.exists(
                     dst_session_dir), 'Expected tranferred dir {} not found'.format(dst_session_dir)
                 try:
-                    shutil.rmtree(src_session_dir, ignore_errors=False)
+                    shutil.rmtree(src_session_dir,
+                                  ignore_errors=False)
                 except:
                     ws(f'failed to remove {src_session_dir}')
 
@@ -578,7 +592,8 @@ class SessionWrapper:
                   f' ps file:\n{latTsmFile}\n{medTsmFile}')
             return ([], [])
 
-        times, forces_summed = get_summed_force_data(latTsmFile, medTsmFile)
+        times, forces_summed = get_summed_force_data(
+            latTsmFile, medTsmFile)
 
         # Return and THEN bind results to trial object
         return (times, forces_summed)
@@ -599,13 +614,15 @@ class SessionWrapper:
         # 1. get raw tsm data (times and forces) for each trial
         # feed trials from self.msession
         trials_flattened = self.msession[:]
-        print(f"Plotting force traces for {len(trials_flattened)} trials")
+        print(
+            f"Plotting force traces for {len(trials_flattened)} trials")
         p_args = list(zip(*[trials_flattened]))
         results = ReportingPool(SessionWrapper.get_trial_force, p_args, processes=processes,
                                 report_on_change=True, track_failures=True).start()
 
         # Get min and max force targets (needed for normalizing cmap)
-        force_conditions = [tr.target_force for tr in trials_flattened]
+        force_conditions = [
+            tr.target_force for tr in trials_flattened]
         min_cond = min(force_conditions)
         max_cond = max(force_conditions)
 
@@ -637,7 +654,8 @@ class SessionWrapper:
 
         # Create a subset of the oranges colormap
         cmap = LinearSegmentedColormap.from_list(
-            'subset_oranges', cmap(np.linspace(10 / 25.5, 1, 255 - 100 + 1))
+            'subset_oranges', cmap(
+                np.linspace(10 / 25.5, 1, 255 - 100 + 1))
         )
 
         norm = mcolors.Normalize(vmin=min_cond, vmax=max_cond)
@@ -675,7 +693,8 @@ class SessionWrapper:
                         # Got to next trial...
                         continue
 
-                    shifted_times = trial.tsm_times - float(zeroTimeVal)
+                    shifted_times = trial.tsm_times - \
+                        float(zeroTimeVal)
 
                 elif hasattr(trial, ref_event):
                     shifted_times = trial.tsm_times - \
@@ -749,7 +768,8 @@ class SessionWrapper:
                     if tr.target_force not in dict_trials_per_target:
                         dict_trials_per_target[tr.target_force] = [tr]
                     else:
-                        dict_trials_per_target[tr.target_force].append(tr)
+                        dict_trials_per_target[tr.target_force].append(
+                            tr)
 
                 # plot avg per target force
                 for tf in dict_trials_per_target:
@@ -786,7 +806,8 @@ class SessionWrapper:
             if b_continous:
                 title = "Residual " + title
                 fig.colorbar(sm, label="Target Force (N)", ax=ax)
-                ax.set_ylabel('$\Delta F_{actual, target}$ (N)', fontsize=14)
+                ax.set_ylabel(
+                    '$\Delta F_{actual, target}$ (N)', fontsize=14)
                 # cbar.set_clim(vmin=0, vmax=max_cond)
             else:
                 ax.legend(loc='upper right')
@@ -794,12 +815,14 @@ class SessionWrapper:
 
             ax.set_xlabel("$\Delta t_{event}$ (s)", fontsize=14)
             ax.set_title(title)
-            ax.axvline(x=0, color='black', linestyle='--', label='test label')
+            ax.axvline(x=0, color='black',
+                       linestyle='--', label='test label')
             _, maxy = ax.get_ylim()
             ax.text(0, 0.6 * maxy, ref_event, rotation=90,
                     va='bottom', ha='right')
 
-            savename = os.path.join(savedir, f'ForceTrace_from_{ref_event}')
+            savename = os.path.join(
+                savedir, f'ForceTrace_from_{ref_event}')
             plt.savefig(savename)
             rs(f'saving forcetrace as {os.path.normpath(savename)}')
             plt.close(fig)
@@ -838,7 +861,6 @@ def main(preset, sessions, temp, overwrite, transfer=True):
     Raises:
         ValueError: If either the raw or processed servers do not exist
     """
-
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset['default_server']):
@@ -879,8 +901,10 @@ def main(preset, sessions, temp, overwrite, transfer=True):
     train_session_wrappers = [SessionWrapper(
         *train_pair) for train_pair in training_ss_pairs]
 
-    exp_grp = SessionGroup(exp_session_wrappers, group_label='Experiment')
-    train_grp = SessionGroup(train_session_wrappers, group_label='Training')
+    exp_grp = SessionGroup(
+        exp_session_wrappers, group_label='Experiment')
+    train_grp = SessionGroup(
+        train_session_wrappers, group_label='Training')
 
     exp_grp.do_all_analysis(sessions=sessions)
     rs('\n'*3 + '='*200)

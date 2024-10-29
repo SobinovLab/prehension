@@ -162,3 +162,4 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (n
 autopep_all.bat
+prehension_scripts/p_status.py

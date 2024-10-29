@@ -53,7 +53,8 @@ def get_object_sets(sy_column_names, sy_data, object_def_columns):
     rs('\tFound {} unique objects:'.format(np.shape(u_objects)[0]))
     rs('|'.join('{:>25}'.format(v) for v in ['id'] + list(odcs)))
     for i_object, u_object in enumerate(u_objects):
-        rs('|'.join('{:25}'.format(v) for v in [i_object] + u_object.tolist()))
+        rs('|'.join('{:25}'.format(v)
+           for v in [i_object] + u_object.tolist()))
         object_ids[np.all(sy_data[:, object_def_column_ids]
                           == u_object, axis=1)] = i_object
 
@@ -68,7 +69,8 @@ def import_logs(dirname, mstruct):
     sy_ja_file = os.path.join(mstruct['videos_dir'], 'trial_log*.csv')
     sy_ja_file = glob.glob(sy_ja_file)
     if len(sy_ja_file) == 0:  # if the images have not been converted to videos
-        sy_ja_file = os.path.join(mstruct['images_dir'], 'trial_log.csv')
+        sy_ja_file = os.path.join(
+            mstruct['images_dir'], 'trial_log.csv')
     else:
         sy_ja_file = sy_ja_file[0]
 
@@ -99,7 +101,8 @@ def import_logs(dirname, mstruct):
         sy_data = np.concatenate((sy_data, sd), axis=0)
 
     # check for duplication from logs
-    trial_nums = sy_data[:, sy_column_names.index('trial_num')].astype(int)
+    trial_nums = sy_data[:, sy_column_names.index(
+        'trial_num')].astype(int)
     if len(set(trial_nums)) != len(trial_nums):
         ws('Auto logs in {} have duplicating trials!'.format(
             dirname))  # NOT FATAL BECAUSE WE HANDLE LATER
@@ -131,7 +134,8 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
     # --- helpers --- #
     def get_logs_and_check_duplicates(data, data_columns, log_label):
         if 'trial_num' in data_columns:
-            trials = data[:, data_columns.index('trial_num')].astype(int)
+            trials = data[:, data_columns.index(
+                'trial_num')].astype(int)
 
             last_occurrence = {}
             duplicate_indices = {}
@@ -141,7 +145,8 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
                 # it means it's a duplicate
                 if trial in last_occurrence:
                     # Store the current index as a duplicate index for this trial number
-                    duplicate_indices.setdefault(trial, []).append(index)
+                    duplicate_indices.setdefault(
+                        trial, []).append(index)
                 # Add entry to dict where key is the trial in question and value is the last valid index
                 last_occurrence[trial] = index
 
@@ -239,13 +244,15 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
 
     # Check that we actually have camera data to refine
     if len(sy_ja_data) > 0:
-        sy_ja_data = sy_ja_data[np.isin(ja_trials, common_trials_all), :]
+        sy_ja_data = sy_ja_data[np.isin(
+            ja_trials, common_trials_all), :]
         sy_ja_data[sy_ja_data[:, sy_ja_column_names.index(
             'trial_num')].argsort()]
 
     # Check that we actually have pressure data to refine
     if len(sy_ja_data) > 0:
-        sy_ps_data = sy_ps_data[np.isin(ps_trials, common_trials_all), :]
+        sy_ps_data = sy_ps_data[np.isin(
+            ps_trials, common_trials_all), :]
         sy_ps_data[sy_ps_data[:, sy_ps_column_names.index(
             'trial_num')].argsort()]
 
@@ -309,17 +316,20 @@ def str2date(s):
 
 
 def extract_date(s):
-    match = re.search('[0-9]{2,4}[\._\-][0-9]{1,2}[\._\-][0-9]{1,2}', s)
+    match = re.search(
+        '[0-9]{2,4}[\._\-][0-9]{1,2}[\._\-][0-9]{1,2}', s)
     if match is not None:
         return match[0]
     return None
 
 
 def find_calibration(session, calibrations_dir):
-    candidates = glob.glob(os.path.join(calibrations_dir, '*.*.*_calibration'))
+    candidates = glob.glob(os.path.join(
+        calibrations_dir, '*.*.*_calibration'))
 
     # remove not matching the numerical format
-    candidates = [c for c in candidates if extract_date(c) is not None]
+    candidates = [
+        c for c in candidates if extract_date(c) is not None]
     candidate_dates = [str2date(extract_date(c)) for c in candidates]
 
     # sort by date
@@ -327,7 +337,8 @@ def find_calibration(session, calibrations_dir):
                                                                 key=lambda p: p[1])))
     session_date = str2date(extract_date(session))
     if candidate_dates[0] > session_date:
-        ValueError('Could not find calibration before the session date.')
+        ValueError(
+            'Could not find calibration before the session date.')
         return None
     for i_c in range(len(candidates) - 1):
         if candidate_dates[i_c + 1] > session_date:
@@ -475,16 +486,19 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
             sy_column_names, sy_data, preset['object_def_columns'])
 
         # export the meta object information
-        meta_object_filename = os.path.join(processed_ss, 'meta_object.csv')
+        meta_object_filename = os.path.join(
+            processed_ss, 'meta_object.csv')
         column_names = ['id'] + list(object_def_columns)
         u_objects_t = list(zip(*u_objects))
         values = [list(range(len(u_objects)))] + u_objects_t
         # always overwritten if meta_session does not exist
         io.export_csv(meta_object_filename, column_names, values)
-        rs('Exported session meta object information to {}'.format(meta_object_filename))
+        rs('Exported session meta object information to {}'.format(
+            meta_object_filename))
 
         # export the meta session
-        meta_session_filename = os.path.join(processed_ss, 'meta_session.csv')
+        meta_session_filename = os.path.join(
+            processed_ss, 'meta_session.csv')
         column_names = [
             'trial_number', 'success', 'object_id', 'sync_period_length',
             'ttl_to_obj_end_pos', 'ttl_to_cue',
@@ -496,11 +510,13 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
             ttl_to_reach, ttl_to_success_grasp, ttl_to_reward,
             ja_ttl_to_rec_start]
         io.export_csv(meta_session_filename, column_names, values)
-        rs('Exported session meta information to {}'.format(meta_session_filename))
+        rs('Exported session meta information to {}'.format(
+            meta_session_filename))
 
     meta_dof_filename = os.path.join(processed_ss, 'meta_dof.csv')
     if export_roms and (overwrite or not os.path.exists(meta_dof_filename)):
-        export_roms_from_osim(ORIGINAL_OPENSIM_MODEL, meta_dof_filename)
+        export_roms_from_osim(
+            ORIGINAL_OPENSIM_MODEL, meta_dof_filename)
         rs('Exported session meta DOF information from {} to {}'.format(
             ORIGINAL_OPENSIM_MODEL, meta_dof_filename))
 

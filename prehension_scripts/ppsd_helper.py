@@ -14,7 +14,8 @@ PRESET = 'daiquiri_right_hemisphere_training_k1'
 basedir = os.path.dirname(prehension.__path__[0])
 scriptsdir = os.path.join(basedir, 'prehension_scripts')
 
-assert os.path.exists(scriptsdir), f'Scripts directory not found: {scriptsdir}'
+assert os.path.exists(
+    scriptsdir), f'Scripts directory not found: {scriptsdir}'
 os.chdir(scriptsdir)
 
 cmds = [

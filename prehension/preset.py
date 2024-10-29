@@ -105,7 +105,8 @@ def process_args_for_preset():
         current_preset_name = argv[0]
         del argv[0]
 
-    current_preset_name, current_preset = get_preset(current_preset_name)
+    current_preset_name, current_preset = get_preset(
+        current_preset_name)
     print('Using {} preset settings.'.format(current_preset_name))
 
     return current_preset_name, current_preset, argv

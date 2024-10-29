@@ -49,7 +49,8 @@ class TrialInfo():
             for k, v in mstruct['cameras'].items()
         }
         self.images_logs = {
-            k: os.path.join(mstruct['images_dir'], v, trial_name, v + '.csv')
+            k: os.path.join(
+                mstruct['images_dir'], v, trial_name, v + '.csv')
             for k, v in mstruct['cameras'].items()
         }
 
@@ -57,11 +58,13 @@ class TrialInfo():
         if mstruct['videos_dir'] != mstruct['images_dir']:
             # old style structure - different folders for images and videos
             self.videos = {
-                k: form_cam_fname(mstruct['videos_dir'], trial_name, v, '.mp4')
+                k: form_cam_fname(
+                    mstruct['videos_dir'], trial_name, v, '.mp4')
                 for k, v in mstruct['cameras'].items()}
 
             self.videos_logs = {
-                k: form_cam_fname(mstruct['videos_dir'], trial_name, v, '.csv')
+                k: form_cam_fname(
+                    mstruct['videos_dir'], trial_name, v, '.csv')
                 for k, v in mstruct['cameras'].items()}
         else:
             # inverted_dir_structure
@@ -94,7 +97,8 @@ class TrialInfo():
             for k, v in mstruct['cameras'].items()
         }
         self.markers_2D_marker_video_filemasks = {
-            k: os.path.join(self.markers_2D_dirname, v + '*_labeled.mp4')
+            k: os.path.join(self.markers_2D_dirname,
+                            v + '*_labeled.mp4')
             for k, v in mstruct['cameras'].items()
         }
 
@@ -196,7 +200,8 @@ class TrialInfo():
         if os.path.exists(extrinsic_calibration_filename):
             calibration_dir = mstruct['calibration']
         elif mstruct['ncams_config'] is not None and len(mstruct['ncams_config']) > 0:
-            calibration_dir = os.path.split(mstruct['ncams_config'])[0]
+            calibration_dir = os.path.split(
+                mstruct['ncams_config'])[0]
         else:
             calibration_dir = None
         if calibration_dir is not None:

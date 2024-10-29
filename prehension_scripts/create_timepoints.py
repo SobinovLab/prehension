@@ -56,7 +56,8 @@ if __name__ == "__main__":
     preset_name, current_preset, argv = preset.process_args_for_preset()
 
     parser = argparse.ArgumentParser(
-        description=("Outputs a csv of movement onset times for each session")
+        description=(
+            "Outputs a csv of movement onset times for each session")
     )
 
     cmd_args.add_default_kwarguments(
@@ -100,4 +101,5 @@ if __name__ == "__main__":
         args.make_trial_plots,
         not args.dont_show_plots,
     )
-    rs("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
+    rs("Program took {}.".format(
+        datetime.timedelta(seconds=time.time() - start_time)))
