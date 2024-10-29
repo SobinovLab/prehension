@@ -155,7 +155,7 @@ def main(args):
         # Get raw/processed session dirs for preset
         experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(current_preset,
                                                                              sessions=[],
-                                                                             filter=True)
+                                                                             filter=False)
 
         exp_session_wrappers = [SessionWrapper(
             *exp_pair) for exp_pair in experimental_ss_pairs]

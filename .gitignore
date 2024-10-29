@@ -163,3 +163,4 @@ cython_debug/
 #  option (n
 autopep_all.bat
 prehension_scripts/p_status.py
+p_status.py
