@@ -821,5 +821,3 @@ class SessionWrapper:
             cmap,
             savename=savename
         )
-
-

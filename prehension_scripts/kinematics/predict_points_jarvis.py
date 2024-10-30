@@ -37,7 +37,8 @@ if __name__ == "__main__":
         parser, {
             'server': current_preset['default_server'],
             'processed_server': current_preset['processed_server']})
-    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
+    cmd_args.add_default_arguments(
+        parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
 
     # # custom
     parser.add_argument(

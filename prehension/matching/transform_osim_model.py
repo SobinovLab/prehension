@@ -11,7 +11,8 @@ def convert_osim_model(osim_model, geometry_folder, output_folder):
     converter4 = O2MConverter.Converter4()
 
     # custom scene parameters
-    converter4.mujoco_dic['worldbody']['geom']['@pos'] = '0 0 -0.5'  # floor
+    # floor
+    converter4.mujoco_dic['worldbody']['geom']['@pos'] = '0 0 -0.5'
     # nicer light
     converter4.mujoco_dic["worldbody"]['body']["light"] = {
         "@cutoff": "50", "@diffuse": ".7 .7 .7", "@dir": "-1.5 -1 -1", "@directional": "false",
@@ -52,7 +53,8 @@ def convert_osim_model(osim_model, geometry_folder, output_folder):
         "@solref": ".02 1", "@solimp": ".8 .8 .01",
         "@material": "geom"}
 
-    converter4.convert(osim_model, output_folder, geometry_folder, False)
+    converter4.convert(osim_model, output_folder,
+                       geometry_folder, False)
 
 
 def transform_osim_model(server, session, overwrite):
@@ -63,7 +65,7 @@ def transform_osim_model(server, session, overwrite):
         session {str} --- Session directory to use.
         temp {str} --- Folder for local temporary storage.
     """
-    raise NotImplementedError('Must be refactored for new import meta structure call')
+
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
             server))
@@ -75,16 +77,19 @@ def transform_osim_model(server, session, overwrite):
     server_session = os.path.join(server, session)
 
     if not os.path.exists(server_session):
-        ValueError('Session {} does not exist on the server.'.format(session))
+        ValueError(
+            'Session {} does not exist on the server.'.format(session))
 
     # load session meta structure
     mstruct = meta_session.import_meta_structure(server_session)
 
     if not overwrite and os.path.exists(mstruct['mujoco_model']):
-        warnings.warn('MuJoCo model exists, not converting. Specify overwrite key to overwrite.')
+        warnings.warn(
+            'MuJoCo model exists, not converting. Specify overwrite key to overwrite.')
         return
 
     convert_osim_model(
         mstruct['opensim_model'],
-        os.path.join(os.path.split(mstruct['opensim_model'])[0], 'Geometry'),
+        os.path.join(os.path.split(
+            mstruct['opensim_model'])[0], 'Geometry'),
         os.path.split(mstruct['mujoco_model'])[0])

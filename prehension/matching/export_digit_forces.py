@@ -30,7 +30,8 @@ def calculate_force_traces(
         aligned_timepoints.append(atp)
 
     # fill the data
-    shp = np.shape(filtered_matrices[list(filtered_matrices.keys())[0]][0])
+    shp = np.shape(filtered_matrices[list(
+        filtered_matrices.keys())[0]][0])
     names = []
     total_auto_force_traces = []
     for n, d in groups.items():
@@ -69,7 +70,8 @@ def export_forces(trial, mstruct):
             if any(filtered_times != filtered_times_local):
                 if len(filtered_times) == len(filtered_times_local):
                     # fix the misaligned timepoints
-                    misaligned_is = (filtered_times != filtered_times_local).nonzero()[0]
+                    misaligned_is = (
+                        filtered_times != filtered_times_local).nonzero()[0]
                     for mi in misaligned_is:
                         # figure out which one needs to be fixed
                         # choose the one that is closer to even rate:
@@ -175,7 +177,8 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
@@ -192,7 +195,8 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
             mstruct, _, mobject, msession = meta_session.load_meta_information(
                 server_session, check_manual_log=True)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -235,7 +239,8 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
             print()
             ws('Failed to transform trials:')
             for v in pool.failed_i_jobs:
-                ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                ws('\t{}: {}'.format(
+                    trials[v].trial_number, pool.error_reports[v]))
                 failed_trial_reports.append('session {} trial {} error: {}'.format(
                     session, trials[v].trial_number, pool.error_reports[v]))
 

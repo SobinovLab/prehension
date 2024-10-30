@@ -33,12 +33,15 @@ def downsample_at_timeseries(times, data, times_new):
 
     data_new = []
     diff_times_new_hvd = np.diff(times_new) / 2
-    t_froms = np.insert(times_new[1:] - diff_times_new_hvd, 0, times_new[0])
-    t_tos = np.insert(times_new[:-1] + diff_times_new_hvd, len(diff_times_new_hvd), times_new[-1])
+    t_froms = np.insert(
+        times_new[1:] - diff_times_new_hvd, 0, times_new[0])
+    t_tos = np.insert(
+        times_new[:-1] + diff_times_new_hvd, len(diff_times_new_hvd), times_new[-1])
     for t_from, t_to in zip(t_froms, t_tos):
         slc = np.logical_and(times >= t_from, times < t_to)
         if sum(slc) == 0:
-            warnings.warn('downsample_at_timeseries: No corresponding interval found.')
+            warnings.warn(
+                'downsample_at_timeseries: No corresponding interval found.')
             data_new.append(np.zeros(np.shape(data)[1:]))
         else:
             data_new.append(np.median(data[slc], axis=0))
@@ -107,7 +110,8 @@ def nanmedianfilt(input_vector, kernel_width):
     output_vector[:init_idx] = input_vector[:init_idx]
     output_vector[term_idx:] = input_vector[term_idx:]
     for idx in np.arange(init_idx, term_idx):
-        vals_to_filt = input_vector[idx-kernel_offset:idx+kernel_offset+1]
+        vals_to_filt = input_vector[idx -
+                                    kernel_offset:idx+kernel_offset+1]
         num_nans = sum(np.isnan(vals_to_filt))
         if num_nans < kernel_offset:
             output_vector[idx] = np.nanmedian(vals_to_filt)

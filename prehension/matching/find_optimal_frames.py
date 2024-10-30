@@ -19,7 +19,8 @@ def ignore_dof_check(s):
 
 
 def calculate_optimal_time(trial, mdof, optimal_frames, i_trial):
-    column_names, values = io_tools.import_csv(trial.post_kinematic_filename_csv)
+    column_names, values = io_tools.import_csv(
+        trial.post_kinematic_filename_csv)
     ja_times = values[column_names.index('time')]
     dof_names = []
     dofs = []
@@ -32,7 +33,8 @@ def calculate_optimal_time(trial, mdof, optimal_frames, i_trial):
     ps_matrices_reduced_all = []
     for ps_filename in trial.get_post_ps_filenames().values():
         _, ps_matrices = io_tools.import_matrices(ps_filename)
-        ps_matrices_reduced_all.append(np.sum(ps_matrices, axis=(1, 2)))
+        ps_matrices_reduced_all.append(
+            np.sum(ps_matrices, axis=(1, 2)))
 
     # finding best sensor optimization period
     # first iteration - normalized sum of all sensors
@@ -44,7 +46,8 @@ def calculate_optimal_time(trial, mdof, optimal_frames, i_trial):
     for dof_name, dof in zip(dof_names, dofs):
         diff_dof = np.abs(np.diff(dof))
         diff_dof = np.insert(diff_dof, 0, 0)
-        diff_dof /= mdof[dof_name]['range'][1] - mdof[dof_name]['range'][0]
+        diff_dof /= mdof[dof_name]['range'][1] - \
+            mdof[dof_name]['range'][0]
         stability += diff_dof
     stability /= np.max(stability)
     # stability is low when diff dof is high: stability = 1 - stability
@@ -87,7 +90,8 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
@@ -101,16 +105,19 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
 
         # TODO load calculated to reuse?
         # No real point since don't take too long to recalculate and not used any more
-        optimal_frames_filename = os.path.join(server_session, 'optimal_frames.csv')
+        optimal_frames_filename = os.path.join(
+            server_session, 'optimal_frames.csv')
         if not overwrite and os.path.exists(optimal_frames_filename):
             rs('Optimal frames file already exists, skipping.')
             continue
 
         # load session meta
         try:
-            _, mdof, _, msession = meta_session.load_meta_information(server_session)
+            _, mdof, _, msession = meta_session.load_meta_information(
+                server_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -132,7 +139,7 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
 
         rs('Found {} trials: {}'.format(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
-        
+
         p_args = list(zip(*[
             trials,
             [copy.deepcopy(mdof) for _ in trials],
@@ -150,14 +157,16 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
                 print()
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(
+                        trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append('session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]))
 
         # unpack and save
         meta_session.export_optimal_frames(
             optimal_frames_filename, [t.trial_number for t in trials], optimal_frames)
-        rs('Exported optimal frames to {}.'.format(optimal_frames_filename))
+        rs('Exported optimal frames to {}.'.format(
+            optimal_frames_filename))
 
     if len(failed_trial_reports) > 0:
         print()

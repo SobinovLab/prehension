@@ -40,7 +40,8 @@ def get_median_thorax_position(trial, thorax_dof_names, median_positions, i_tria
     dof_names, _, dofs = io.import_mot(trial.base_kinematic_filename)
 
     for i_dof, dof_name in enumerate(thorax_dof_names):
-        median_positions[i_trial][i_dof] = np.nanmedian(dofs[dof_names.index(dof_name)])
+        median_positions[i_trial][i_dof] = np.nanmedian(
+            dofs[dof_names.index(dof_name)])
 
 
 def find_static_thorax_position(server, sessions, trials_sel, temp, processes, overwrite):
@@ -72,7 +73,8 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
@@ -86,9 +88,11 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
 
         # load session meta
         try:
-            mstruct, mdof, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, mdof, _, msession = meta_session.load_meta_information(
+                server_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -134,14 +138,16 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
                 print()
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(
+                        trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append('session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]))
 
         # unpack and save
         median_position = {}
         for i_dof, dof_name in enumerate(thorax_dof_names):
-            median_position[dof_name] = np.nanmedian([mp[i_dof] for mp in median_positions])
+            median_position[dof_name] = np.nanmedian(
+                [mp[i_dof] for mp in median_positions])
 
         rs('Found thorax median positions: {}'.format(
             ', '.join(['{}: {}'.format(k, v) for k, v in median_position.items()])))

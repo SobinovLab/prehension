@@ -188,12 +188,14 @@ def make_ik_file(filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file
 
     ikt = root.find('InverseKinematicsTool')
     if ikt is None:
-        raise ValueError('Wrong structure of the IK string. InverseKinematicsTool is not present.')
+        raise ValueError(
+            'Wrong structure of the IK string. InverseKinematicsTool is not present.')
 
     # add the IK task and objects (markers) if missing
     ikts = _add_xml_element(ikt, 'IKTaskSet')
     _add_xml_element(ikts, 'groups')
-    iktso = _add_xml_element(ikts, 'objects', text='\n' + ' '*16, tail='\n' + ' '*12)
+    iktso = _add_xml_element(
+        ikts, 'objects', text='\n' + ' '*16, tail='\n' + ' '*12)
 
     # add each marker with weights
     for marker_name, marker_weight in marker_weights.items():
@@ -202,15 +204,19 @@ def make_ik_file(filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file
                                 unique=False)
         mare.set('name', marker_name)
 
-        _add_xml_element(mare, 'weight', text=str(marker_weight), tail='\n' + ' '*20)
+        _add_xml_element(mare, 'weight', text=str(
+            marker_weight), tail='\n' + ' '*20)
 
         if marker_weight < 1e-8:
-            _add_xml_element(mare, 'apply', text='false', tail='\n' + ' '*16)
+            _add_xml_element(
+                mare, 'apply', text='false', tail='\n' + ' '*16)
         else:
-            _add_xml_element(mare, 'apply', text='true', tail='\n' + ' '*16)
+            _add_xml_element(
+                mare, 'apply', text='true', tail='\n' + ' '*16)
 
     # other elements
-    _add_xml_element(ikt, 'time_range', text='{} {}'.format(time_range[0], time_range[1]))
+    _add_xml_element(ikt, 'time_range', text='{} {}'.format(
+        time_range[0], time_range[1]))
     _add_xml_element(ikt, 'marker_file', text=trc_file)
     _add_xml_element(ikt, 'output_motion_file', text=ik_out_mot_file)
 
@@ -239,7 +245,8 @@ def set_opensim_model_default_position(osim_model_in, osim_model_ou, positions, 
     root = tree.getroot()
 
     for dof_name, position in positions.items():
-        coordinate = root.find(".//Coordinate[@name='{}']".format(dof_name))
+        coordinate = root.find(
+            ".//Coordinate[@name='{}']".format(dof_name))
         c_defval = coordinate.find("default_value")
         c_defval.text = str(position)
         if lock:
@@ -266,7 +273,8 @@ def make_sc_file(filename, tool_name, measurements, marker_file, time_range,
     ms = _add_xml_element(sct, 'ModelScaler')
     mset = _add_xml_element(ms, 'MeasurementSet')
     _add_xml_element(mset, 'groups')
-    mseto = _add_xml_element(mset, 'objects', text='\n' + ' '*20, tail='\n' + ' '*16)
+    mseto = _add_xml_element(
+        mset, 'objects', text='\n' + ' '*20, tail='\n' + ' '*16)
 
     for measurement, body_scales in measurements.items():
         sc_meas = SC_EMPTY_MEASUREMENT.format(
@@ -314,7 +322,8 @@ def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_conver
     '''
     # import triangulated file
     # frame numbers are only to take the subset using frame_range
-    frame_numbers, triang_data = logs.import_triangulated_csv(triang_csv)
+    frame_numbers, triang_data = logs.import_triangulated_csv(
+        triang_csv)
 
     # change into numpy arrays
     frame_numbers = np.array(frame_numbers)
@@ -352,7 +361,8 @@ def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_conver
         zero_index = bodyparts.index(zero_marker)
         zero_xyz = points[0, zero_marker, :]
         if math.isnan(zero_xyz[0]):
-            warnings.warn('Zero marker is NaN. All data will be NaNs.')
+            warnings.warn(
+                'Zero marker is NaN. All data will be NaNs.')
         points = points - zero_xyz
 
     # convert
@@ -373,14 +383,16 @@ def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_conver
     num_dats = {}
     for ibp, bp in enumerate(bodyparts):
         num_dats[bp] = n_frames - np.sum(np.isnan(points[:, ibp, 0]))
-    marker_weights = {marker_name_dict[bp]: num_dats[bp]/n_frames for bp in bodyparts}
+    marker_weights = {
+        marker_name_dict[bp]: num_dats[bp]/n_frames for bp in bodyparts}
     if verbose > 0:
         print('Portion of the data being data and not NaNs:')
         print('\n'.join('\t{}: {:.3f}'.format(marker_name, marker_weight)
                         for marker_name, marker_weight in marker_weights.items()))
 
     # export
-    opensim_io.export_trc(trc_file, marker_names, points.tolist(), rate)
+    opensim_io.export_trc(trc_file, marker_names,
+                          points.tolist(), rate)
 
     # estimate time_range
     period = 1./rate
@@ -435,7 +447,8 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
@@ -449,9 +462,11 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
 
         # load session meta
         try:
-            _, _, _, msession = meta_session.load_meta_information(server_session)
+            _, _, _, msession = meta_session.load_meta_information(
+                server_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -494,7 +509,8 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
                 print()
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(
+                        trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append('session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]))
 

@@ -53,8 +53,10 @@ def setup_logging(temp, sessions_dir=None):
     timestamp = datetime.date.today().strftime('%Y.%m.%d')
     start_time = datetime.datetime.now()
     timestamp_long = start_time.strftime('%Y.%m.%d-%H:%M:%S')
-    logging_filename = os.path.join(temp, f'{timestamp}_{exec_fname}_{random_hash}.log')
-    logging.basicConfig(filename=logging_filename, level=logging.INFO, force=True)
+    logging_filename = os.path.join(
+        temp, f'{timestamp}_{exec_fname}_{random_hash}.log')
+    logging.basicConfig(filename=logging_filename,
+                        level=logging.INFO, force=True)
     logging.info('')
 
     # Define the cleanup action as upload to sessions_log dir
@@ -65,7 +67,8 @@ def setup_logging(temp, sessions_dir=None):
         assert os.path.exists(destination_path)
 
         def laf():
-            logging_atexit_function(logging_filename, destination_path, start_time)
+            logging_atexit_function(
+                logging_filename, destination_path, start_time)
 
         atexit.register(laf)
 

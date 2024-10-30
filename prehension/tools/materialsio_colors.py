@@ -262,8 +262,7 @@ for c, cd in materialsio_colors.items():
         materialsio_colors_hex[c][intensity] = intdic['hex']
 
 
-
-## to generate from HSV
+# to generate from HSV
 # from matplotlib import colors
 
 # for (k, v) in materialsio_colors.items():

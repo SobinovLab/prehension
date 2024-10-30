@@ -146,7 +146,8 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
                     # code with a custom `copy_function` may rely on copytree
                     # doing the right thing.
                     os.symlink(linkto, dstname)
-                    shutil.copystat(srcname, dstname, follow_symlinks=not symlinks)
+                    shutil.copystat(srcname, dstname,
+                                    follow_symlinks=not symlinks)
                 else:
                     # ignore dangling symlink if the flag is on
                     if not os.path.exists(linkto) and ignore_dangling_symlinks:
@@ -249,7 +250,8 @@ def copy_folder_contents(src_dir, target_dir, dir_names=[], file_names=[], suppr
             # Destination file does not exist, copy the source file
             copy_function(f_src, f_dst)
 
-    timedelta = str(datetime.timedelta(seconds=time.time() - start_time))
+    timedelta = str(datetime.timedelta(
+        seconds=time.time() - start_time))
     # if shutil copy, the report won't be meaningful
     if local_copy_function:
         rs('Found {} files for copying during {}.'.format(

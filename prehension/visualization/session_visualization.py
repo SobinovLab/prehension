@@ -4,6 +4,7 @@ import os
 import glob
 import shutil
 
+
 def display_session_info(experimental_server_wrappers, training_server_wrappers, clean, last_n):
 
     # Function to format and color the session status

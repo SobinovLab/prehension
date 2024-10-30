@@ -30,10 +30,12 @@ def make_adjustment(server, session, trial_number, temp, overwrite, executable_f
     server_session = os.path.join(server, session)
 
     if not os.path.exists(server_session):
-        ValueError('Session {} does not exist on the server.'.format(session))
+        ValueError(
+            'Session {} does not exist on the server.'.format(session))
 
     # load session meta
-    mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+    mstruct, _, _, msession = meta_session.load_meta_information(
+        server_session)
 
     # find trial
     trial = meta_session.find_trial(msession, trial_number)
@@ -55,8 +57,10 @@ def make_adjustment(server, session, trial_number, temp, overwrite, executable_f
                    # model_filename=mstruct['mujoco_model'],  # can be used instead
                    ja_filename=trial.post_kinematic_filename_csv,
                    frame=frame,
-                   leps_in=trial.get_post_ps_filenames()['medial_sensor'],
-                   reps_in=trial.get_post_ps_filenames()['lateral_sensor'],
+                   leps_in=trial.get_post_ps_filenames()[
+                       'medial_sensor'],
+                   reps_in=trial.get_post_ps_filenames()[
+                       'lateral_sensor'],
                    adjustment_filename=trial.adjustment_kinematic_filename))
     rs('Executing command:')
     rs(command)

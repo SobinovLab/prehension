@@ -37,7 +37,8 @@ def match_trial(executable_filename, trial, model_filename, adjustment_filename,
             skip_export=' --skip_export ' if skip_export else '',
             quality_threshold=(' --quality_threshold {} '.format(quality_threshold)
                                if quality_threshold is not None and trial.success else ''),
-            video_arg=(f' --write_video {trial.mujoco_video} ' if write_video else ''),
+            video_arg=(
+                f' --write_video {trial.mujoco_video} ' if write_video else ''),
             verbose=' --verbose ' if verbose else ''))
     if verbose:
         rs('Executing command:')
@@ -45,7 +46,8 @@ def match_trial(executable_filename, trial, model_filename, adjustment_filename,
     ret = os.system(command)
     # process output as error throw
     if (ret < 0):
-        raise ValueError('Command returned with {} error message.'.format(ret))
+        raise ValueError(
+            'Command returned with {} error message.'.format(ret))
 
 
 def automatically_match(server, sessions, trials_sel, temp, processes, overwrite,
@@ -84,7 +86,8 @@ def automatically_match(server, sessions, trials_sel, temp, processes, overwrite
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
@@ -98,14 +101,17 @@ def automatically_match(server, sessions, trials_sel, temp, processes, overwrite
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(
+                server_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
             ws('Error message: {}'.format(e))
             continue
 
         # load session's adjustment filename
-        adjustment_trials = meta_session.import_adjustment_trials(server_session)
+        adjustment_trials = meta_session.import_adjustment_trials(
+            server_session)
 
         # accumulate data
         trials = []
@@ -170,7 +176,8 @@ def automatically_match(server, sessions, trials_sel, temp, processes, overwrite
                     print()
                     ws('Failed to transform trials:')
                     for v in pool.failed_i_jobs:
-                        ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                        ws('\t{}: {}'.format(
+                            trials[v].trial_number, pool.error_reports[v]))
                         failed_trial_reports.append('session {} trial {} error: {}'.format(
                             session, trials[v].trial_number, pool.error_reports[v]))
 

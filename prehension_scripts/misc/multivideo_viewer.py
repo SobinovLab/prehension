@@ -39,7 +39,8 @@ def main():
     vvi = VideoViewInterface(fig, [0.05, 0.2, 0.05, 0.05], filenames)
     vvi.setup()
 
-    vs = VideoSlider(fig, [0.05, 0.05, 0.9, 0.15], vvi.num_frames, vvi.i_frame, vvi.display)
+    vs = VideoSlider(fig, [0.05, 0.05, 0.9, 0.15],
+                     vvi.num_frames, vvi.i_frame, vvi.display)
 
     plt.show()
 

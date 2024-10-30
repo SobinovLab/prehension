@@ -55,17 +55,18 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
 
     if (not args.visualize and args.write_video):
-        raise Exception("Cannot specify --write_video without --visualize")
+        raise Exception(
+            "Cannot specify --write_video without --visualize")
 
     start_time = time.time()
     automatically_match(
-         args.server, args.sessions, args.trials, args.temp, args.processes,
-         args.overwrite,
-         args.executable_filename,
-         args.visualize,
-         args.skip_export,
-         args.write_video,
-         args.quality_threshold,
-         args.verbose)
+        args.server, args.sessions, args.trials, args.temp, args.processes,
+        args.overwrite,
+        args.executable_filename,
+        args.visualize,
+        args.skip_export,
+        args.write_video,
+        args.quality_threshold,
+        args.verbose)
 
     rs('Program took {} s.'.format(time.time() - start_time))

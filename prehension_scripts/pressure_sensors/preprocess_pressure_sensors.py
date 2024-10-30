@@ -45,7 +45,8 @@ if __name__ == '__main__':
     cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
 
-    cmd_args.add_default_arguments(parser, ('sessions', 'trials', 'temp', 'overwrite', 'processes'))
+    cmd_args.add_default_arguments(
+        parser, ('sessions', 'trials', 'temp', 'overwrite', 'processes'))
     args = parser.parse_args(args=argv)
 
     start_time = time.time()

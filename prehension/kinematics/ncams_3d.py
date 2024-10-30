@@ -45,7 +45,8 @@ from . import inverse_kinematics
 
 
 THORAX_BOUND_MARKERS = ('M_SternumTop', 'M_SternumBot')
-PROXIMAL_MARKERS = ('M_SternumTop', 'M_SternumBot', 'M_RScapulaAnt', 'M_RScapulaPost')
+PROXIMAL_MARKERS = ('M_SternumTop', 'M_SternumBot',
+                    'M_RScapulaAnt', 'M_RScapulaPost')
 # all ps points should be within this radius of the centroid
 # calculated from ps side = 9 cm, max width = 5 cm, rounded up
 PS_CENTROID_RADIUS = 80
@@ -82,13 +83,15 @@ def analyze_videos(server, sessions, trials_sel, temp, overwrite,
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
-        processed_session = os.path.join(preset['processed_server'], session)
+        processed_session = os.path.join(
+            preset['processed_server'], session)
 
         if not os.path.exists(server_session):
             ws('Session {} does not exist on the server.'.format(session))
@@ -99,7 +102,8 @@ def analyze_videos(server, sessions, trials_sel, temp, overwrite,
             mstruct, _, _, msession = meta_session.load_meta_information(
                 server_session, processed_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -167,7 +171,7 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
         run_extrinsic_calibration {bool} --- Runs local extrinsic calibration in the session
             directory.
     """
-    raise NotImplementedError('Must be refactored for new import meta structure call')
+
     logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
@@ -179,13 +183,15 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
-        processed_session = os.path.join(preset['processed_server'], session)
+        processed_session = os.path.join(
+            preset['processed_server'], session)
 
         if not os.path.exists(server_session):
             ws('Session {} does not exist on the server.'.format(session))
@@ -193,20 +199,26 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
 
         # load session meta
         try:
-            mstruct = meta_session.import_meta_structure(server_session, processed_session)
+            mstruct = meta_session.import_meta_structure(
+                server_session, processed_session)
         except Exception as e:
-            ws('Could not load meta structure from session {}, skipping.'.format(session))
+            ws('Could not load meta structure from session {}, skipping.'.format(
+                session))
             continue
 
-        images_calibration_dir = os.path.join(mstruct['images_dir'], 'calibration')
-        dest_extrinsic_calibration_dir = os.path.join(mstruct['calibration'], 'extrinsic')
+        images_calibration_dir = os.path.join(
+            mstruct['images_dir'], 'calibration')
+        dest_extrinsic_calibration_dir = os.path.join(
+            mstruct['calibration'], 'extrinsic')
 
         if relocate:
             if os.path.exists(images_calibration_dir):
-                os.makedirs(dest_extrinsic_calibration_dir, exist_ok=True)
+                os.makedirs(
+                    dest_extrinsic_calibration_dir, exist_ok=True)
 
                 # get the list of files
-                files = glob.glob(os.path.join(images_calibration_dir, '*'))
+                files = glob.glob(os.path.join(
+                    images_calibration_dir, '*'))
                 dest_files = [os.path.join(dest_extrinsic_calibration_dir, os.path.split(v)[1])
                               for v in files]
                 for file, dest_file in zip(files, dest_files):
@@ -231,7 +243,8 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
                     mstruct['ncams_config'], overwrite_setup_path=True)
 
                 # load intrinsics config
-                intrinsics_config = ncams.import_intrinsics(ncams_config)
+                intrinsics_config = ncams.import_intrinsics(
+                    ncams_config)
 
                 # hack to export extrinsics into different place
                 ncams_config['setup_path'] = mstruct['calibration']
@@ -258,12 +271,16 @@ def rotation_vector(v):
 
 
 def c3f_remove_far_ps(bodyparts, triangulated_points, pressure_sensor_markers):
-    psm_idxs = [bodyparts.index(bp) for bp in pressure_sensor_markers if bp in bodyparts]
+    psm_idxs = [bodyparts.index(
+        bp) for bp in pressure_sensor_markers if bp in bodyparts]
     # print('found {} bps: {}'.format(
     #     len(psm_idxs), ', '.join([str(psm_idx) for psm_idx in psm_idxs])))
-    psm_centroid_xs = np.median(triangulated_points[:, 0, psm_idxs], axis=1)
-    psm_centroid_ys = np.median(triangulated_points[:, 1, psm_idxs], axis=1)
-    psm_centroid_zs = np.median(triangulated_points[:, 2, psm_idxs], axis=1)
+    psm_centroid_xs = np.median(
+        triangulated_points[:, 0, psm_idxs], axis=1)
+    psm_centroid_ys = np.median(
+        triangulated_points[:, 1, psm_idxs], axis=1)
+    psm_centroid_zs = np.median(
+        triangulated_points[:, 2, psm_idxs], axis=1)
 
     for ipsm, psm_idx in enumerate(psm_idxs):
         psm_centroid_dists = np.sqrt(
@@ -300,7 +317,8 @@ def triangulate(trial, ncams_config, intrinsics_config, extrinsics_config, thres
         rotation=rotation_vector, rate=mstruct['fps'], reflect=reflect)
 
     # make all IK weights the same, otherwise the proximal markers overpower
-    marker_weights = {k: 1 for k, v in marker_weights.items() if v > 0}
+    marker_weights = {k: 1 for k,
+                      v in marker_weights.items() if v > 0}
 
     # remove thorax-bound markers - sternum
     marker_weights_general = copy.deepcopy(marker_weights)
@@ -316,7 +334,8 @@ def triangulate(trial, ncams_config, intrinsics_config, extrinsics_config, thres
         trial.pre_kinematic_filename, time_range)
 
     # take a subset of markers
-    marker_weights = {k: v for k, v in marker_weights.items() if k in PROXIMAL_MARKERS}
+    marker_weights = {
+        k: v for k, v in marker_weights.items() if k in PROXIMAL_MARKERS}
 
     # make IK file for thorax position
     ik_xml_str = inverse_kinematics.IK_XML_STR.format(
@@ -358,14 +377,16 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
-        processed_session = os.path.join(preset['processed_server'], session)
+        processed_session = os.path.join(
+            preset['processed_server'], session)
 
         if not os.path.exists(server_session):
             ws('Session {} does not exist on the server.'.format(session))
@@ -376,7 +397,8 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
             mstruct, _, _, msession = meta_session.load_meta_information(
                 server_session, processed_session)
         except Exception as e:
-            ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
+            ws('Could not load meta data from session {} ({}), skipping.'.format(
+                session, repr(e)))
             continue
 
         # accumulate data
@@ -405,11 +427,13 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
         local_extrinsic_calibration_filename = os.path.join(
             mstruct['calibration'], 'extrinsic', 'extrinsic_calib.pickle')
         if os.path.exists(local_extrinsic_calibration_filename):
-            intrinsics_config = ncams.camera_io.import_intrinsics(ncams_config)
+            intrinsics_config = ncams.camera_io.import_intrinsics(
+                ncams_config)
             extrinsics_config = ncams.camera_io.import_extrinsics(
                 local_extrinsic_calibration_filename)
         else:
-            intrinsics_config, extrinsics_config = ncams.camera_io.load_calibrations(ncams_config)
+            intrinsics_config, extrinsics_config = ncams.camera_io.load_calibrations(
+                ncams_config)
 
         # right or left handed
         reflect = mstruct['hand'] == 'left'
@@ -453,7 +477,8 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
                 print()
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(
+                        trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append('session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]))
 

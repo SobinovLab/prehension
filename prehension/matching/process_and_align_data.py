@@ -20,7 +20,8 @@ JA_TIME_PERIOD_MS = 1000 / JA_FREQUENCY
 # to be run in parallel
 def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     # load joint angles
-    f_dof_names, ja_times, dofs = io_tools.import_mot(trial.pre_kinematic_filename)
+    f_dof_names, ja_times, dofs = io_tools.import_mot(
+        trial.pre_kinematic_filename)
     ja_times = np.array(ja_times)
 
     # offset ja_times, ja are not offset to TTL yet
@@ -82,13 +83,14 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     ap_mask = np.zeros(np.size(common_times)).astype(bool)
     ap_mask[ap_start:ap_end] = True
 
-    ## redo the pressure sensor position from average center position and recorded desired
-    ## rotation angle. Use minimum width between the sensor surfaces as minimum width measured with
-    ## finger pads?
-    ## width estimate:
+    # redo the pressure sensor position from average center position and recorded desired
+    # rotation angle. Use minimum width between the sensor surfaces as minimum width measured with
+    # finger pads?
+    # width estimate:
     estimated_width_offset = 0  # mm
-    estimated_object_width = (estimated_width_offset + object_def['pos_aperture(mm)'] / 1000.)
-    ## measuring from the data instead
+    estimated_object_width = (
+        estimated_width_offset + object_def['pos_aperture(mm)'] / 1000.)
+    # measuring from the data instead
     object_width = np.median(dofs[[mdof['ps_halfwidth_tra']['index'],
                                   mdof['ps_halfwidth_tra_d']['index']]]) * 2
     if abs(object_width - estimated_object_width) > 0.05:
@@ -100,7 +102,7 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
                        object_width, estimated_object_width))
     dofs[mdof['ps_halfwidth_tra']['index']] = object_width / 2
     dofs[mdof['ps_halfwidth_tra_d']['index']] = object_width / 2
-    ## tra
+    # tra
     ps_tra_i_1 = mdof['ps_tra1']['index']
     ps_tra_i_2 = mdof['ps_tra2']['index']
     ps_tra_i_3 = mdof['ps_tra3']['index']
@@ -108,7 +110,7 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     dofs[ps_tra_i_1, ap_mask] = np.median(dofs[ps_tra_i_1, ap_mask])
     dofs[ps_tra_i_2, ap_mask] = np.median(dofs[ps_tra_i_2, ap_mask])
     dofs[ps_tra_i_3, ap_mask] = np.median(dofs[ps_tra_i_3, ap_mask])
-    ## rot
+    # rot
     ps_rot_i_1 = mdof['ps_rot1']['index']
     ps_rot_i_2 = mdof['ps_rot2']['index']
     ps_rot_i_3 = mdof['ps_rot3']['index']
@@ -119,29 +121,35 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
 
     # Save processed ja data
     io_tools.export_mot(trial.post_kinematic_filename_mot,
-                              list(mdof.keys()), common_times, dofs)
+                        list(mdof.keys()), common_times, dofs)
 
     # export to CSV with rotational transformed to radians
-    rots = np.array([dof_info['rot'] for dof_info in mdof.values()], dtype=bool)
+    rots = np.array([dof_info['rot']
+                    for dof_info in mdof.values()], dtype=bool)
     dofs[rots, :] = dofs[rots, :] / 180 * np.pi
     dofs_prefilter[rots, :] = dofs_prefilter[rots, :] / 180 * np.pi
     io_tools.export_csv(trial.post_kinematic_filename_csv,
-                              ['time'] + list(mdof.keys()), [common_times] + dofs.tolist())
+                        ['time'] + list(mdof.keys()), [common_times] + dofs.tolist())
 
     # save processed pressure sensor data
     for ps_filename, ps_matrices in zip(trial.post_ps_tsm_filenames.values(), ps_matrices_tot):
-        io_tools.export_tsm_matrix(ps_filename, common_times, ps_matrices, type='period')
+        io_tools.export_tsm_matrix(
+            ps_filename, common_times, ps_matrices, type='period')
 
     if make_plots:
-        ps_dofs = [k for k in mdof.keys() if k[:3] == 'ps_' and k[-2:] != '_d']
+        ps_dofs = [k for k in mdof.keys() if k[:3] ==
+                   'ps_' and k[-2:] != '_d']
         dependent_dofs = [k for k in mdof.keys() if k[-2:] == '_d']
-        anat_dofs = [k for k in mdof.keys() if k not in ps_dofs and k not in dependent_dofs]
+        anat_dofs = [k for k in mdof.keys(
+        ) if k not in ps_dofs and k not in dependent_dofs]
 
         plot_some_dofs(
-            'ps dofs trial {}'.format(trial.trial_number), common_times, dofs,
+            'ps dofs trial {}'.format(
+                trial.trial_number), common_times, dofs,
             dofs_prefilter, mdof, ps_dofs)
         plot_some_dofs(
-            'anatomical dofs trial {}'.format(trial.trial_number), common_times, dofs,
+            'anatomical dofs trial {}'.format(
+                trial.trial_number), common_times, dofs,
             dofs_prefilter, mdof, anat_dofs)
 
         plt.figure()
@@ -153,17 +161,17 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
 
         ax = plt.subplot(2, 1, 2, sharex=ax)
         for ps_matrices in ps_matrices_tot:
-            ax.plot(common_times, np.sum(ps_matrices, axis=(1, 2)), 'k')
+            ax.plot(common_times, np.sum(
+                ps_matrices, axis=(1, 2)), 'k')
         ax.set_ylabel('PS, N')
         ax.set_xlabel('Time to TTL, s')
-
-
 
 
 def plot_some_dofs(label, times, dofs, dofs_prefilter, mdof, dof_names, figsize=(16, 9)):
     xn_subplots, yn_subplots = tools.xy_numsubplots(len(dof_names))
 
-    fig, axs = plt.subplots(xn_subplots, yn_subplots, sharex=True, figsize=figsize)
+    fig, axs = plt.subplots(
+        xn_subplots, yn_subplots, sharex=True, figsize=figsize)
     axs = axs.flatten()
     plt.suptitle(label)
     axs_tra = []
@@ -186,13 +194,15 @@ def plot_some_dofs(label, times, dofs, dofs_prefilter, mdof, dof_names, figsize=
 
 def ja_filter(data):
     # butterworth filter
-    sos = scipy.signal.butter(2, 20, btype='lowpass', output='sos', fs=JA_FREQUENCY)
+    sos = scipy.signal.butter(
+        2, 20, btype='lowpass', output='sos', fs=JA_FREQUENCY)
     data = scipy.signal.sosfilt(sos, data)
 
     # gaussian
     gaussian_sd = 100  # ms
     gaussian_sd /= JA_TIME_PERIOD_MS
-    data = scipy.ndimage.gaussian_filter1d(data, gaussian_sd, mode='reflect')
+    data = scipy.ndimage.gaussian_filter1d(
+        data, gaussian_sd, mode='reflect')
 
     # data = scipy.ndimage.median_filter(data, size=3, mode='nearest')
 
@@ -227,7 +237,8 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
@@ -241,9 +252,11 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
 
         # load session meta
         try:
-            mstruct, mdof, mobject, msession = meta_session.load_meta_information(server_session)
+            mstruct, mdof, mobject, msession = meta_session.load_meta_information(
+                server_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -258,7 +271,8 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
             if not overwrite and trial.do_all_post_files_exist():
                 continue
             trials.append(trial)
-            object_defs.append(copy.deepcopy(mobject[trial.object_id]['def']))
+            object_defs.append(copy.deepcopy(
+                mobject[trial.object_id]['def']))
 
        # Just continue if no trials
         if not trials:
@@ -290,7 +304,8 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
                 print()
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(
+                        trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append('session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]))
 
