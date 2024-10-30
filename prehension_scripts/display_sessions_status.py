@@ -7,6 +7,7 @@
 import sys
 import argparse
 
+from prehension.tools import cmd_args
 from prehension.visualization import session_visualization
 from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.utils import fetch_server_session_dirs
@@ -19,6 +20,11 @@ preset_names = ['daiquiri_right_hemisphere',
 
 
 def main(args):
+    """
+    Helper script for displaying sessions (raw & processed) in experiment and training groups
+    across the presets in preset names. Option to transfer sessions to training server if
+    --clean is passed.
+    """
     for preset_name in preset_names:
         print(preset_name.upper())
         init(autoreset=True)  # for colorama

@@ -161,7 +161,4 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (n
-autopep_all.bat
-prehension_scripts/p_status.py
-p_status.py
-prehension_scripts/ppsd_helper.py
+cr_local/
