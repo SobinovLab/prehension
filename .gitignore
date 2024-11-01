@@ -163,3 +163,4 @@ cython_debug/
 #  option (n
 cr_local/
 tests/
+.vscode
