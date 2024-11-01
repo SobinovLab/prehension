@@ -1,7 +1,7 @@
 #!python
 # -*- coding: utf-8 -*-
 """
-Utilites for simplifying prehension processing.
+Classes and functions for managing sessions.
 
 Copyright (C) 2019-2024 Caleb Raman
 https://github.com/BensmaiaLab/prehension

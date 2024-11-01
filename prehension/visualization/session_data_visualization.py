@@ -1,7 +1,7 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Plotting backend for plot_session_data script
+Provides utilities for session data visualization, such as heatmaps and forcetraces
 
 Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension

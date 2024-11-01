@@ -1,7 +1,7 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Animates pressure sensors from a trial.
+Create plots for many sessions.
 
 Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension

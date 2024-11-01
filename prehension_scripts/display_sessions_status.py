@@ -3,7 +3,6 @@
 """
 script for displaying status of prehension analyses across presets and sessions
 
-
 Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension
 

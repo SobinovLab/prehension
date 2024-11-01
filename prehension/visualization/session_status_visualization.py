@@ -1,7 +1,8 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Provides utilities for session visualization.
+Provides utilities for session visualization such as session status and exising files within a
+given session
 
 Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension
