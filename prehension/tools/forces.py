@@ -20,12 +20,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
-import tsm
 import numpy as np
 
 from . import constants
 from . import io
-from .logs import rs, ws
 
 
 def get_matched_contact_frame_mask(exp, mcf, frame_size):
@@ -138,8 +136,8 @@ def load_forces(mstruct, trial):
 def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
 
     # Create Input: 2 sets of times, forces
-    ps_times1, ps_matrices1 = tsm.load(tsm1_file)
-    ps_times2, ps_matrices2 = tsm.load(tsm2_file)
+    ps_times1, ps_matrices1 = io.import_tsm_matrix(tsm1_file)
+    ps_times2, ps_matrices2 = io.import_tsm_matrix(tsm2_file)
 
     # Get the sums at each timestep
     ps_sum1 = np.sum(ps_matrices1, axis=(1, 2))

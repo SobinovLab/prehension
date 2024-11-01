@@ -37,7 +37,7 @@ from .tools import io
 from .tools import logs
 from .tools.logs import rs, ws
 
-from .tools.utils import apply_to_sessions_helper
+from .tools.session_management import apply_to_sessions_helper
 
 from . import meta_session
 

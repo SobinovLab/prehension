@@ -1,17 +1,34 @@
-#!python3.11
+#!python3
+# -*- coding: utf-8 -*-
+"""
+script for displaying status of prehension analyses across presets and sessions
 
-# CLI for displaying status of prehension analyses
-# from prehension import tools, meta_session
+
+Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 
 
 import sys
 import argparse
 
-from prehension.tools import cmd_args
-from prehension.visualization import session_visualization
+from prehension.visualization import session_status_visualization
 from prehension_presets.prehension_presets import PRESETS
-from prehension.tools.utils import fetch_server_session_dirs
-from prehension_scripts.plot_session_data import SessionWrapper
+from prehension.tools.session_management import fetch_server_session_dirs
+from prehension.visualization.session_data_visualization import SessionWrapper
 from colorama import init
 
 
@@ -44,7 +61,7 @@ def main(args):
         train_session_wrappers = [SessionWrapper(
             *train_pair) for train_pair in training_ss_pairs]
 
-        session_visualization.display_session_info(exp_session_wrappers,
+        session_status_visualization.display_session_info(exp_session_wrappers,
                                                    train_session_wrappers, args.clean, args.last)
         print()
         print()

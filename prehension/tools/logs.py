@@ -85,5 +85,4 @@ def rs(s):
 
 def ws(s):
     warnings.warn(s, stacklevel=2)
-    print(s)
     logging.warning(s)

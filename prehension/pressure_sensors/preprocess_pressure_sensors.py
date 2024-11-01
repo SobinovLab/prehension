@@ -19,7 +19,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-from TekAPI import CTekAPI
+
 import ctypes
 import inspect
 import os
@@ -35,7 +35,7 @@ import timed_sparse_matrix as tsm
 from .. import meta_session
 from ..tools import logs
 from ..tools.logs import rs, ws
-from ..tools.utils import apply_to_sessions_helper
+from ..tools.session_management import apply_to_sessions_helper
 
 currentdir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
@@ -43,6 +43,7 @@ currentdir = os.path.dirname(os.path.abspath(
 dll_dir = os.path.join(currentdir, 'TekDLL')
 sys.path.append(dll_dir)
 clr.AddReference("TekAPI64")
+from TekAPI import CTekAPI
 
 # CONSTANTS
 NEWTONS_PER_LBS = 4.4482216

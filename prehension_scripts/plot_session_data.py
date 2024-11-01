@@ -1,4 +1,26 @@
-#!python3.11
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Animates pressure sensors from a trial.
+
+Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+
 import argparse
 import time
 import os
@@ -9,7 +31,7 @@ from datetime import timedelta
 from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.logs import rs, setup_logging
 from prehension.tools import cmd_args
-from prehension.tools.utils import does_trianing_servers_exist, fetch_server_session_dirs
+from prehension.tools.session_management import does_trianing_servers_exist, fetch_server_session_dirs
 
 # --- future features ---
 # Plot performance should consider all sessions with red dot for experimental sessions
