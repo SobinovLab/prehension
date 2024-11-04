@@ -34,31 +34,31 @@ def humanbytes(B):
     """Return the given bytes as a human friendly KB, MB, GB, or TB string."""
     B = float(B)
     KB = float(1024)
-    MB = float(KB ** 2)  # 1,048,576
-    GB = float(KB ** 3)  # 1,073,741,824
-    TB = float(KB ** 4)  # 1,099,511,627,776
+    MB = float(KB**2)  # 1,048,576
+    GB = float(KB**3)  # 1,073,741,824
+    TB = float(KB**4)  # 1,099,511,627,776
 
     if B < KB:
-        return '{0} {1}'.format(B, 'Bytes' if 0 == B > 1 else 'Byte')
+        return "{0} {1}".format(B, "Bytes" if 0 == B > 1 else "Byte")
     elif KB <= B < MB:
-        return '{0:.2f} KB'.format(B / KB)
+        return "{0:.2f} KB".format(B / KB)
     elif MB <= B < GB:
-        return '{0:.2f} MB'.format(B / MB)
+        return "{0:.2f} MB".format(B / MB)
     elif GB <= B < TB:
-        return '{0:.2f} GB'.format(B / GB)
+        return "{0:.2f} GB".format(B / GB)
     elif TB <= B:
-        return '{0:.2f} TB'.format(B / TB)
+        return "{0:.2f} TB".format(B / TB)
     else:
-        return '{0:.2f} TB'.format(B / TB)
+        return "{0:.2f} TB".format(B / TB)
 
 
 def print_copy(*args, **kwargs):
     """Simulates shutil.copy, but only prints out the targets."""
-    print('{} -> {}'.format(args[0], args[1]))
+    print("{} -> {}".format(args[0], args[1]))
 
 
-class PrintCopyAccumulateSize():
-    """Calculates the sum of sizes of files passed as  """
+class PrintCopyAccumulateSize:
+    """Calculates the sum of sizes of files passed as"""
 
     def __init__(self, dry_run, verbose):
         self.size = 0
@@ -76,9 +76,18 @@ class PrintCopyAccumulateSize():
         return humanbytes(self.size)
 
 
-def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
-             ignore_dangling_symlinks=False, make_dir=True, dir_exist_ok=False,
-             overwrite_existing=None, verbose=False):
+def copytree(
+    src,
+    dst,
+    symlinks=False,
+    ignore=None,
+    copy_function=shutil.copy2,
+    ignore_dangling_symlinks=False,
+    make_dir=True,
+    dir_exist_ok=False,
+    overwrite_existing=None,
+    verbose=False,
+):
     """Recursively copy a directory tree.
 
     ADAPTED from shutil.py function. Changes:
@@ -146,8 +155,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
                     # code with a custom `copy_function` may rely on copytree
                     # doing the right thing.
                     os.symlink(linkto, dstname)
-                    shutil.copystat(srcname, dstname,
-                                    follow_symlinks=not symlinks)
+                    shutil.copystat(srcname, dstname, follow_symlinks=not symlinks)
                 else:
                     # ignore dangling symlink if the flag is on
                     if not os.path.exists(linkto) and ignore_dangling_symlinks:
@@ -155,25 +163,43 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
                     # otherwise let the copy occurs. copy2 will raise an error
                     if os.path.isdir(srcname):
                         copytree(
-                            srcname, dstname,
-                            symlinks=symlinks, ignore=ignore, copy_function=copy_function,
-                            ignore_dangling_symlinks=ignore_dangling_symlinks, make_dir=make_dir,
-                            dir_exist_ok=dir_exist_ok, overwrite_existing=overwrite_existing,
-                            verbose=verbose)
+                            srcname,
+                            dstname,
+                            symlinks=symlinks,
+                            ignore=ignore,
+                            copy_function=copy_function,
+                            ignore_dangling_symlinks=ignore_dangling_symlinks,
+                            make_dir=make_dir,
+                            dir_exist_ok=dir_exist_ok,
+                            overwrite_existing=overwrite_existing,
+                            verbose=verbose,
+                        )
                     else:
-                        if (overwrite_existing is None or not os.path.exists(dstname) or
-                                overwrite_existing(srcname, dstname)):
+                        if (
+                            overwrite_existing is None
+                            or not os.path.exists(dstname)
+                            or overwrite_existing(srcname, dstname)
+                        ):
                             copy_function(srcname, dstname)
             elif os.path.isdir(srcname):
                 copytree(
-                    srcname, dstname,
-                    symlinks=symlinks, ignore=ignore, copy_function=copy_function,
-                    ignore_dangling_symlinks=ignore_dangling_symlinks, make_dir=make_dir,
-                    dir_exist_ok=dir_exist_ok, overwrite_existing=overwrite_existing,
-                    verbose=verbose)
+                    srcname,
+                    dstname,
+                    symlinks=symlinks,
+                    ignore=ignore,
+                    copy_function=copy_function,
+                    ignore_dangling_symlinks=ignore_dangling_symlinks,
+                    make_dir=make_dir,
+                    dir_exist_ok=dir_exist_ok,
+                    overwrite_existing=overwrite_existing,
+                    verbose=verbose,
+                )
             else:
-                if (overwrite_existing is None or not os.path.exists(dstname) or
-                        overwrite_existing(srcname, dstname)):
+                if (
+                    overwrite_existing is None
+                    or not os.path.exists(dstname)
+                    or overwrite_existing(srcname, dstname)
+                ):
                     # Will raise a SpecialFileError for unsupported file types
                     copy_function(srcname, dstname)
         # catch the Error from the recursive copytree so that we can
@@ -186,7 +212,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
         shutil.copystat(src, dst)
     except OSError as why:
         # Copying file access times may fail on Windows
-        if getattr(why, 'winerror', None) is None:
+        if getattr(why, "winerror", None) is None:
             errors.append((src, dst, str(why)))
     if errors:
         raise shutil.Error(errors)
@@ -210,8 +236,17 @@ def overwrite_existing_new_box(srcname, dstname):
     return os.path.getmtime(srcname) - os.path.getmtime(dstname) >= 1
 
 
-def copy_folder_contents(src_dir, target_dir, dir_names=[], file_names=[], suppress_warnings=False,
-                         dry_run=False, copy_function=None, box=False, overwrite=False):
+def copy_folder_contents(
+    src_dir,
+    target_dir,
+    dir_names=[],
+    file_names=[],
+    suppress_warnings=False,
+    dry_run=False,
+    copy_function=None,
+    box=False,
+    overwrite=False,
+):
     start_time = time.time()
     if copy_function is None:
         local_copy_function = True
@@ -230,11 +265,12 @@ def copy_folder_contents(src_dir, target_dir, dir_names=[], file_names=[], suppr
         src = os.path.join(src_dir, dir_name)
         dst = os.path.join(target_dir, dir_name)
         if os.path.isdir(src):
-            copytree(src, dst, overwrite_existing=oex, dir_exist_ok=True,
-                     copy_function=copy_function)
+            copytree(
+                src, dst, overwrite_existing=oex, dir_exist_ok=True, copy_function=copy_function
+            )
         else:
             if not suppress_warnings:
-                ws(f'Warning: could not find expected directory ({src}) to upload')
+                ws(f"Warning: could not find expected directory ({src}) to upload")
 
     for fname in file_names:
         f_src = os.path.join(src_dir, fname)
@@ -242,7 +278,7 @@ def copy_folder_contents(src_dir, target_dir, dir_names=[], file_names=[], suppr
 
         if not os.path.isfile(f_src):
             if not suppress_warnings:
-                ws(f'Warning: could not find expected file ({f_src}) to upload')
+                ws(f"Warning: could not find expected file ({f_src}) to upload")
             continue
 
         # Check if the destination file exists
@@ -250,16 +286,14 @@ def copy_folder_contents(src_dir, target_dir, dir_names=[], file_names=[], suppr
             # Destination file does not exist, copy the source file
             copy_function(f_src, f_dst)
 
-    timedelta = str(datetime.timedelta(
-        seconds=time.time() - start_time))
+    timedelta = str(datetime.timedelta(seconds=time.time() - start_time))
     # if shutil copy, the report won't be meaningful
     if local_copy_function:
-        rs('Found {} files for copying during {}.'.format(
-            copy_function, timedelta))
+        rs("Found {} files for copying during {}.".format(copy_function, timedelta))
 
 
 def get_image_list(path=None, sort=True):
-    '''Returns a list of all image filenames.
+    """Returns a list of all image filenames.
 
     Wrapper for 'utilities.get_file_list' with file_extensions defined as:
         ('jpg', 'jpeg', 'png', 'bmp')
@@ -269,13 +303,13 @@ def get_image_list(path=None, sort=True):
         sort {bool} -- alphanumeric sort the output list (default: {True})
     Output:
         strings {list of strings} -- list of all image filenames.
-    '''
+    """
 
-    return get_file_list(('jpg', 'jpeg', 'png', 'bmp'), path=path, sort=sort)
+    return get_file_list(("jpg", "jpeg", "png", "bmp"), path=path, sort=sort)
 
 
 def get_file_list(file_extensions, path=None, sort=True):
-    '''Returns a list of all filenames with a specific extension.
+    """Returns a list of all filenames with a specific extension.
 
     Files with extensions .jpg, .jpeg, .png, .bmp are considered images. Searches shell-style for
         <path>/*.<file extension>
@@ -288,21 +322,21 @@ def get_file_list(file_extensions, path=None, sort=True):
         sort {bool} -- alphanumeric sort the output list (default: {True})
     Output:
         strings {list of strings} -- list of all filenames with specified extension.
-    '''
+    """
     if isinstance(file_extensions, str):
         file_extensions = [file_extensions]
 
     if file_extensions is None or len(file_extensions) == 0:
-        file_extensions = ('*', )
+        file_extensions = ("*",)
     else:
-        file_extensions = [ifx.strip('.') for ifx in file_extensions]
+        file_extensions = [ifx.strip(".") for ifx in file_extensions]
 
     files = []
     for file_extension in file_extensions:
         if path is None:
-            files += glob('*.' + file_extension)
+            files += glob("*." + file_extension)
         else:
-            files += glob(os.path.join(path, '*.' + file_extension))
+            files += glob(os.path.join(path, "*." + file_extension))
 
     if sort:
         files = alphanumeric_sort(files)
@@ -311,7 +345,7 @@ def get_file_list(file_extensions, path=None, sort=True):
 
 
 def alphanumeric_sort(strings):
-    '''Alphanumeric sorter that considers parts of the numerical parts of the string independently.
+    """Alphanumeric sorter that considers parts of the numerical parts of the string independently.
 
     For example, 'text9moretext' < 'text10moretext' when using this sorting function.
     Useful for:
@@ -324,11 +358,12 @@ def alphanumeric_sort(strings):
         strings {list of strings} -- list of strings (e.g. filenames to be sorted)
     Output:
         strings {list of strings} -- sorted list of strings
-    '''
+    """
+
     def convert(text):
         return int(text) if text.isdigit() else text
 
     def alphanum_key(key):
-        return [convert(c) for c in re.split('([0-9]+)', key)]
+        return [convert(c) for c in re.split("([0-9]+)", key)]
 
     return sorted(strings, key=alphanum_key)

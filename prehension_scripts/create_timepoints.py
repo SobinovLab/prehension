@@ -56,29 +56,21 @@ if __name__ == "__main__":
     preset_name, current_preset, argv = preset.process_args_for_preset()
 
     parser = argparse.ArgumentParser(
-        description=(
-            "Outputs a csv of movement onset times for each session")
+        description=("Outputs a csv of movement onset times for each session")
     )
 
-    cmd_args.add_default_kwarguments(
-        parser, {"server": current_preset["default_server"]})
+    cmd_args.add_default_kwarguments(parser, {"server": current_preset["default_server"]})
     cmd_args.add_default_arguments(
-        parser, ("sessions", "trials", "temp",
-                 "overwrite", "processes", "make_plots")
+        parser, ("sessions", "trials", "temp", "overwrite", "processes", "make_plots")
     )
 
+    parser.add_argument("--store_plots", action="store_true", help="Save plots to disk.")
     parser.add_argument(
-        "--store_plots",
-        action='store_true',
-        help="Save plots to disk.")
+        "--dont_show_plots", action="store_true", help="Does not show the generated plots."
+    )
     parser.add_argument(
-        "--dont_show_plots",
-        action='store_true',
-        help="Does not show the generated plots.")
-    parser.add_argument(
-        '--make_trial_plots',
-        action='store_true',
-        help='Makes more inspection figures.')
+        "--make_trial_plots", action="store_true", help="Makes more inspection figures."
+    )
 
     # Plot logic note:
     # When running the first time if make_plots is not set
@@ -101,5 +93,4 @@ if __name__ == "__main__":
         args.make_trial_plots,
         not args.dont_show_plots,
     )
-    rs("Program took {}.".format(
-        datetime.timedelta(seconds=time.time() - start_time)))
+    rs("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

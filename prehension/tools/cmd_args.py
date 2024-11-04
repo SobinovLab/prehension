@@ -23,107 +23,116 @@ import os
 
 
 def add_default_arguments(parser, arguments):
-    '''Possible arguments:
-        sessions
-        session -- singular
-        trials
-        trial -- singular required argument
-        temp
-        processes
-        overwrite
-        dry_run
-    '''
+    """Possible arguments:
+    sessions
+    session -- singular
+    trials
+    trial -- singular required argument
+    temp
+    processes
+    overwrite
+    dry_run
+    """
     if isinstance(arguments, str):
-        arguments = (arguments, )
-    if 'sessions' in arguments:
+        arguments = (arguments,)
+    if "sessions" in arguments:
         parser.add_argument(
-            '--sessions',
-            type=str, default=[], nargs='*', metavar='SESSION',
-            help='List of directories for processing. If empty, find all unprocessed directories. '
-            'Empty by default.')
+            "--sessions",
+            type=str,
+            default=[],
+            nargs="*",
+            metavar="SESSION",
+            help="List of directories for processing. If empty, find all unprocessed directories. "
+            "Empty by default.",
+        )
 
-    if 'trials' in arguments:
+    if "trials" in arguments:
         parser.add_argument(
-            '--trials',
-            type=int, default=[], nargs='*', metavar='TRIAL_NUMBER',
-            help='List of trials for processing. If empty, find all unprocessed trials. '
-            'Empty by default.')
+            "--trials",
+            type=int,
+            default=[],
+            nargs="*",
+            metavar="TRIAL_NUMBER",
+            help="List of trials for processing. If empty, find all unprocessed trials. "
+            "Empty by default.",
+        )
 
-    temp_folder = os.path.join('C:\\', 'tmp')
-    if 'temp' in arguments:
+    temp_folder = os.path.join("C:\\", "tmp")
+    if "temp" in arguments:
         parser.add_argument(
-            '--temp',
-            type=str, default=temp_folder,
-            help='Folder for local temporary storage. Default: {}'.format(temp_folder))
+            "--temp",
+            type=str,
+            default=temp_folder,
+            help="Folder for local temporary storage. Default: {}".format(temp_folder),
+        )
 
-    processes = int(round(os.cpu_count()*1.4))
-    if 'processes' in arguments:
+    processes = int(round(os.cpu_count() * 1.4))
+    if "processes" in arguments:
         parser.add_argument(
-            '--processes',
-            type=int, default=processes,
-            help='Number of parallel processes in the pool. Defaults to {}.'.format(processes))
+            "--processes",
+            type=int,
+            default=processes,
+            help="Number of parallel processes in the pool. Defaults to {}.".format(processes),
+        )
 
     # affecting data
-    if 'overwrite' in arguments:
+    if "overwrite" in arguments:
         parser.add_argument(
-            '--overwrite',
-            action='store_true',
-            help='Overwrites the created files if they exist.')
-
-    if 'dry_run' in arguments:
-        parser.add_argument(
-            '--dry_run', '--check',
-            action='store_true',
-            help='Check which trials have not been converted. Does not create data.')
-
-    if 'session' in arguments:
-        parser.add_argument(
-            'session',
-            type=str,
-            help='Session directory to use. Required argument.')
-
-    if 'trial' in arguments:
-        parser.add_argument(
-            'trial',
-            type=int,
-            help='Trial to do adjustment on. Required argument.')
-
-    if 'make_plots' in arguments:
-        parser.add_argument(
-            '--make_plots',
-            action='store_true',
-            help='Makes some inspection figures. Run with --processes 1.')
-
-    if 'debug' in arguments:
-        parser.add_argument(
-            '--debug',
-            action='store_true',
-            help='Run script in debug mode'
+            "--overwrite", action="store_true", help="Overwrites the created files if they exist."
         )
+
+    if "dry_run" in arguments:
+        parser.add_argument(
+            "--dry_run",
+            "--check",
+            action="store_true",
+            help="Check which trials have not been converted. Does not create data.",
+        )
+
+    if "session" in arguments:
+        parser.add_argument(
+            "session", type=str, help="Session directory to use. Required argument."
+        )
+
+    if "trial" in arguments:
+        parser.add_argument("trial", type=int, help="Trial to do adjustment on. Required argument.")
+
+    if "make_plots" in arguments:
+        parser.add_argument(
+            "--make_plots",
+            action="store_true",
+            help="Makes some inspection figures. Run with --processes 1.",
+        )
+
+    if "debug" in arguments:
+        parser.add_argument("--debug", action="store_true", help="Run script in debug mode")
 
 
 def add_default_kwargument(parser, k, v):
-    if k == 'server':
+    if k == "server":
         parser.add_argument(
-            '--server',
-            type=str, default=v,
-            help='Folder where the sessions are located. Default: {}'.format(v))
+            "--server",
+            type=str,
+            default=v,
+            help="Folder where the sessions are located. Default: {}".format(v),
+        )
         return
 
-    if k == 'processed_server':
+    if k == "processed_server":
         parser.add_argument(
-            '--processed_server',
-            type=str, default=v,
-            help='Folder where the processed data from sessions are located. Default: {}'.format(v))
+            "--processed_server",
+            type=str,
+            default=v,
+            help="Folder where the processed data from sessions are located. Default: {}".format(v),
+        )
         return
 
-    raise ValueError(
-        'Unknown keyword argument for parser: {}'.format(k))
+    raise ValueError("Unknown keyword argument for parser: {}".format(k))
 
 
 def add_default_kwarguments(parser, kwarguments):
-    '''Possible kwargs:
-        server
-    '''
+    """Possible kwargs:
+    server
+    """
     for k, v in kwarguments.items():
         add_default_kwargument(parser, k, v)

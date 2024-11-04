@@ -44,5 +44,5 @@ def main():
         video.crop_video(ivp, ovp, frame_start, frame_end)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

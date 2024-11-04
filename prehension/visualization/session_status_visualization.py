@@ -29,12 +29,12 @@ import shutil
 
 
 EXPECTED_PLOT_NAMES = [
-    'AvgCondSuccessMatrix.png',
-    'CondSuccessMatrix.png',
-    'ForceTrace_from_success_grasp_start.png',
-    'ForceTrace_from_ttl_to_reward.png',
-    'Performance.png',
-    'PerformanceLast10Days.png'
+    "AvgCondSuccessMatrix.png",
+    "CondSuccessMatrix.png",
+    "ForceTrace_from_success_grasp_start.png",
+    "ForceTrace_from_ttl_to_reward.png",
+    "Performance.png",
+    "PerformanceLast10Days.png",
 ]
 
 
@@ -69,7 +69,8 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
     def check_proc_folders(proc_path):
         filtered_sensors = os.path.exists(os.path.join(proc_path, "filtered_sensors"))
         prehension_plots_exist_bool = [
-            os.path.exists(os.path.join(proc_path, "prehension_plots", fname)) for fname in EXPECTED_PLOT_NAMES
+            os.path.exists(os.path.join(proc_path, "prehension_plots", fname))
+            for fname in EXPECTED_PLOT_NAMES
         ]
         transformed_sensors = os.path.exists(os.path.join(proc_path, "transformed_sensors"))
 

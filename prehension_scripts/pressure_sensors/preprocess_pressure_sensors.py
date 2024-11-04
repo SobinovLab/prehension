@@ -36,23 +36,19 @@ from prehension.pressure_sensors.preprocess_pressure_sensors import preprocess_p
 from prehension.tools.logs import rs
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Add arguments
     preset_name, current_preset, argv = preset.process_args_for_preset()
-    parser = argparse.ArgumentParser(
-        description=('Creates meta information for a session.'))
+    parser = argparse.ArgumentParser(description=("Creates meta information for a session."))
 
-    cmd_args.add_default_kwarguments(
-        parser, {'server': current_preset['default_server']})
+    cmd_args.add_default_kwarguments(parser, {"server": current_preset["default_server"]})
 
-    cmd_args.add_default_arguments(
-        parser, ('sessions', 'trials', 'temp', 'overwrite', 'processes'))
+    cmd_args.add_default_arguments(parser, ("sessions", "trials", "temp", "overwrite", "processes"))
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
     preprocess_pressure_sensors(
-        current_preset, args.trials, args.temp,
-        args.overwrite, args.processes)
+        current_preset, args.trials, args.temp, args.overwrite, args.processes
+    )
 
-    rs('Program took {}.'.format(
-        datetime.timedelta(seconds=time.time() - start_time)))
+    rs("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
