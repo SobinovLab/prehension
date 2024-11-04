@@ -126,7 +126,6 @@ def main(preset, sessions, temp, overwrite, transfer=True):
 
 # Entry
 if __name__ == "__main__":
-
     preset_name = sys.argv[1]
     if preset_name not in PRESETS.keys():
         raise ValueError(f"preset_name {preset_name} not found in presets {list(PRESETS.keys())}")

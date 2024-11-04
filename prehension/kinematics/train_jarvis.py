@@ -42,29 +42,28 @@ from jarvis.config.project_manager import ProjectManager
 
 def validate_pth_file(fp):
     assert os.path.isfile(fp)
-    assert fp.split(".")[-1] == "pth"
+    assert fp.split(".")[-1] == 'pth'
 
 
 def train_hybridnet(
     proj_name,
-    weights_pretrain="None",
+    weights_pretrain='None',
     keypoint_weights_pth=None,
     HN_weights_pth=None,
     num_epochs=50,
-    training_mode="all",
+    training_mode='all',
     bar_position=0,
-    bar_desc="",
+    bar_desc='',
 ):
-
     projectManager = ProjectManager()
 
     if not projectManager.load(proj_name):
         print(f"Could not load Project {proj_name}!")
         return
 
-    if weights_pretrain == "None":
+    if weights_pretrain == 'None':
         if keypoint_weights_pth == None:
-            weights_keypoint_detect = "latest"
+            weights_keypoint_detect = 'latest'
         else:
             validate_pth_file(keypoint_weights_pth)
             weights_keypoint_detect = keypoint_weights_pth
@@ -83,9 +82,9 @@ def train_hybridnet(
         weights_keypoint_detect = None
         weights_hybridnet = weights_pretrain
 
-    assert training_mode in ["3D_only", "last_layers", "bifpn", "all"]
+    assert training_mode in ['3D_only', 'last_layers', 'bifpn', 'all']
     mode = training_mode
-    if mode == "3D_only":
+    if mode == '3D_only':
         finetune = False
     else:
         finetune = True
@@ -100,52 +99,52 @@ def train_hybridnet(
         bar_position=bar_position,
         bar_desc=bar_desc,
     )
-    print("Training finished! Your HybridNet is " "ready for prediction, have fun :)")
+    print('Training finished! Your HybridNet is ' 'ready for prediction, have fun :)')
 
 
-def train_keypoint_detect(proj_name, weights="None", num_epochs=50, bar_position=0, bar_desc=""):
+def train_keypoint_detect(proj_name, weights='None', num_epochs=50, bar_position=0, bar_desc=''):
     projectManager = ProjectManager()
     if not projectManager.load(proj_name):
         print(f"Could not load Project {proj_name}!")
         return
     assert torch.cuda.device_count() > 0
     train_interface.train_efficienttrack(
-        "KeypointDetect",
+        'KeypointDetect',
         proj_name,
         num_epochs,
         weights,
         bar_position=bar_position,
         bar_desc=bar_desc,
     )
-    print("{Training finished! Your KeypointDetect network is " "ready for prediction, have fun :)")
+    print('{Training finished! Your KeypointDetect network is ' 'ready for prediction, have fun :)')
 
 
-def train_center_detect(proj_name, weights="None", num_epochs=50, bar_position=0, bar_desc=""):
+def train_center_detect(proj_name, weights='None', num_epochs=50, bar_position=0, bar_desc=''):
     projectManager = ProjectManager()
     if not projectManager.load(proj_name):
         print(f"Could not load Project {proj_name}!")
         return
     assert torch.cuda.device_count() > 0
     train_interface.train_efficienttrack(
-        "CenterDetect", proj_name, num_epochs, weights, bar_position=bar_position, bar_desc=bar_desc
+        'CenterDetect', proj_name, num_epochs, weights, bar_position=bar_position, bar_desc=bar_desc
     )
-    print("Training finished! Your CenterDetect network is " "ready for prediction, have fun :)")
+    print('Training finished! Your CenterDetect network is ' 'ready for prediction, have fun :)')
 
 
 def train(project, model, num_epochs, verbose, id):
     bar_desc = f"{project} | {model}"
 
-    if model == "cd":
+    if model == 'cd':
         train_center_detect(project, num_epochs=num_epochs, bar_position=id, bar_desc=bar_desc)
 
-    elif model == "hn":
+    elif model == 'hn':
         train_hybridnet(project, num_epochs=num_epochs, bar_position=id, bar_desc=bar_desc)
 
-    elif model == "kd":
+    elif model == 'kd':
         train_keypoint_detect(project, num_epochs=num_epochs, bar_position=id, bar_desc=bar_desc)
 
     else:
-        print(f"unrecognized training model name {model} (choose from: hn, cd, kd)")
+        print(f'unrecognized training model name {model} (choose from: hn, cd, kd)')
 
 
 def train_jarvis(combos, epochs, verbose):
@@ -190,6 +189,6 @@ def train_jarvis(combos, epochs, verbose):
                 try:
                     result = future.result()
                 except Exception as exc:
-                    print(f"Exception occurred: {exc}")
+                    print(f'Exception occurred: {exc}')
                     # Handle exception here if needed
                     pass

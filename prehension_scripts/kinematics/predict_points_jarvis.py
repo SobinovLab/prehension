@@ -32,40 +32,40 @@ if __name__ == "__main__":
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
     parser = argparse.ArgumentParser(
-        description=("Runs a trained Jarvis model on videos generating 3D points and IK files.")
+        description=('Runs a trained Jarvis model on videos generating 3D points and IK files.')
     )
     cmd_args.add_default_kwarguments(
         parser,
         {
-            "server": current_preset["default_server"],
-            "processed_server": current_preset["processed_server"],
+            'server': current_preset['default_server'],
+            'processed_server': current_preset['processed_server'],
         },
     )
-    cmd_args.add_default_arguments(parser, ("sessions", "temp", "overwrite", "trials", "processes"))
+    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
 
     # # custom
     parser.add_argument(
-        "--make_videos", action="store_true", help="Renders videos with prediction."
+        '--make_videos', action='store_true', help='Renders videos with prediction.'
     )
     parser.add_argument(
-        "--jarvis_proj",
+        '--jarvis_proj',
         type=str,
-        default=current_preset["jarvis_config_path"],
-        help="Jarvis project to use.",
+        default=current_preset['jarvis_config_path'],
+        help='Jarvis project to use.',
     )
     parser.add_argument(
-        "--threshold",
+        '--threshold',
         type=float,
         default=0.4,
-        help="Threshold for likelihood of 3D points to be used.",
+        help='Threshold for likelihood of 3D points to be used.',
     )
     parser.add_argument(
-        "--dont_predict", action="store_true", help="Do not run JARVIS on the videos."
+        '--dont_predict', action='store_true', help='Do not run JARVIS on the videos.'
     )
     parser.add_argument(
-        "--dont_transform",
-        action="store_true",
-        help="Do not transform JARVIS files into our format and create IK files.",
+        '--dont_transform',
+        action='store_true',
+        help='Do not transform JARVIS files into our format and create IK files.',
     )
 
     args = parser.parse_args(args=argv)
@@ -86,4 +86,4 @@ if __name__ == "__main__":
         args.make_videos,
     )
 
-    print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
+    print('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))

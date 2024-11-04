@@ -42,7 +42,7 @@ def transform_trial(trial, make_plots):
             # will break if the CSV does not exist - then run a MATLAB fsx->tsm program
             times, matrices = io.import_csv_matrix_low(trial.transformed_ps_csv_filenames[ps_name])
             io.export_tsm_matrix(
-                trial.transformed_ps_filenames[ps_name], times, matrices, type="stamps"
+                trial.transformed_ps_filenames[ps_name], times, matrices, type='stamps'
             )
 
     # remove the CSV if it exists
@@ -77,11 +77,11 @@ def transform_trial(trial, make_plots):
         for irow in range(len(matrices[0])):
             for icol in range(len(matrices[0][irow])):
                 matrices[:, irow, icol] = scipy.ndimage.median_filter(
-                    matrices[:, irow, icol], size=3, mode="constant", cval=0.0
+                    matrices[:, irow, icol], size=3, mode='constant', cval=0.0
                 )
 
         # export
-        io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices, type="stamps")
+        io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices, type='stamps')
 
     # testing plot
     if make_plots:
@@ -89,13 +89,13 @@ def transform_trial(trial, make_plots):
         axs = axs.flatten()
         for ps_name, axs in zip(trial.transformed_ps_filenames.keys(), axs):
             times, matrices = io.import_matrices(trial.transformed_ps_filenames[ps_name])
-            axs.plot(times, np.sum(matrices, axis=(1, 2)), "k")
+            axs.plot(times, np.sum(matrices, axis=(1, 2)), 'k')
             times, matrices = io.import_matrices(trial.filtered_ps_filenames[ps_name])
-            axs.plot(times, np.sum(matrices, axis=(1, 2)), "r--")
-            axs.set_xlabel("Time, s")
-            axs.set_ylabel("Force, N")
+            axs.plot(times, np.sum(matrices, axis=(1, 2)), 'r--')
+            axs.set_xlabel('Time, s')
+            axs.set_ylabel('Force, N')
             axs.set_title(ps_name)
-        fig.set_suptitle("Trial {}".format(trial.trial_number))
+        fig.set_suptitle('Trial {}'.format(trial.trial_number))
 
 
 def filter_pressure_sensors(
@@ -113,31 +113,31 @@ def filter_pressure_sensors(
         make_plots {bool} --- Makes some inspection figures.
         preset {dict} --- Preset dictionary.
     """
-    logs.setup_logging(temp, sessions_dir=preset["processed_server"])
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(server)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
-        ws("A subset of trials was selected, only the first session will be used.")
+        ws('A subset of trials was selected, only the first session will be used.')
         sessions = sessions[:1]
 
     # sort
     sessions.sort()
-    rs("Found {} sessions: {}".format(len(sessions), ", ".join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
-    for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
+    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
-        rs("Processing session {}.".format(session))
+        rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
-        processed_session = os.path.join(preset["processed_server"], session)
+        processed_session = os.path.join(preset['processed_server'], session)
 
         if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+            ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
@@ -146,8 +146,8 @@ def filter_pressure_sensors(
                 server_session, processed_session
             )
         except Exception as e:
-            ws("Could not load meta data from session {}, skipping.".format(session))
-            ws("Error message: {}".format(e))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Error message: {}'.format(e))
             continue
 
         # accumulate data
@@ -177,12 +177,12 @@ def filter_pressure_sensors(
             continue
 
         rs(
-            "Found {} trials: {}".format(
-                len(trials), ", ".join([str(t.trial_number) for t in trials])
+            'Found {} trials: {}'.format(
+                len(trials), ', '.join([str(t.trial_number) for t in trials])
             )
         )
 
-        os.makedirs(mstruct["pre_ps_dir"], exist_ok=True)
+        os.makedirs(mstruct['pre_ps_dir'], exist_ok=True)
 
         p_args = list(zip(*[trials, [make_plots] * len(trials)]))
 
@@ -201,17 +201,17 @@ def filter_pressure_sensors(
 
             if len(pool.failed_i_jobs) > 0:
                 print()
-                ws("Failed to transform trials:")
+                ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws("\t{}: {}".format(trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append(
-                        "session {} trial {} error: {}".format(
+                        'session {} trial {} error: {}'.format(
                             session, trials[v].trial_number, pool.error_reports[v]
                         )
                     )
 
     if len(failed_trial_reports) > 0:
         print()
-        ws("Failed trials across sessions:")
+        ws('Failed trials across sessions:')
         for failed_trial_report in failed_trial_reports:
-            ws("\t{}".format(failed_trial_report))
+            ws('\t{}'.format(failed_trial_report))

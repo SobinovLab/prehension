@@ -29,17 +29,16 @@ import shutil
 
 
 EXPECTED_PLOT_NAMES = [
-    "AvgCondSuccessMatrix.png",
-    "CondSuccessMatrix.png",
-    "ForceTrace_from_success_grasp_start.png",
-    "ForceTrace_from_ttl_to_reward.png",
-    "Performance.png",
-    "PerformanceLast10Days.png",
+    'AvgCondSuccessMatrix.png',
+    'CondSuccessMatrix.png',
+    'ForceTrace_from_success_grasp_start.png',
+    'ForceTrace_from_ttl_to_reward.png',
+    'Performance.png',
+    'PerformanceLast10Days.png',
 ]
 
 
 def display_session_info(experimental_server_wrappers, training_server_wrappers, clean, last_n):
-
     # Function to format and color the session status
     def format_status(session_path):
         if session_path and os.path.exists(session_path):
@@ -111,7 +110,6 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         )
 
     def can_delete(sw, delete=False):
-
         if not sw.log_full:
             return "no log found"
         logname_full = sw.log_full

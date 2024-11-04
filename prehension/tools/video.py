@@ -68,32 +68,32 @@ def new_make_video(frame_filenames, filename_ou, rate):
         ffmpegio.transcode(
             ffconcat,
             filename_ou,
-            f_in="concat",
+            f_in='concat',
             safe_in=0,
             r_in=rate,
             overwrite=True,  # y=None,  # overwrite
             # show_log=False,  # printing to stdout
             hide_banner=None,
-            loglevel="error",
+            loglevel='error',
             an=None,
             an_in=None,  # no sound for output or input
             **{
-                "r": rate,
-                "codec:v": "h264_nvenc",
-                "pix_fmt": "rgb0",
-                "preset:v": "hq",
-                "profile:v": "high",
-                "rc:v": "vbr",
-                "b:v": 0,
-                "cq:v": 23,
-                "coder": "cabac",
-                "maxrate": "80000k",
+                'r': rate,
+                'codec:v': 'h264_nvenc',
+                'pix_fmt': 'rgb0',
+                'preset:v': 'hq',
+                'profile:v': 'high',
+                'rc:v': 'vbr',
+                'b:v': 0,
+                'cq:v': 23,
+                'coder': 'cabac',
+                'maxrate': '80000k',
             },
         )
 
 
 def make_video(trial, mstruct, clean):
-    camera_serials = list(mstruct["cameras"].keys())
+    camera_serials = list(mstruct['cameras'].keys())
     # HACK because of how images_to_video function was written
     dirname_ou = os.path.split(trial.videos[camera_serials[0]])[0]
 
@@ -103,14 +103,14 @@ def make_video(trial, mstruct, clean):
         # make a video
         frame_filenames = filesystem.get_image_list(path=trial.images_dirnames[camera_serial])
         if len(frame_filenames) == 0:
-            ws(f"Folder {trial.images_dirnames[camera_serial]} has no images.")
+            ws(f'Folder {trial.images_dirnames[camera_serial]} has no images.')
             continue
         # filename_ou = os.path.split(trial.videos[camera_serial])[1]
 
         # ncams.image_tools.images_to_video(
         #     frame_filenames, filename_ou,
         #     fps=mstruct['fps'], output_folder=dirname_ou, logger=None)
-        new_make_video(frame_filenames, trial.videos[camera_serial], mstruct["fps"])
+        new_make_video(frame_filenames, trial.videos[camera_serial], mstruct['fps'])
 
         # copy log
         shutil.copy2(trial.images_logs[camera_serial], trial.videos_logs[camera_serial])
@@ -143,32 +143,32 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
     if clean:
         ws(
             'Coding lock of "clean" function. If you do not know how to remove it, you should try'
-            " to use it."
+            ' to use it.'
         )
         clean = False
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(server)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
-        ws("A subset of trials was selected, only the first session will be used.")
+        ws('A subset of trials was selected, only the first session will be used.')
         sessions = sessions[:1]
 
     # sort
     sessions.sort()
-    rs("Found {} sessions: {}".format(len(sessions), ", ".join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
-    for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
+    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
-        rs("Processing session {}.".format(session))
+        rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
 
         if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+            ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
@@ -177,13 +177,13 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
                 server_session, only_successful_trials=False
             )
         except Exception as e:
-            ws("Could not load meta data from session {}, skipping.".format(session))
-            ws("Error message: {}".format(e))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Error message: {}'.format(e))
             continue
 
         # accumulate data
         trials = []
-        for trial in tqdm.tqdm(msession, ncols=100, desc="Finding trials"):
+        for trial in tqdm.tqdm(msession, ncols=100, desc='Finding trials'):
             if len(trials_sel) != 0 and trial.trial_number not in trials_sel:
                 continue
             if not trial.do_images_dirs_files_exist():
@@ -197,13 +197,13 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
             continue
 
         rs(
-            "Found {} trials: {}".format(
-                len(trials), ", ".join([str(t.trial_number) for t in trials])
+            'Found {} trials: {}'.format(
+                len(trials), ', '.join([str(t.trial_number) for t in trials])
             )
         )
 
         # results will go here
-        os.makedirs(mstruct["videos_dir"], exist_ok=True)
+        os.makedirs(mstruct['videos_dir'], exist_ok=True)
 
         p_args = list(
             zip(*[trials, [copy.deepcopy(mstruct) for _ in trials], [clean for _ in trials]])
@@ -217,20 +217,20 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
 
             if len(pool.failed_i_jobs) > 0:
                 print()
-                ws("Failed trials:")
+                ws('Failed trials:')
                 for v in pool.failed_i_jobs:
-                    ws("\t{}: {}".format(trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append(
-                        "session {} trial {} error: {}".format(
+                        'session {} trial {} error: {}'.format(
                             session, trials[v].trial_number, pool.error_reports[v]
                         )
                     )
 
     if len(failed_trial_reports) > 0:
         print()
-        ws("Failed trials across sessions:")
+        ws('Failed trials across sessions:')
         for failed_trial_report in failed_trial_reports:
-            ws("\t{}".format(failed_trial_report))
+            ws('\t{}'.format(failed_trial_report))
 
 
 def crop_video(ivp, ovp, frame_start, frame_end):
@@ -244,7 +244,7 @@ def crop_video(ivp, ovp, frame_start, frame_end):
 
     # open video for writing
     out = cv2.VideoWriter(
-        ovp, cv2.VideoWriter_fourcc("m", "p", "4", "v"), frame_rate, (img_size[0], img_size[1])
+        ovp, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), frame_rate, (img_size[0], img_size[1])
     )
 
     number_frames = frame_end - frame_start + 1
@@ -288,7 +288,7 @@ class VideoViewInterface:
         for ifile, filename in enumerate(self.filenames):
             if not os.path.isfile(filename):
                 nonexistant_files.append(ifile)
-                warnings.warn(f"File {filename} does not exist, skipping.")
+                warnings.warn(f'File {filename} does not exist, skipping.')
                 continue
 
             self.videos.append(cv2.VideoCapture(filename))
@@ -296,7 +296,7 @@ class VideoViewInterface:
             if np.isnan(self.num_frames):
                 self.num_frames = video_nframes
             elif self.num_frames != video_nframes:
-                warnings.warn("Number of frames in videos does not match, truncating to shortest.")
+                warnings.warn('Number of frames in videos does not match, truncating to shortest.')
                 self.num_frames = min(self.num_frames, video_nframes)
             self.shortnames.append(os.path.basename(filename))
 
@@ -307,7 +307,7 @@ class VideoViewInterface:
             raise ValueError("No videos found.")
 
     def calculate_tiling(self):
-        """calculate n_rows and n_cols from number of videos"""
+        '''calculate n_rows and n_cols from number of videos'''
         n_tot = len(self.videos)
 
         if self.n_cols is None:
@@ -352,12 +352,12 @@ class VideoViewInterface:
                 0.5,
                 0.92,
                 shortname,
-                color="k",
-                ha="center",
-                va="center",
+                color='k',
+                ha='center',
+                va='center',
                 transform=ax.transAxes,
                 zorder=np.inf,
-                bbox={"boxstyle": "round", "fc": (1, 1, 1, 0.75), "ec": (1, 1, 1, 0.75)},
+                bbox={'boxstyle': 'round', 'fc': (1, 1, 1, 0.75), 'ec': (1, 1, 1, 0.75)},
             )
 
             self.video_axes.append(ax)
@@ -367,7 +367,7 @@ class VideoViewInterface:
         video.set(cv2.CAP_PROP_POS_FRAMES, cameraframe)
         fe, frame = video.read()
         if fe is False:
-            warnings.warn(f"Could not read the frame #{cameraframe}.")
+            warnings.warn(f'Could not read the frame #{cameraframe}.')
             return
         frame_rgb = frame[..., ::-1].copy()
         return ax.imshow(frame_rgb)
@@ -401,11 +401,11 @@ class VideoSlider:
         self.ax = self.fig.add_axes(sliderarea)
         self.slider = mpl.widgets.Slider(
             ax=self.ax,
-            label="Frame #",
+            label='Frame #',
             valmin=0,
             valmax=num_frames - 1,
             valinit=initial,
-            valfmt="%d",
+            valfmt='%d',
             dragging=False,
             valstep=1,
         )

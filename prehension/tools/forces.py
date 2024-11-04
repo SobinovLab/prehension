@@ -39,11 +39,11 @@ def load_maps(trial):
     if os.path.exists(trial.lps_map_filename):
         lps_digit_mask = np.array(io.import_one_csv_matrix(trial.lps_map_filename, dtype=int))
     else:
-        raise ValueError("Map does not exist.")
+        raise ValueError('Map does not exist.')
     if os.path.exists(trial.rps_map_filename):
         rps_digit_mask = np.array(io.import_one_csv_matrix(trial.rps_map_filename, dtype=int))
     else:
-        raise ValueError("Map does not exist.")
+        raise ValueError('Map does not exist.')
     return lps_digit_mask, rps_digit_mask
 
 
@@ -51,7 +51,7 @@ def load_forces(mstruct, trial):
     ps_matrices = {}
     matched_contacts = {}
 
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         ps_times, ps_matrices[ps_name] = io.import_matrices(trial.get_post_ps_filenames()[ps_name])
         matched_contacts[ps_name] = io.import_matched_contacts(
             trial.matched_contacts_filenames[ps_name]
@@ -62,8 +62,8 @@ def load_forces(mstruct, trial):
     trial.dt = np.median(dts)
     # for varied dts, for each time point:
     trial.dts = (np.concatenate(([0], dts)) + np.concatenate((dts, [0]))) / 2
-    trial.total_force = np.sum(ps_matrices["medial_sensor"], axis=(1, 2)) + np.sum(
-        ps_matrices["lateral_sensor"], axis=(1, 2)
+    trial.total_force = np.sum(ps_matrices['medial_sensor'], axis=(1, 2)) + np.sum(
+        ps_matrices['lateral_sensor'], axis=(1, 2)
     )
     trial.max_total_force = np.max(trial.total_force)
     trial.summed_force = np.sum(trial.total_force)
@@ -77,7 +77,7 @@ def load_forces(mstruct, trial):
 
     # pool all distances
     trial.pooled_distances = []
-    for mc_fl, mc_fr in zip(matched_contacts["medial_sensor"], matched_contacts["lateral_sensor"]):
+    for mc_fl, mc_fr in zip(matched_contacts['medial_sensor'], matched_contacts['lateral_sensor']):
         # print(sum([mc for mc in mc_fl.values()], []))
         # print(sum([mc for mc in mc_fr.values()], []))
         trial.pooled_distances.append(
@@ -88,12 +88,12 @@ def load_forces(mstruct, trial):
     # load maps
     manual_digit_maps = {}
     # lps_digit_mask, rps_digit_mask  # rigidly set for ps_names
-    (manual_digit_maps["medial_sensor"], manual_digit_maps["lateral_sensor"]) = load_maps(trial)
+    (manual_digit_maps['medial_sensor'], manual_digit_maps['lateral_sensor']) = load_maps(trial)
 
     # find mask-based difference between manual and automatic labels
     mask_based_diff_per_sensor = {}
     unclaimed_force = {}
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         manual_digit_map = manual_digit_maps[ps_name]
         mask_based_diff_per_sensor[ps_name] = []
         unclaimed_force[ps_name] = []
@@ -104,7 +104,7 @@ def load_forces(mstruct, trial):
                 if i_digit == len(constants.DIGITS) - 1:
                     break
                 digit_auto_mask = get_matched_contact_frame_mask(
-                    d["exp"], matched_contacts[ps_name][i_frame], np.shape(manual_digit_map)
+                    d['exp'], matched_contacts[ps_name][i_frame], np.shape(manual_digit_map)
                 )
                 auto_mask[digit_auto_mask] = i_digit
 
@@ -121,13 +121,12 @@ def load_forces(mstruct, trial):
         unclaimed_force[ps_name] = np.array(unclaimed_force[ps_name])
     # sum across sensors
     trial.mask_based_diff = (
-        mask_based_diff_per_sensor["medial_sensor"] + mask_based_diff_per_sensor["lateral_sensor"]
+        mask_based_diff_per_sensor['medial_sensor'] + mask_based_diff_per_sensor['lateral_sensor']
     )
-    trial.unclaimed_force = unclaimed_force["medial_sensor"] + unclaimed_force["lateral_sensor"]
+    trial.unclaimed_force = unclaimed_force['medial_sensor'] + unclaimed_force['lateral_sensor']
 
 
 def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
-
     # Create Input: 2 sets of times, forces
     ps_times1, ps_matrices1 = io.import_tsm_matrix(tsm1_file)
     ps_times2, ps_matrices2 = io.import_tsm_matrix(tsm2_file)
@@ -145,7 +144,7 @@ def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
     med_T = np.median(np.concatenate((np.diff(ps_times1), np.diff(ps_times2))))
 
     if verbose:
-        print(f"Interpolating times with period {med_T:.7f} sec")
+        print(f'Interpolating times with period {med_T:.7f} sec')
 
     # find smallest common time frame for both sensors
     tmin = max([ps_times1[0], ps_times2[0]])

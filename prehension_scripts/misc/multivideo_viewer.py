@@ -28,11 +28,11 @@ from prehension.tools.video import VideoViewInterface, VideoSlider
 
 
 def main():
-    d = r"jarvis_videos\trial1"
-    exts = (".mp4", ".avi")
+    d = r'jarvis_videos\trial1'
+    exts = ('.mp4', '.avi')
     filenames = []
     for ext in exts:
-        filenames += glob.glob(os.path.join(d, "*" + ext))
+        filenames += glob.glob(os.path.join(d, '*' + ext))
 
     fig = plt.figure(figsize=(16, 9))
     fig.canvas.manager.set_window_title(d)
@@ -44,5 +44,5 @@ def main():
     plt.show()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

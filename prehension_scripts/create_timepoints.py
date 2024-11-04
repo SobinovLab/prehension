@@ -64,12 +64,12 @@ if __name__ == "__main__":
         parser, ("sessions", "trials", "temp", "overwrite", "processes", "make_plots")
     )
 
-    parser.add_argument("--store_plots", action="store_true", help="Save plots to disk.")
+    parser.add_argument("--store_plots", action='store_true', help="Save plots to disk.")
     parser.add_argument(
-        "--dont_show_plots", action="store_true", help="Does not show the generated plots."
+        "--dont_show_plots", action='store_true', help="Does not show the generated plots."
     )
     parser.add_argument(
-        "--make_trial_plots", action="store_true", help="Makes more inspection figures."
+        '--make_trial_plots', action='store_true', help='Makes more inspection figures.'
     )
 
     # Plot logic note:

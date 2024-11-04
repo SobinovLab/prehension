@@ -15,8 +15,8 @@ from .. import tools
 from ..materialsio_colors import materialsio_colors_rgb as micolors
 from ..tools import rs, ws
 
-LPS_NAME = "medial_sensor"
-RPS_NAME = "lateral_sensor"
+LPS_NAME = 'medial_sensor'
+RPS_NAME = 'lateral_sensor'
 SHIFT_JUMP = 10
 DIGITS = tools.DIGITS
 UNCLAIMED_NAME = tools.UNCLAIMED_NAME
@@ -31,12 +31,12 @@ def rel_rect_to_fig(rect, figsize):
 
 
 def apply_padding(rect, padding):
-    """Padding inputs:
+    '''Padding inputs:
     <all sides>
     [<all sides>]
     [<horizontal>, <vertical>]
     [<left>, <bottom>, <right>, <top>]
-    """
+    '''
     if isinstance(padding, (int, float)):
         padding = [padding]
     if len(padding) == 1:
@@ -60,7 +60,7 @@ def apply_padding(rect, padding):
             rect[2] - (padding[0] + padding[2]),
             rect[3] - (padding[1] + padding[3]),
         )
-    raise ValueError("Could not recognize format of padding.")
+    raise ValueError('Could not recognize format of padding.')
 
 
 class ForceLabellingInterface:
@@ -68,7 +68,7 @@ class ForceLabellingInterface:
         # generate figure template and axes
         self.fig = plt.figure(figsize=figsize)
         self.fig.canvas.manager.set_window_title(
-            "Force Labelling Trial #{}".format(trial.trial_number)
+            'Force Labelling Trial #{}'.format(trial.trial_number)
         )
         self.show_automatic = show_automatic
 
@@ -145,7 +145,7 @@ class ForceLabellingInterface:
         self.ax_tf = self.fig.add_axes(
             apply_padding((rpl, rpbeh - rpbseh, rpw, rpbseh), (0.05, 0.01, 0.05, 0.04))
         )
-        self.ax_tf.set_ylabel("Total forces, N")
+        self.ax_tf.set_ylabel('Total forces, N')
 
         # matched force
         self.ax_mf = self.fig.add_axes(
@@ -211,24 +211,24 @@ class ForceLabellingInterface:
         self.lps_avg_pressevent = None
         self.rps_avg_pressevent = None
         self.shift = False
-        self.fig.canvas.mpl_connect("button_press_event", self.on_press)
-        self.fig.canvas.mpl_connect("button_release_event", self.on_release)
-        self.fig.canvas.mpl_connect("motion_notify_event", self.on_move)
-        self.fig.canvas.mpl_connect("key_press_event", self.on_key_press)
-        self.fig.canvas.mpl_connect("key_release_event", self.on_key_release)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_press)
+        self.fig.canvas.mpl_connect('button_release_event', self.on_release)
+        self.fig.canvas.mpl_connect('motion_notify_event', self.on_move)
+        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.fig.canvas.mpl_connect('key_release_event', self.on_key_release)
 
     def add_monkey_location(self, x, y):
         fontlocation = os.path.join(
-            "../../../stereo_inverse_kinematics", "common", "NotoEmoji-Regular.ttf"
+            '../../../stereo_inverse_kinematics', 'common', 'NotoEmoji-Regular.ttf'
         )
         if os.path.exists(fontlocation):
             prop = font_manager.FontProperties()
             prop.set_file(fontlocation)
             self.fig.text(
-                x, y, "\U0001F412", ha="center", va="center", size="xx-large", fontproperties=prop
+                x, y, u"\U0001F412", ha='center', va='center', size='xx-large', fontproperties=prop
             )
         else:
-            self.fig.text(x, y, "MONKEY", ha="center", va="center", size="xx-large", rotation=90)
+            self.fig.text(x, y, 'MONKEY', ha='center', va='center', size='xx-large', rotation=90)
 
     def generate_internal_data(self):
         # ps_times should be the same for all
@@ -264,7 +264,7 @@ class ForceLabellingInterface:
             if not os.path.exists(
                 self.trial.matched_contacts_filenames[LPS_NAME]
             ) or not os.path.exists(self.trial.matched_contacts_filenames[RPS_NAME]):
-                ws("One or more of the matched contacts files do not exist.")
+                ws('One or more of the matched contacts files do not exist.')
                 self.show_automatic = False
             else:
                 # load
@@ -285,7 +285,7 @@ class ForceLabellingInterface:
                         np.sum(
                             self.ps_matrices[LPS_NAME][i_frame],
                             where=tools.get_matched_contact_frame_mask(
-                                d["exp"],
+                                d['exp'],
                                 self.matched_contacts[LPS_NAME][i_frame],
                                 (self.nsenselsr, self.nsenselsr),
                             ),
@@ -293,7 +293,7 @@ class ForceLabellingInterface:
                         + np.sum(
                             self.ps_matrices[RPS_NAME][i_frame],
                             where=tools.get_matched_contact_frame_mask(
-                                d["exp"],
+                                d['exp'],
                                 self.matched_contacts[RPS_NAME][i_frame],
                                 (self.nsenselsr, self.nsenselsr),
                             ),
@@ -303,10 +303,10 @@ class ForceLabellingInterface:
 
     def plot_total_force(self):
         self.ax_tf.plot(
-            self.ps_times, self.left_sensor_total, label="Left", color=micolors["orange"][600]
+            self.ps_times, self.left_sensor_total, label='Left', color=micolors['orange'][600]
         )
         self.ax_tf.plot(
-            self.ps_times, self.right_sensor_total, label="Right", color=micolors["blue"][600]
+            self.ps_times, self.right_sensor_total, label='Right', color=micolors['blue'][600]
         )
         self.ax_tf.legend()
         self.ax_tf.set_xlim([self.ps_times[0], self.ps_times[-1]])
@@ -319,8 +319,8 @@ class ForceLabellingInterface:
         if self.show_automatic:
             self.ax_mf.set_xticklabels([])
         else:
-            self.ax_mf.set_xlabel("Time, s")
-        self.ax_mf.set_ylabel("Matched forces, N")
+            self.ax_mf.set_xlabel('Time, s')
+        self.ax_mf.set_ylabel('Matched forces, N')
 
     def setup_automatic_matched_force_figure(self):
         if not self.show_automatic:
@@ -329,25 +329,25 @@ class ForceLabellingInterface:
         # automatically matched forces
         self.ax_mf_auto.set_xlim([self.ps_times[0], self.ps_times[-1]])
         self.ax_mf_auto.set_ylim([0, self.max_sensor_total])
-        self.ax_mf_auto.set_ylabel("Automatically\nmatched forces, N")
+        self.ax_mf_auto.set_ylabel('Automatically\nmatched forces, N')
         self.ax_mf_auto.set_xticklabels([])
 
         # plot
         for ds in self.digit_selectors:
-            if ds["name"] == UNCLAIMED_NAME:
+            if ds['name'] == UNCLAIMED_NAME:
                 continue
             self.ax_mf_auto.plot(
                 self.ps_times,
-                self.total_auto_force_traces[ds["name"]],
-                label=ds["name"],
-                color=ds["c"][600],
+                self.total_auto_force_traces[ds['name']],
+                label=ds['name'],
+                color=ds['c'][600],
             )
 
         # Difference in matched forces
         self.ax_mf_diff.set_xlim([self.ps_times[0], self.ps_times[-1]])
         self.ax_mf_diff.set_ylim([0, self.max_sensor_total])
-        self.ax_mf_diff.set_xlabel("Time, s")
-        self.ax_mf_diff.set_ylabel("Difference in\nmatched forces, N")
+        self.ax_mf_diff.set_xlabel('Time, s')
+        self.ax_mf_diff.set_ylabel('Difference in\nmatched forces, N')
 
     def setup_ps_axes(self):
         self.ax_lps.set_xticks([])
@@ -398,14 +398,14 @@ class ForceLabellingInterface:
     def plot_force_map(self, ax, ps_matrix):
         ps_avg = np.mean(self.force_map_transform(ps_matrix), where=ps_matrix > 0, axis=0)
         ps_avg /= np.nanmax(ps_avg)
-        ax.imshow(ps_avg, vmin=0, vmax=1, cmap="Greys")
+        ax.imshow(ps_avg, vmin=0, vmax=1, cmap='Greys')
         ax.text(
             0.5 * self.nsenselsr,
             0.95 * self.nsenselsr,
-            "OVERVIEW",
-            color=micolors["red"][400],
-            ha="center",
-            va="center",
+            'OVERVIEW',
+            color=micolors['red'][400],
+            ha='center',
+            va='center',
         )
 
     def plot_average_force_map(self):
@@ -416,7 +416,7 @@ class ForceLabellingInterface:
         self.ax_digit_selector.set_xlim([0, 1])
         self.ax_digit_selector.set_ylim([0, 1])
         plt.sca(self.ax_digit_selector)
-        plt.axis("off")
+        plt.axis('off')
 
         # generate digit selectors
         self.digit_selectors = []
@@ -435,21 +435,21 @@ class ForceLabellingInterface:
                 0.5,
                 1 - (padding + (idigit + 0.5) * height),
                 name,
-                color="k",
-                ha="center",
-                va="center",
+                color='k',
+                ha='center',
+                va='center',
             )
             ds_patch = patches.Rectangle(
-                (0, 1 - (padding + (idigit + 1) * height)), 1, height, color=micolors[d["c"]][100]
+                (0, 1 - (padding + (idigit + 1) * height)), 1, height, color=micolors[d['c']][100]
             )
             self.ax_digit_selector.add_patch(ds_patch)
             self.digit_selectors.append(
                 {
-                    "name": name,
-                    "patch": ds_patch,
-                    "patch_text": patch_text,
-                    "c": micolors[d["c"]],
-                    "exp": d["exp"],
+                    'name': name,
+                    'patch': ds_patch,
+                    'patch_text': patch_text,
+                    'c': micolors[d['c']],
+                    'exp': d['exp'],
                 }
             )
 
@@ -458,7 +458,7 @@ class ForceLabellingInterface:
             (self.dt_offset_times[0], 0),
             self.dt_visualize,
             self.max_sensor_total,
-            color=micolors["green"][600],
+            color=micolors['green'][600],
             alpha=0.4,
             zorder=np.inf,
         )
@@ -467,7 +467,7 @@ class ForceLabellingInterface:
             (self.dt_offset_times[0], 0),
             self.dt_visualize,
             self.max_sensor_total,
-            color=micolors["green"][600],
+            color=micolors['green'][600],
             alpha=0.4,
             zorder=np.inf,
         )
@@ -477,22 +477,22 @@ class ForceLabellingInterface:
         self.ax_saveload.set_xlim([0, 1])
         self.ax_saveload.set_ylim([0, 1])
         plt.sca(self.ax_saveload)
-        plt.axis("off")
+        plt.axis('off')
 
         padding = 0.01
         self.ax_saveload.text(
-            0.5, 0.75 - padding, "SAVE", color="k", ha="center", va="center", size="x-large"
+            0.5, 0.75 - padding, 'SAVE', color='k', ha='center', va='center', size='x-large'
         )
-        self.savebtn = patches.Rectangle((0, 0.5), 1, 0.5 - padding, color=micolors["green"][400])
+        self.savebtn = patches.Rectangle((0, 0.5), 1, 0.5 - padding, color=micolors['green'][400])
         self.ax_saveload.add_patch(self.savebtn)
         self.ax_saveload.text(
-            0.5, 0.25, "LOAD", color="k", ha="center", va="center", size="x-large"
+            0.5, 0.25, 'LOAD', color='k', ha='center', va='center', size='x-large'
         )
-        self.loadbtn = patches.Rectangle((0, padding), 1, 0.5 - padding, color=micolors["red"][400])
+        self.loadbtn = patches.Rectangle((0, padding), 1, 0.5 - padding, color=micolors['red'][400])
         self.ax_saveload.add_patch(self.loadbtn)
 
     def display_ps_frame(self, i_frame=None):
-        print("Loading pressure sensor data...", end="")
+        print('Loading pressure sensor data...', end='')
         # self.display_load_msg()
         if i_frame is None:
             i_frame = self.i_frame
@@ -502,34 +502,34 @@ class ForceLabellingInterface:
             self.rps_image.remove()
         matrix = self.ps_matrices[LPS_NAME][i_frame] / self.ps_vmax_d[LPS_NAME]
         self.lps_image = self.ax_lps.imshow(
-            self.force_map_transform(matrix), vmin=0, vmax=1, cmap="Greys"
+            self.force_map_transform(matrix), vmin=0, vmax=1, cmap='Greys'
         )
         if self.show_automatic:
             if self.lps_auto_image is not None:
                 self.lps_auto_image.remove()
             self.lps_auto_image = self.ax_lps_auto.imshow(
-                self.force_map_transform(matrix), vmin=0, vmax=1, cmap="Greys"
+                self.force_map_transform(matrix), vmin=0, vmax=1, cmap='Greys'
             )
         matrix = self.ps_matrices[RPS_NAME][i_frame] / self.ps_vmax_d[RPS_NAME]
         self.rps_image = self.ax_rps.imshow(
-            self.force_map_transform(matrix), vmin=0, vmax=1, cmap="Greys"
+            self.force_map_transform(matrix), vmin=0, vmax=1, cmap='Greys'
         )
         if self.show_automatic:
             if self.rps_auto_image is not None:
                 self.rps_auto_image.remove()
             self.rps_auto_image = self.ax_rps_auto.imshow(
-                self.force_map_transform(matrix), vmin=0, vmax=1, cmap="Greys"
+                self.force_map_transform(matrix), vmin=0, vmax=1, cmap='Greys'
             )
 
         self.fig.canvas.draw()
         # self.clear_ps_msg()
-        print(" Loaded.")
+        print(' Loaded.')
 
     def display_videoframe(self, video, ax, cameraframe):
         video.set(cv2.CAP_PROP_POS_FRAMES, cameraframe)
         fe, frame = video.read()
         if fe is False:
-            print("Could not read the frame #{}.".format(cameraframe))
+            print('Could not read the frame #{}.'.format(cameraframe))
             return
         frame_rgb = frame[..., ::-1].copy()
         return ax.imshow(frame_rgb)
@@ -566,7 +566,7 @@ class ForceLabellingInterface:
             if idigit == UNCLAIMED_INDEX:
                 color = (1, 1, 1)  # white
             else:
-                color = ds["c"][600]
+                color = ds['c'][600]
             lpsdmask = self.lps_digit_mask == idigit
             lps_digit_color_mask[lpsdmask, 0] = color[0]
             lps_digit_color_mask[lpsdmask, 1] = color[1]
@@ -594,9 +594,9 @@ class ForceLabellingInterface:
                 if idigit == UNCLAIMED_INDEX:
                     continue
                 else:
-                    color = ds["c"][600]
+                    color = ds['c'][600]
                 lpsdmask = tools.get_matched_contact_frame_mask(
-                    ds["exp"],
+                    ds['exp'],
                     self.matched_contacts[LPS_NAME][self.i_frame],
                     (self.nsenselsr, self.nsenselsr),
                 )
@@ -605,7 +605,7 @@ class ForceLabellingInterface:
                 lps_digit_color_mask[lpsdmask, 2] = color[2]
 
                 rpsdmask = tools.get_matched_contact_frame_mask(
-                    ds["exp"],
+                    ds['exp'],
                     self.matched_contacts[RPS_NAME][self.i_frame],
                     (self.nsenselsr, self.nsenselsr),
                 )
@@ -629,13 +629,13 @@ class ForceLabellingInterface:
         if self.selected_digit is not None:
             if idigit == self.selected_digit:  # already
                 return
-            self.digit_selectors[self.selected_digit]["patch"].set_color(
-                self.digit_selectors[self.selected_digit]["c"][100]
+            self.digit_selectors[self.selected_digit]['patch'].set_color(
+                self.digit_selectors[self.selected_digit]['c'][100]
             )
         # highlight
         self.selected_digit = idigit
-        self.digit_selectors[self.selected_digit]["patch"].set_color(
-            self.digit_selectors[self.selected_digit]["c"][600]
+        self.digit_selectors[self.selected_digit]['patch'].set_color(
+            self.digit_selectors[self.selected_digit]['c'][600]
         )
         self.fig.canvas.draw()
 
@@ -654,25 +654,25 @@ class ForceLabellingInterface:
         for _ in range(len(self.ax_mf.lines)):
             self.ax_mf.lines.pop(0)
         for tft, ds in zip(self.total_force_traces, self.digit_selectors):
-            self.ax_mf.plot(self.ps_times, tft, label=ds["name"], color=ds["c"][600])
+            self.ax_mf.plot(self.ps_times, tft, label=ds['name'], color=ds['c'][600])
 
         # display info about portion unset
         portion_unset = np.sum(self.total_force_traces[UNCLAIMED_INDEX]) / self.sum_sensor_total
-        self.digit_selectors[UNCLAIMED_INDEX]["patch_text"].set_text(
-            "{} ({:.2%})".format(UNCLAIMED_NAME, portion_unset)
+        self.digit_selectors[UNCLAIMED_INDEX]['patch_text'].set_text(
+            '{} ({:.2%})'.format(UNCLAIMED_NAME, portion_unset)
         )
 
         if self.show_automatic:
             for _ in range(len(self.ax_mf_diff.lines)):
                 self.ax_mf_diff.lines.pop(0)
             for tft, ds in zip(self.total_force_traces, self.digit_selectors):
-                if ds["name"] == UNCLAIMED_NAME:
+                if ds['name'] == UNCLAIMED_NAME:
                     continue
                 self.ax_mf_diff.plot(
                     self.ps_times,
-                    abs(tft - self.total_auto_force_traces[ds["name"]]),
-                    label=ds["name"],
-                    color=ds["c"][600],
+                    abs(tft - self.total_auto_force_traces[ds['name']]),
+                    label=ds['name'],
+                    color=ds['c'][600],
                 )
 
         self.fig.canvas.draw()
@@ -682,18 +682,18 @@ class ForceLabellingInterface:
         self.lps_text = self.ax_lps.text(
             self.nsenselsr / 2,
             self.nsenselsr / 2,
-            "LOADING",
-            color=micolors["red"][600],
-            fontweight="bold",
-            ha="center",
+            'LOADING',
+            color=micolors['red'][600],
+            fontweight='bold',
+            ha='center',
         )
         self.rps_text = self.ax_rps.text(
             self.nsenselsr / 2,
             self.nsenselsr / 2,
-            "LOADING",
-            color=micolors["red"][600],
-            fontweight="bold",
-            ha="center",
+            'LOADING',
+            color=micolors['red'][600],
+            fontweight='bold',
+            ha='center',
         )
         self.fig.canvas.draw()
 
@@ -703,15 +703,15 @@ class ForceLabellingInterface:
         self.fig.canvas.draw()
 
     def export_matched_data(self):
-        column_names = ["time"] + [ds["name"] for ds in self.digit_selectors]
+        column_names = ['time'] + [ds['name'] for ds in self.digit_selectors]
         values = [self.ps_times] + self.total_force_traces
         io_tools.export_csv(self.trial.manually_labelled_filename, column_names, values)
-        print("Exported matched profiles to {}.".format(self.trial.manually_labelled_filename))
+        print('Exported matched profiles to {}.'.format(self.trial.manually_labelled_filename))
 
         io_tools.export_one_csv_matrix(self.trial.lps_map_filename, self.lps_digit_mask)
         io_tools.export_one_csv_matrix(self.trial.rps_map_filename, self.rps_digit_mask)
         print(
-            "Exported left and right pressure sensor masks into {} and {}, respectively.".format(
+            'Exported left and right pressure sensor masks into {} and {}, respectively.'.format(
                 self.trial.lps_map_filename, self.trial.rps_map_filename
             )
         )
@@ -721,12 +721,12 @@ class ForceLabellingInterface:
             self.lps_digit_mask = np.array(
                 io_tools.import_one_csv_matrix(self.trial.lps_map_filename, dtype=int)
             )
-            print("Loaded left pressure sensor map from {}.".format(self.trial.lps_map_filename))
+            print('Loaded left pressure sensor map from {}.'.format(self.trial.lps_map_filename))
         if os.path.exists(self.trial.rps_map_filename):
             self.rps_digit_mask = np.array(
                 io_tools.import_one_csv_matrix(self.trial.rps_map_filename, dtype=int)
             )
-            print("Loaded right pressure sensor map from {}.".format(self.trial.rps_map_filename))
+            print('Loaded right pressure sensor map from {}.'.format(self.trial.rps_map_filename))
 
     def find_square_from_events(self, event1, event2):
         for i_iso, iso in enumerate(self.isensels_offset_x):
@@ -758,7 +758,7 @@ class ForceLabellingInterface:
             self.highlight_pressevent = event
         elif event.inaxes == self.ax_digit_selector:
             for idigit, ds in enumerate(self.digit_selectors):
-                if ds["patch"].contains(event)[0]:
+                if ds['patch'].contains(event)[0]:
                     self.press_selected_digit = idigit
                     break
         elif event.inaxes == self.ax_lps and self.selected_digit is not None:
@@ -784,7 +784,7 @@ class ForceLabellingInterface:
         if self.press_selected_digit is not None:
             if event.inaxes == self.ax_digit_selector:
                 for idigit, ds in enumerate(self.digit_selectors):
-                    if ds["patch"].contains(event)[0]:
+                    if ds['patch'].contains(event)[0]:
                         # if same place where pressed down
                         if idigit == self.press_selected_digit:
                             self.select_digit(idigit)
@@ -867,35 +867,35 @@ class ForceLabellingInterface:
     def on_key_press(self, event):
         update = False
         if self.highlight_pressevent is None:
-            if event.key == "left" and self.i_frame > 0:
+            if event.key == 'left' and self.i_frame > 0:
                 self.i_frame -= 1
                 update = True
-            elif event.key == "shift+left":
+            elif event.key == 'shift+left':
                 if self.i_frame > SHIFT_JUMP - 1:
                     self.i_frame -= SHIFT_JUMP
                     update = True
                 elif self.i_frame > 0:
                     self.i_frame -= 1
                     update = True
-            elif event.key == "right" and self.i_frame + 1 < len(self.dt_offset_times):
+            elif event.key == 'right' and self.i_frame + 1 < len(self.dt_offset_times):
                 self.i_frame += 1
                 update = True
-            elif event.key == "shift+right":
+            elif event.key == 'shift+right':
                 if self.i_frame + SHIFT_JUMP < len(self.dt_offset_times):
                     self.i_frame += SHIFT_JUMP
                     update = True
                 elif self.i_frame + 1 < len(self.dt_offset_times):
                     self.i_frame += 1
                     update = True
-        if event.key == "shift":
+        if event.key == 'shift':
             self.shift = True
-        if event.key == " " or event.key == "s" or event.key == "ctrl+s":
+        if event.key == ' ' or event.key == 's' or event.key == 'ctrl+s':
             self.export_matched_data()
         if update:
             self.update_on_frame_change()
 
     def on_key_release(self, event):
-        if event.key == "shift":
+        if event.key == 'shift':
             self.shift = False
 
 
@@ -906,9 +906,9 @@ def manual_force_labeling(trial, lps_ref_video_filename, rps_ref_video_filename,
     num_frames = int(lps_video.get(cv2.CAP_PROP_FRAME_COUNT))
     rps_video = cv2.VideoCapture(rps_ref_video_filename)
     if fps != int(rps_video.get(cv2.CAP_PROP_FPS)):
-        raise ValueError("Videos FPS do not match.")
+        raise ValueError('Videos FPS do not match.')
     if num_frames != int(rps_video.get(cv2.CAP_PROP_FRAME_COUNT)):
-        warnings.warn("Total number of frames do not match. Truncating to shortest.")
+        warnings.warn('Total number of frames do not match. Truncating to shortest.')
         num_frames = min(num_frames, int(rps_video.get(cv2.CAP_PROP_FRAME_COUNT)))
 
     figsize = (16, 9)
@@ -937,16 +937,16 @@ def manually_label_forces(
     tools.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     if len(session) == 0:
         session = meta_session.find_session_dirs(server)[0]
 
-    rs("Processing session {}.".format(session))
+    rs('Processing session {}.'.format(session))
     server_session = os.path.join(server, session)
 
     if not os.path.exists(server_session):
-        ValueError("Session {} does not exist on the server.".format(session))
+        ValueError('Session {} does not exist on the server.'.format(session))
 
     # load session meta
     mstruct, _, _, msession = meta_session.load_meta_information(server_session)
@@ -958,21 +958,21 @@ def manually_label_forces(
             trial = t
             break
     if trial is None:
-        ValueError("Could not find trial #{}.".format(trial_number))
+        ValueError('Could not find trial #{}.'.format(trial_number))
     if not trial.do_post_ps_files_exist():
-        raise ValueError("Associated processed pressure files do not exist.")
+        raise ValueError('Associated processed pressure files do not exist.')
 
-    os.makedirs(mstruct["manually_labelled_forces_dir"], exist_ok=True)
+    os.makedirs(mstruct['manually_labelled_forces_dir'], exist_ok=True)
 
     lps_ref_video_filename = os.path.join(
-        mstruct["videos_dir"],
-        mstruct["kin_trialname_template"].format(trial_number=trial_number),
-        lps_ref_camera_name + ".mp4",
+        mstruct['videos_dir'],
+        mstruct['kin_trialname_template'].format(trial_number=trial_number),
+        lps_ref_camera_name + '.mp4',
     )
     rps_ref_video_filename = os.path.join(
-        mstruct["videos_dir"],
-        mstruct["kin_trialname_template"].format(trial_number=trial_number),
-        rps_ref_camera_name + ".mp4",
+        mstruct['videos_dir'],
+        mstruct['kin_trialname_template'].format(trial_number=trial_number),
+        rps_ref_camera_name + '.mp4',
     )
 
     manual_force_labeling(trial, lps_ref_video_filename, rps_ref_video_filename, show_automatic)

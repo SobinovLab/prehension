@@ -118,7 +118,6 @@ def create_heatmap_from_trials_list(
         for i, rot in enumerate(unique_rots):
             row = []
             for j, ap in enumerate(unique_aps):
-
                 trials_rot_ap_match = [
                     tr for tr in sub_trial_list if tr.aperture == ap and tr.rotation == rot
                 ]
@@ -151,7 +150,6 @@ def create_heatmap_from_trials_list(
 
     # Loop th over force bins
     for plot_idx, target_force in enumerate(force_bins):
-
         # Get the trials that either fall in the force range or are the exact target force
         if use_force_bins:
             force_range = (target_force[0], target_force[1])
@@ -188,7 +186,6 @@ class SessionGroup:
     """
 
     def __init__(self, l_session_wrappers, group_label=""):
-
         # Filter out sessions with no meta
         self.session_wrappers = [sw for sw in l_session_wrappers if sw.has_meta]
 
@@ -222,7 +219,6 @@ class SessionGroup:
         self._plot_performance()
 
     def _plot_avg_cond_success_matricies(self, sessions=[]):
-
         # First sort all of the session wrappers by ascending datetime
         all_trials = []
 
@@ -251,7 +247,6 @@ class SessionGroup:
         annotate_dates=False,
         savename=None,
     ):
-
         fig, axs = plt.subplots(1, 2, figsize=(15, 7))
         suptitle = (
             f"Training Progress (last {last_n_days_label} days)"
@@ -350,7 +345,6 @@ class SessionGroup:
         plt.close(fig)
 
     def _plot_performance(self):
-
         # dictionary of form -> datetime: list[SessionWrapper]
         session_wrappers_by_date = {}
         for sw in self.session_wrappers:
@@ -411,7 +405,6 @@ class SessionWrapper:
     ]
 
     def __init__(self, raw_ss, proc_ss):
-
         self.raw_ss = raw_ss
         self.proc_ss = proc_ss
 
@@ -433,9 +426,12 @@ class SessionWrapper:
 
         # Load meta
         try:
-            self.mstruct, self.mdof, self.mobject, self.msession = (
-                meta_session.load_meta_information(self.raw_ss, self.proc_ss)
-            )
+            (
+                self.mstruct,
+                self.mdof,
+                self.mobject,
+                self.msession,
+            ) = meta_session.load_meta_information(self.raw_ss, self.proc_ss)
             self.has_meta = True
             if len(self.mstruct["auto_log"]) > 0:
                 self.log_full = self.mstruct["auto_log"][0]
@@ -457,7 +453,6 @@ class SessionWrapper:
     def ensure_transfer_to_training_server(
         self, raw_training_server, proc_training_server, overwrite=False
     ):
-
         if not self.is_training_session:
             return
 
@@ -476,7 +471,6 @@ class SessionWrapper:
             return contents_rel_1, contents_rel_2
 
         def _move_helper(src_session_dir, dst_parent_dir):
-
             # inputs:
             # [src_session_dir] - raw_(experimental)_server_session: the directory to be transferred
             # [dst_parent_dir] - training server destination directory (not a session dir but a dir containing sessions)
@@ -607,7 +601,6 @@ class SessionWrapper:
 
     @staticmethod
     def get_trial_force(trial_info):
-
         # 1. Get tsm data
         latTsmFile = trial_info.filtered_ps_filenames["lateral_sensor"]
         medTsmFile = trial_info.filtered_ps_filenames["medial_sensor"]
@@ -636,7 +629,6 @@ class SessionWrapper:
         processes=os.cpu_count() - 1,
         only_successful_trials=True,
     ):
-
         # 1. get raw tsm data (times and forces) for each trial
         # feed trials from self.msession
         trials_flattened = self.msession[:]
@@ -698,10 +690,8 @@ class SessionWrapper:
 
         # Make a plot for each reference event
         for ref_event in ref_events:
-
             # Bind interpolated forces to each trial (this depends on reference event)
             for trial in trials_flattened:
-
                 if only_successful_trials and not trial.success:
                     continue  # skip failed trial
 

@@ -39,7 +39,7 @@ from ..tools.session_management import apply_to_sessions_helper
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-dll_dir = os.path.join(currentdir, "TekDLL")
+dll_dir = os.path.join(currentdir, 'TekDLL')
 sys.path.append(dll_dir)
 clr.AddReference("TekAPI64")
 from TekAPI import CTekAPI
@@ -53,7 +53,7 @@ def calibrationCheck(f, filename):
     if f.TekIsCalibrated() == CTekAPI.TEK_OK:
         return 0
     else:
-        ws(f"File {fname} is NOT calibrated, aborting.")
+        ws(f'File {fname} is NOT calibrated, aborting.')
         # Calibrations are always saved with a file. This blocker is to
         # make sure the correct calibrations are specified.
         return -1
@@ -63,13 +63,13 @@ def loadTrialLog(trial_log_filename, trials):
     f = pd.read_csv(trial_log_filename)
     trial_timestamps = []
     for trial in trials:
-        row = f[f["trial_num"] == trial].iloc[0]
+        row = f[f['trial_num'] == trial].iloc[0]
         trial_timestamps.append(
             [
-                row["startedRecording(ms)"],
-                row["syncTrialStartTime(ms)"],
-                row["syncTrialEndTime(ms)"],
-                row["finishedRecording(ms)"],
+                row['startedRecording(ms)'],
+                row['syncTrialStartTime(ms)'],
+                row['syncTrialEndTime(ms)'],
+                row['finishedRecording(ms)'],
             ]
         )
     return np.array(trial_timestamps)
@@ -100,7 +100,7 @@ def loadFsxFile(filename):
 
         placeholder = (ctypes.c_float * (rows * cols))()
         retcode, data = handle.TekGetCalibratedFrameData(placeholder, iFrame)
-        assert retcode == 0, f"TekGetCalibratedFrameData[0] = {retcode}"
+        assert retcode == 0, f'TekGetCalibratedFrameData[0] = {retcode}'
 
         data = np.ctypeslib.as_array(data).reshape((rows, cols))
 
@@ -121,7 +121,7 @@ def fsxToTsm(filename, o_filename, trial_timestamps):
     times -= sync_offset
 
     # Export data to TSM format
-    tsm.save(o_filename, "stamps", times, forces, 0.0)
+    tsm.save(o_filename, 'stamps', times, forces, 0.0)
 
 
 def process_trial(trial, trial_timestamp):
@@ -150,12 +150,12 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     try:
         mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
     except Exception as e:
-        ws("Could not load meta data from session {}, skipping.".format(session))
-        ws("Error message: {}".format(e))
+        ws('Could not load meta data from session {}, skipping.'.format(session))
+        ws('Error message: {}'.format(e))
         return
 
-    output_dir = mstruct["transformed_ps_dir"]
-    trial_log_filename = mstruct["ps_log_filename"]
+    output_dir = mstruct['transformed_ps_dir']
+    trial_log_filename = mstruct['ps_log_filename']
     os.makedirs(output_dir, exist_ok=True)
 
     if not os.path.isfile(trial_log_filename):
@@ -186,7 +186,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     if not trials:
         return
 
-    rs("Found {} trials: {}".format(len(trials), ", ".join([str(t.trial_number) for t in trials])))
+    rs('Found {} trials: {}'.format(len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
     trial_timestamps = loadTrialLog(trial_log_filename, [t.trial_number for t in trials])
 
@@ -202,20 +202,20 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
 
         if len(pool.failed_i_jobs) > 0:
             print()
-            ws("Failed to transform trials:")
+            ws('Failed to transform trials:')
             for v in pool.failed_i_jobs:
-                ws("\t{}: {}".format(trials[v].trial_number, pool.error_reports[v]))
+                ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                 failed_trial_reports.append(
-                    "session {} trial {} error: {}".format(
+                    'session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]
                     )
                 )
 
     if len(failed_trial_reports) > 0:
         print()
-        ws("Failed trials across sessions:")
+        ws('Failed trials across sessions:')
         for failed_trial_report in failed_trial_reports:
-            ws("\t{}".format(failed_trial_report))
+            ws('\t{}'.format(failed_trial_report))
 
 
 def preprocess_pressure_sensors(
@@ -237,8 +237,8 @@ def preprocess_pressure_sensors(
 
     # Step 1: process experiment sessions
     apply_to_sessions_helper(
-        current_preset["default_server"],
-        current_preset["processed_server"],
+        current_preset['default_server'],
+        current_preset['processed_server'],
         current_preset,
         temp,
         ppps_helper,
@@ -247,18 +247,18 @@ def preprocess_pressure_sensors(
     )
 
     # Step 2: process training sessions
-    if current_preset["default_training_server"]:
-        ws("No raw training server specified in preset. Skipping...")
+    if current_preset['default_training_server']:
+        ws('No raw training server specified in preset. Skipping...')
         return
 
-    if current_preset["processed_training_server"]:
-        ws("No processed training server specified in preset. Skipping...")
+    if current_preset['processed_training_server']:
+        ws('No processed training server specified in preset. Skipping...')
         return
 
     # Step 2: Process training sessions
     apply_to_sessions_helper(
-        current_preset["default_training_server"],
-        current_preset["processed_training_server"],
+        current_preset['default_training_server'],
+        current_preset['processed_training_server'],
         current_preset,
         temp,
         ppps_helper,

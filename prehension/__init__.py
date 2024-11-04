@@ -1,7 +1,18 @@
 __all__ = [
-    'kinematics', 'kinetics', 'matching', 'pressure_sensors', 'tools', 'validation',
+    'kinematics',
+    'kinetics',
+    'matching',
+    'pressure_sensors',
+    'tools',
+    'validation',
     'visualization',
-    'create_meta', 'find_event_onsets', 'meta_session', 'preset', 'trial_info', 'upload_data']
+    'create_meta',
+    'find_event_onsets',
+    'meta_session',
+    'preset',
+    'trial_info',
+    'upload_data',
+]
 
 from . import kinematics
 from . import kinetics

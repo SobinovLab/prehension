@@ -20,11 +20,11 @@ def load_maps(trial):
     if os.path.exists(trial.lps_map_filename):
         lps_digit_mask = np.array(io_tools.import_one_csv_matrix(trial.lps_map_filename, dtype=int))
     else:
-        raise ValueError("Map does not exist.")
+        raise ValueError('Map does not exist.')
     if os.path.exists(trial.rps_map_filename):
         rps_digit_mask = np.array(io_tools.import_one_csv_matrix(trial.rps_map_filename, dtype=int))
     else:
-        raise ValueError("Map does not exist.")
+        raise ValueError('Map does not exist.')
     return lps_digit_mask, rps_digit_mask
 
 
@@ -32,7 +32,7 @@ def load_forces(mstruct, trial):
     ps_matrices = {}
     matched_contacts = {}
     segments_set = set()
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         ps_times, ps_matrices[ps_name] = io_tools.import_matrices(
             trial.get_post_ps_filenames()[ps_name]
         )
@@ -45,8 +45,8 @@ def load_forces(mstruct, trial):
     trial.dt = np.median(dts)
     # for varied dts, for each time point:
     trial.dts = (np.concatenate(([0], dts)) + np.concatenate((dts, [0]))) / 2
-    trial.total_force = np.sum(ps_matrices["medial_sensor"], axis=(1, 2)) + np.sum(
-        ps_matrices["lateral_sensor"], axis=(1, 2)
+    trial.total_force = np.sum(ps_matrices['medial_sensor'], axis=(1, 2)) + np.sum(
+        ps_matrices['lateral_sensor'], axis=(1, 2)
     )
     trial.max_total_force = np.max(trial.total_force)
     trial.summed_force = np.sum(trial.total_force)
@@ -60,7 +60,7 @@ def load_forces(mstruct, trial):
 
     # pool all distances
     trial.pooled_distances = []
-    for mc_fl, mc_fr in zip(matched_contacts["medial_sensor"], matched_contacts["lateral_sensor"]):
+    for mc_fl, mc_fr in zip(matched_contacts['medial_sensor'], matched_contacts['lateral_sensor']):
         # print(sum([mc for mc in mc_fl.values()], []))
         # print(sum([mc for mc in mc_fr.values()], []))
         trial.pooled_distances.append(
@@ -71,12 +71,12 @@ def load_forces(mstruct, trial):
     # load maps
     manual_digit_maps = {}
     # lps_digit_mask, rps_digit_mask  # rigidly set for ps_names
-    (manual_digit_maps["medial_sensor"], manual_digit_maps["lateral_sensor"]) = load_maps(trial)
+    (manual_digit_maps['medial_sensor'], manual_digit_maps['lateral_sensor']) = load_maps(trial)
 
     # find mask-based difference between manual and automatic labels
     mask_based_diff_per_sensor = {}
     unclaimed_force = {}
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         manual_digit_map = manual_digit_maps[ps_name]
         mask_based_diff_per_sensor[ps_name] = []
         unclaimed_force[ps_name] = []
@@ -87,7 +87,7 @@ def load_forces(mstruct, trial):
                 if i_digit == len(DIGITS) - 1:
                     break
                 digit_auto_mask = tools.get_matched_contact_frame_mask(
-                    d["exp"], matched_contacts[ps_name][i_frame], np.shape(manual_digit_map)
+                    d['exp'], matched_contacts[ps_name][i_frame], np.shape(manual_digit_map)
                 )
                 auto_mask[digit_auto_mask] = i_digit
 
@@ -104,9 +104,9 @@ def load_forces(mstruct, trial):
         unclaimed_force[ps_name] = np.array(unclaimed_force[ps_name])
     # sum across sensors
     trial.mask_based_diff = (
-        mask_based_diff_per_sensor["medial_sensor"] + mask_based_diff_per_sensor["lateral_sensor"]
+        mask_based_diff_per_sensor['medial_sensor'] + mask_based_diff_per_sensor['lateral_sensor']
     )
-    trial.unclaimed_force = unclaimed_force["medial_sensor"] + unclaimed_force["lateral_sensor"]
+    trial.unclaimed_force = unclaimed_force['medial_sensor'] + unclaimed_force['lateral_sensor']
 
 
 TV_DIFF_F = {
@@ -114,28 +114,28 @@ TV_DIFF_F = {
     #     'f': lambda trial: trial.mask_based_diff,
     #     'unit': 'N'
     # },
-    "distances": {"f": lambda trial: trial.pooled_distances, "unit": "m"}
+    'distances': {'f': lambda trial: trial.pooled_distances, 'unit': 'm'}
 }
 DIFF_F = {
-    "misattributed impulse": {
-        "f": lambda trial: np.sum(trial.mask_based_diff * trial.dts),
-        "unit": "N s",
+    'misattributed impulse': {
+        'f': lambda trial: np.sum(trial.mask_based_diff * trial.dts),
+        'unit': 'N s',
     },
-    "normalized misattributed impulse": {
+    'normalized misattributed impulse': {
         # 'f': lambda trial: np.sum(trial.mask_based_diff * trial.dts) / trial.summed_impulse * 100,
         # equivalent to the following, assuming dt is constant
-        "f": lambda trial: np.sum(trial.mask_based_diff) / trial.summed_force * 100,
-        "unit": "%",
+        'f': lambda trial: np.sum(trial.mask_based_diff) / trial.summed_force * 100,
+        'unit': '%',
     },
-    "unclaimed impulse": {
-        "f": lambda trial: np.sum(trial.unclaimed_force * trial.dts),
-        "unit": "N s",
+    'unclaimed impulse': {
+        'f': lambda trial: np.sum(trial.unclaimed_force * trial.dts),
+        'unit': 'N s',
     },
-    "normalized unclaimed impulse": {
+    'normalized unclaimed impulse': {
         # 'f': lambda trial: np.sum(trial.unclaimed_force * trial.dts) / trial.summed_impulse * 100,
         # equivalent to the following, assuming dt is constant
-        "f": lambda trial: np.sum(trial.unclaimed_force) / trial.summed_force * 100,
-        "unit": "%",
+        'f': lambda trial: np.sum(trial.unclaimed_force) / trial.summed_force * 100,
+        'unit': '%',
     },
 }
 
@@ -145,10 +145,10 @@ def calculate_differences(trial):
     trial.differences = {}
 
     for k, v in TV_DIFF_F.items():
-        trial.tv_differences[k] = v["f"](trial)
+        trial.tv_differences[k] = v['f'](trial)
 
     for k, v in DIFF_F.items():
-        trial.differences[k] = v["f"](trial)
+        trial.differences[k] = v['f'](trial)
 
 
 def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_plots, find_good_n):
@@ -166,30 +166,30 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
     tools.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(server)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
-        ws("A subset of trials was selected, only the first session will be used.")
+        ws('A subset of trials was selected, only the first session will be used.')
         sessions = sessions[:1]
 
     # sort
     sessions.sort()
-    rs("Found {} sessions: {}".format(len(sessions), ", ".join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     trials_by_session = {}
     difference_metrics = list(DIFF_F.keys())
     tv_difference_metrics = list(TV_DIFF_F.keys())
 
-    for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
+    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
-        rs("Processing session {}.".format(session))
+        rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
 
         if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+            ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
@@ -198,8 +198,8 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
                 server_session, check_manual_log=True
             )
         except Exception as e:
-            ws("Could not load meta data from session {}, skipping.".format(session))
-            ws("Error message: {}".format(e))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Error message: {}'.format(e))
             continue
 
         # accumulate data
@@ -219,8 +219,8 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
             continue
 
         rs(
-            "Found {} trials: {}".format(
-                len(trials), ", ".join([str(t.trial_number) for t in trials])
+            'Found {} trials: {}'.format(
+                len(trials), ', '.join([str(t.trial_number) for t in trials])
             )
         )
 
@@ -230,8 +230,8 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
                 random.sample(trials, find_good_n), key=lambda t: t.trial_number
             )
             rs(
-                "Selection of {} good trials: {}".format(
-                    find_good_n, ", ".join([str(t.trial_number) for t in good_trials_select])
+                'Selection of {} good trials: {}'.format(
+                    find_good_n, ', '.join([str(t.trial_number) for t in good_trials_select])
                 )
             )
             continue
@@ -240,11 +240,11 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
             continue
 
         # get the force profiles
-        for trial in tqdm.tqdm(trials, ncols=100, desc="Load forces"):
+        for trial in tqdm.tqdm(trials, ncols=100, desc='Load forces'):
             load_forces(mstruct, trial)
 
         # calculate summary statistics per trial
-        for trial in tqdm.tqdm(trials, ncols=100, desc="Calculate differences"):
+        for trial in tqdm.tqdm(trials, ncols=100, desc='Calculate differences'):
             calculate_differences(trial)
 
         # # objects
@@ -254,42 +254,42 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
         #     return object_cmap(object_id / (len(mobject) - 1))
 
         # report on individual trials
-        rs("Individual trial reports")
-        lbls = ["trial number", "object id"] + difference_metrics
-        rs("|".join(["{:20s}".format(lbl) for lbl in lbls]))
+        rs('Individual trial reports')
+        lbls = ['trial number', 'object id'] + difference_metrics
+        rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
         for trial in trials:
-            v = ["{}".format(lbl) for lbl in [trial.trial_number, trial.object_id]]
+            v = ['{}'.format(lbl) for lbl in [trial.trial_number, trial.object_id]]
             values = [trial.differences[dm] for dm in difference_metrics]
-            v += ["{:.4f}".format(value) for value in values]
-            rs("|".join(["{:20s}".format(lbl) for lbl in v]))
+            v += ['{:.4f}'.format(value) for value in values]
+            rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
 
         trials_by_session[session] = trials
 
     if len(trials_by_session) == 0:
-        ws("No sessions processed successfully.")
+        ws('No sessions processed successfully.')
         return
 
     # report together for all sessions
-    rs("Total {} trials.".format(sum([len(trials) for trials in trials_by_session.values()])))
-    rs("Individual trial reports")
-    lbls = ["session", "trial number", "object id"] + difference_metrics
-    rs("|".join(["{:20s}".format(lbl) for lbl in lbls]))
+    rs('Total {} trials.'.format(sum([len(trials) for trials in trials_by_session.values()])))
+    rs('Individual trial reports')
+    lbls = ['session', 'trial number', 'object id'] + difference_metrics
+    rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
     for session, trials in trials_by_session.items():
         for trial in trials:
-            v = ["{}".format(lbl) for lbl in [session, trial.trial_number, trial.object_id]]
+            v = ['{}'.format(lbl) for lbl in [session, trial.trial_number, trial.object_id]]
             values = [trial.differences[dm] for dm in difference_metrics]
-            v += ["{:.4f}".format(value) for value in values]
-            rs("|".join(["{:20s}".format(lbl) for lbl in v]))
+            v += ['{:.4f}'.format(value) for value in values]
+            rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
     # general metrics for all trials together
     for dm, dmv in DIFF_F.items():
-        rs("{}, {}".format(dm, dmv["unit"]))
-        rs("\t{:10} {:>10} {:>10} {:>10} {:>10}".format("mean", "median", "min", "max", "std"))
+        rs('{}, {}'.format(dm, dmv['unit']))
+        rs('\t{:10} {:>10} {:>10} {:>10} {:>10}'.format('mean', 'median', 'min', 'max', 'std'))
         tdd = sum(
             [[trial.differences[dm] for trial in trials] for trials in trials_by_session.values()],
             [],
         )
         rs(
-            "\t{:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}".format(
+            '\t{:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
                 np.mean(tdd), np.median(tdd), np.min(tdd), np.max(tdd), np.std(tdd)
             )
         )
@@ -305,12 +305,12 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
             [[trial.differences[dm] for trial in trials] for trials in trials_by_session.values()],
             [],
         )
-        ax.hist(data, color="k", bins=30)
-        tools.actual_vline(ax, np.median(data), color="r")
-        rs("{} median {} {}.".format(dm, np.median(data), dmv["unit"]))
+        ax.hist(data, color='k', bins=30)
+        tools.actual_vline(ax, np.median(data), color='r')
+        rs('{} median {} {}.'.format(dm, np.median(data), dmv['unit']))
         ax.set_xlim(left=0)
-        ax.set_xlabel("{}, {}".format(dm, dmv["unit"]))
-        ax.set_ylabel("Number of trials")
+        ax.set_xlabel('{}, {}'.format(dm, dmv['unit']))
+        ax.set_ylabel('Number of trials')
 
     # make a figure by pooling all time varying points
     fig = plt.figure(figsize=figsize)
@@ -322,9 +322,9 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
         for trials in trials_by_session.values():
             for trial in trials:
                 data += sum(trial.tv_differences[dm], [])
-        ax.hist(data, color="k", bins=100)
-        tools.actual_vline(ax, np.median(data), color="r")
-        rs("{} median {} {}.".format(dm, np.median(data), dmv["unit"]))
+        ax.hist(data, color='k', bins=100)
+        tools.actual_vline(ax, np.median(data), color='r')
+        rs('{} median {} {}.'.format(dm, np.median(data), dmv['unit']))
         ax.set_xlim(left=0)
-        ax.set_xlabel("{}, {}".format(dm, dmv["unit"]))
-        ax.set_ylabel("Data points")
+        ax.set_xlabel('{}, {}'.format(dm, dmv['unit']))
+        ax.set_ylabel('Data points')

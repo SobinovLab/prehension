@@ -27,20 +27,20 @@ from prehension import preset
 from prehension.tools import cmd_args
 from prehension.create_meta import create_meta
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
-    parser = argparse.ArgumentParser(description=("Creates meta information for a session."))
-    cmd_args.add_default_kwarguments(parser, {"server": current_preset["default_server"]})
-    cmd_args.add_default_arguments(parser, ("temp", "overwrite", "sessions"))
+    parser = argparse.ArgumentParser(description=('Creates meta information for a session.'))
+    cmd_args.add_default_kwarguments(parser, {'server': current_preset['default_server']})
+    cmd_args.add_default_arguments(parser, ('temp', 'overwrite', 'sessions'))
 
     # custom
     parser.add_argument(
-        "--dont_export_roms",
-        dest="export_roms",
-        action="store_false",
-        help="Exports range of motion data from OpenSim model into a convenient CSV meta file."
-        " If this flag is provided, meta_dof is not created.",
+        '--dont_export_roms',
+        dest='export_roms',
+        action='store_false',
+        help='Exports range of motion data from OpenSim model into a convenient CSV meta file.'
+        ' If this flag is provided, meta_dof is not created.',
     )
 
     args = parser.parse_args(args=argv)
@@ -49,4 +49,4 @@ if __name__ == "__main__":
     # NOTE: got rid of sessions argument, now we process all sessions
     create_meta(current_preset, args.temp, args.overwrite, args.export_roms, sessions=args.sessions)
 
-    print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
+    print('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))

@@ -32,7 +32,7 @@ import timed_sparse_matrix as tsm
 def import_matrices(
     filename, equalize_period=-np.inf, rowscols=None, zero_time_start=False, force_positive=False
 ):
-    """Load a CSV or TSM matrix.
+    '''Load a CSV or TSM matrix.
 
     Switches between TSM and CSV based on extension.
 
@@ -50,13 +50,13 @@ def import_matrices(
     Returns:
         times -- [itime]
         matrices -- [itime][irow][icol]
-    """
-    if os.path.splitext(filename)[1] == ".csv":
+    '''
+    if os.path.splitext(filename)[1] == '.csv':
         times, matrices = import_csv_matrix_low(filename, rowscols=rowscols)
-    elif os.path.splitext(filename)[1] == ".tsm":
+    elif os.path.splitext(filename)[1] == '.tsm':
         times, matrices = import_tsm_matrix(filename)
     else:
-        raise ValueError("Unknown file extension: ", filename)
+        raise ValueError('Unknown file extension: ', filename)
 
     # make times start from 0
     if zero_time_start:
@@ -89,7 +89,7 @@ def import_tsm_matrix(filename):
     return times, matrices
 
 
-def export_tsm_matrix(filename, times, matrices, type="stamps"):
+def export_tsm_matrix(filename, times, matrices, type='stamps'):
     tsm.save(filename, type, times, matrices)
 
 
@@ -99,15 +99,15 @@ def import_csv_matrix(*args, **kwargs):
 
 
 def export_csv(filename, column_names, values):
-    """Exports from a structure into a csv file.
+    '''Exports from a structure into a csv file.
 
     Arguments:
         filename {str} -- filename to write.
         column_names {list of M str} -- list of all column names.
         values {list [M][N]} -- list of all column values. First index corresponds to
             column number.
-    """
-    with open(filename, "w", newline="") as f:
+    '''
+    with open(filename, 'w', newline='') as f:
         wrr = csv.writer(f)
 
         wrr.writerow(column_names)
@@ -118,7 +118,7 @@ def export_csv(filename, column_names, values):
 
 
 def import_csv(filename, cast=float):
-    """Imports csv into a simple structure.
+    '''Imports csv into a simple structure.
 
     Arguments:
         filename {str} -- filename to import.
@@ -128,12 +128,12 @@ def import_csv(filename, cast=float):
         column_names {list of M str} -- list of all column names.
         values {list [M][N] of cast type if possible, str otherwise} -- list of all column values.
             First index corresponds to column number.
-    """
+    '''
 
     if not os.path.isfile(filename):
-        raise ValueError("File not found: {filename}")
+        raise ValueError('File not found: {filename}')
 
-    with open(filename, "r") as f:
+    with open(filename, 'r') as f:
         rdr = csv.reader(f)
 
         line = next(rdr)
@@ -160,7 +160,7 @@ def import_csv(filename, cast=float):
 
 
 def import_csv_matrix_low(filename, rowscols=None):
-    """[summary]
+    '''[summary]
 
     TODO probably should be rewritten using csv import functions
 
@@ -177,17 +177,17 @@ def import_csv_matrix_low(filename, rowscols=None):
     Returns:
         times -- [itime]
         matrices -- [itime][irow][icol]
-    """
+    '''
     times = []
     matrices = []
-    with open(filename, "r") as fin:
+    with open(filename, 'r') as fin:
         rdr = csv.reader(fin)
 
         li = next(rdr)
 
         if rowscols is None:
             # extract number of rows and columns from the last element of the first line
-            rows, cols = [int(i) for i in re.findall("[0-9]+", li[-1])]
+            rows, cols = [int(i) for i in re.findall('[0-9]+', li[-1])]
         else:
             if isinstance(rowscols, (list, tuple)):
                 rows = rowscols[0]
@@ -200,8 +200,8 @@ def import_csv_matrix_low(filename, rowscols=None):
         if not len(li) == rows * cols + 1:
             raise ValueError(
                 (
-                    "Number of rows {} and columns {} is inconsistent with the number of"
-                    " columns in CSV file {}."
+                    'Number of rows {} and columns {} is inconsistent with the number of'
+                    ' columns in CSV file {}.'
                 ).format(rows, cols, len(li))
             )
 
@@ -228,15 +228,15 @@ def export_csv_matrix(filename, times, matrices):
     matrices = m_new.reshape((len(times), rows * cols)).transpose()
 
     values = np.concatenate((times.reshape((1, len(times))), matrices), axis=0)
-    column_names = ["times"] + [
-        "r{}c{}".format(r + 1, c + 1) for c in range(cols) for r in range(rows)
+    column_names = ['times'] + [
+        'r{}c{}'.format(r + 1, c + 1) for c in range(cols) for r in range(rows)
     ]
 
     export_csv(filename, column_names, values)
 
 
 def export_one_csv_matrix(filename, matrix):
-    with open(filename, "w", newline="") as f:
+    with open(filename, 'w', newline='') as f:
         wrr = csv.writer(f)
 
         for row in matrix:
@@ -244,7 +244,7 @@ def export_one_csv_matrix(filename, matrix):
 
 
 def import_one_csv_matrix(filename, dtype=float):
-    with open(filename, "r") as f:
+    with open(filename, 'r') as f:
         rdr = csv.reader(f)
 
         values = []
@@ -255,7 +255,7 @@ def import_one_csv_matrix(filename, dtype=float):
 
 def import_matched_contacts(filename):
     matched_contacts = []
-    with open(filename, "r") as fin:
+    with open(filename, 'r') as fin:
         rdr = csv.reader(fin)
 
         for li in rdr:
@@ -263,8 +263,8 @@ def import_matched_contacts(filename):
             for mc in li:
                 if len(mc) == 0:
                     continue
-                indices, hand_segment, dist = mc.split(":")
-                r, c = indices.split(".")
+                indices, hand_segment, dist = mc.split(':')
+                r, c = indices.split('.')
                 if hand_segment not in matched_contacts[-1].keys():
                     matched_contacts[-1][hand_segment] = []
                 matched_contacts[-1][hand_segment].append((int(r), int(c), float(dist)))
@@ -272,7 +272,7 @@ def import_matched_contacts(filename):
 
 
 def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
-    """Imports two columns from a CSV file as a dictionary.
+    '''Imports two columns from a CSV file as a dictionary.
 
     Arguments:
         fname {str} -- CSV filename.
@@ -291,7 +291,7 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
 
     Returns:
         dict -- returns the element from the 'value' column in response to the element
-    """
+    '''
     if key_cast is None:
 
         def key_cast(x):
@@ -303,7 +303,7 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
             x.strip()
 
     dic = {}
-    with open(fname, "r") as f:
+    with open(fname, 'r') as f:
         fd = csv.DictReader(f)
         for li in fd:
             dic[key_cast(li[keyword])] = value_cast(li[value])
@@ -314,11 +314,11 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
 def load_roms(filename, dof_names=None):
     column_names, values = import_csv(filename)
 
-    i_dofname = column_names.index("dof_name")
-    i_rmin = column_names.index("range_min")
-    i_rmax = column_names.index("range_max")
-    if "rotation" in column_names:
-        i_rot = column_names.index("rotation")
+    i_dofname = column_names.index('dof_name')
+    i_rmin = column_names.index('range_min')
+    i_rmax = column_names.index('range_max')
+    if 'rotation' in column_names:
+        i_rot = column_names.index('rotation')
     else:
         i_rot = -1
 
@@ -343,11 +343,11 @@ def load_roms(filename, dof_names=None):
 
 
 def import_triangulated_csv(filename):
-    """Returns data as dictionary:
+    '''Returns data as dictionary:
     bodypart: nFrames X 3
-    """
+    '''
     data = {}
-    with open(filename, "r") as f:
+    with open(filename, 'r') as f:
         rdr = csv.reader(f)
 
         li1 = next(rdr)
@@ -359,7 +359,7 @@ def import_triangulated_csv(filename):
         for li in rdr:
             frame_numbers.append(int(li[0]))
             for i, el in enumerate(li[1:]):
-                data_raw[i].append(float(el) if el != "" else math.nan)
+                data_raw[i].append(float(el) if el != '' else math.nan)
 
     # transform into a dictionary
     for i, (i1, i2) in enumerate(zip(li1[1:], li2[1:])):

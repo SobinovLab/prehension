@@ -1,7 +1,14 @@
 __all__ = [
-    'kinematics', 'matching', 'pressure_sensors', 'misc', 'validation',
-    'create_meta', 'create_timepoints', 'upload_data',
-    'export_digit_forces']
+    'kinematics',
+    'matching',
+    'pressure_sensors',
+    'misc',
+    'validation',
+    'create_meta',
+    'create_timepoints',
+    'upload_data',
+    'export_digit_forces',
+]
 
 from . import kinematics
 from . import matching

@@ -47,7 +47,7 @@ def calculate_force_traces(
                 af += np.sum(
                     filtered_matrices[ps_name][itp],
                     where=tools.get_matched_contact_frame_mask(
-                        d["exp"], matched_contacts[ps_name][atp], shp
+                        d['exp'], matched_contacts[ps_name][atp], shp
                     ),
                 )
             auto_force_traces.append(af)
@@ -61,7 +61,7 @@ def export_forces(trial, mstruct):
     filtered_matrices = {}
     matched_contacts = {}
     segments_set = set()
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         aligned_times, _ = io_tools.import_matrices(trial.aligned_ps_filenames[ps_name])
         filtered_times_local, filtered_matrices[ps_name] = io_tools.import_matrices(
             trial.filtered_ps_filenames[ps_name]
@@ -137,7 +137,7 @@ def export_forces(trial, mstruct):
 
                 else:
                     raise ValueError(
-                        "Length of filtered time stamps does not match between sensors."
+                        'Length of filtered time stamps does not match between sensors.'
                     )
 
         matched_contacts[ps_name] = io_tools.import_matched_contacts(
@@ -151,7 +151,7 @@ def export_forces(trial, mstruct):
 
     io_tools.export_csv(
         trial.digit_forces_filename,
-        ["time"] + names,
+        ['time'] + names,
         [filtered_times] + total_auto_force_traces.tolist(),
     )
 
@@ -170,7 +170,7 @@ def export_forces(trial, mstruct):
 
     io_tools.export_csv(
         trial.segment_forces_filename,
-        ["time"] + names,
+        ['time'] + names,
         [filtered_times] + total_auto_force_traces.tolist(),
     )
 
@@ -189,27 +189,27 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
     tools.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(server)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
-        ws("A subset of trials was selected, only the first session will be used.")
+        ws('A subset of trials was selected, only the first session will be used.')
         sessions = sessions[:1]
 
     # sort
     sessions.sort()
-    rs("Found {} sessions: {}".format(len(sessions), ", ".join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
-    for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
+    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
-        rs("Processing session {}.".format(session))
+        rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
 
         if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+            ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
@@ -218,8 +218,8 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
                 server_session, check_manual_log=True
             )
         except Exception as e:
-            ws("Could not load meta data from session {}, skipping.".format(session))
-            ws("Error message: {}".format(e))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Error message: {}'.format(e))
             continue
 
         # accumulate data
@@ -246,13 +246,13 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
             continue
 
         rs(
-            "Found {} trials: {}".format(
-                len(trials), ", ".join([str(t.trial_number) for t in trials])
+            'Found {} trials: {}'.format(
+                len(trials), ', '.join([str(t.trial_number) for t in trials])
             )
         )
 
-        os.makedirs(mstruct["digit_forces_dir"], exist_ok=True)
-        os.makedirs(mstruct["segment_forces_dir"], exist_ok=True)
+        os.makedirs(mstruct['digit_forces_dir'], exist_ok=True)
+        os.makedirs(mstruct['segment_forces_dir'], exist_ok=True)
 
         p_args = list(
             zip(
@@ -273,17 +273,17 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
 
         if len(pool.failed_i_jobs) > 0:
             print()
-            ws("Failed to transform trials:")
+            ws('Failed to transform trials:')
             for v in pool.failed_i_jobs:
-                ws("\t{}: {}".format(trials[v].trial_number, pool.error_reports[v]))
+                ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                 failed_trial_reports.append(
-                    "session {} trial {} error: {}".format(
+                    'session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]
                     )
                 )
 
     if len(failed_trial_reports) > 0:
         print()
-        ws("Failed trials across sessions:")
+        ws('Failed trials across sessions:')
         for failed_trial_report in failed_trial_reports:
-            ws("\t{}".format(failed_trial_report))
+            ws('\t{}'.format(failed_trial_report))

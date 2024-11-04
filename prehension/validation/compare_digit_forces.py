@@ -16,12 +16,12 @@ from .. import tools
 from ..tools import rs, ws
 
 SEGMENT_DIGIT_GROUPS = {
-    "thumb": lambda v: re.search("[RL]A[0-9][MPD]1_.*", v),
-    "index": lambda v: re.search("[RL]A[0-9][MPD]2_.*", v),
-    "middle": lambda v: re.search("[RL]A[0-9][MPD]3_.*", v),
-    "ring": lambda v: re.search("[RL]A[0-9][MPD]4_.*", v),
-    "pinky": lambda v: re.search("[RL]A[0-9][MPD]5_.*", v),
-    "None": lambda v: True,
+    'thumb': lambda v: re.search('[RL]A[0-9][MPD]1_.*', v),
+    'index': lambda v: re.search('[RL]A[0-9][MPD]2_.*', v),
+    'middle': lambda v: re.search('[RL]A[0-9][MPD]3_.*', v),
+    'ring': lambda v: re.search('[RL]A[0-9][MPD]4_.*', v),
+    'pinky': lambda v: re.search('[RL]A[0-9][MPD]5_.*', v),
+    'None': lambda v: True,
 }
 
 
@@ -29,7 +29,7 @@ def calculate_digit_forces(mstruct, trial):
     ps_matrices = {}
     matched_contacts = {}
     segments_set = set()
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         ps_times, ps_matrices[ps_name] = io_tools.import_matrices(
             trial.get_post_ps_filenames()[ps_name]
         )
@@ -51,7 +51,7 @@ def calculate_digit_forces(mstruct, trial):
     # build up lists of forces per segment
     data = {}
     residual_force = {}
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         # sugar
         ps_matrix = ps_matrices[ps_name]
         matched_sensels = np.zeros(np.shape(ps_matrix), dtype=bool)
@@ -75,7 +75,7 @@ def calculate_digit_forces(mstruct, trial):
 
     # Group the data
     data_digits = {}
-    for ps_name in mstruct["ps_dic"].keys():
+    for ps_name in mstruct['ps_dic'].keys():
         data_digits[ps_name] = [np.zeros(np.shape(ps_times)) for _ in SEGMENT_DIGIT_GROUPS]
         for i_sdg, d in zip(segment_digit_groups, data[ps_name]):
             data_digits[ps_name][i_sdg] = data_digits[ps_name][i_sdg] + d
@@ -87,7 +87,7 @@ def calculate_digit_forces(mstruct, trial):
     # assuming there is two pressure sensors
     for i_sdg, k in enumerate(SEGMENT_DIGIT_GROUPS):
         data_digits_aps[k] = (
-            data_digits["medial_sensor"][i_sdg] + data_digits["lateral_sensor"][i_sdg]
+            data_digits['medial_sensor'][i_sdg] + data_digits['lateral_sensor'][i_sdg]
         )
 
     # store the data
@@ -97,13 +97,13 @@ def calculate_digit_forces(mstruct, trial):
     # assuming time is the same
     # load validation
     v_segnames, v_vals = io_tools.import_csv(trial.manually_labelled_filename)
-    timeindex = v_segnames.index("time")
+    timeindex = v_segnames.index('time')
     v_times = v_vals[timeindex]
     del v_vals[timeindex]
     del v_segnames[timeindex]
     # rename old style
-    if "UNCLAIMED" in v_segnames:
-        v_segnames[v_segnames.index("UNCLAIMED")] = "None"
+    if 'UNCLAIMED' in v_segnames:
+        v_segnames[v_segnames.index('UNCLAIMED')] = 'None'
 
     # store
     trial.manual_digit_forces = {k: v for k, v in zip(v_segnames, v_vals)}
@@ -127,25 +127,25 @@ def calculate_differences(trial):
     total_force_integral = np.sum(dt * total_force[active_period_flag])
 
     # deviation
-    tv_differences["deviation"] = {}
-    tv_differences["normalized deviation"] = {}
-    differences["deviation"] = {}
-    differences["normalized deviation"] = {}
-    differences["integrated deviation"] = {}
-    differences["integrated normed deviation"] = {}
-    differences["rms"] = {}
-    differences["normalized rms"] = {}
-    differences["r"] = {}
-    differences["r2"] = {}
+    tv_differences['deviation'] = {}
+    tv_differences['normalized deviation'] = {}
+    differences['deviation'] = {}
+    differences['normalized deviation'] = {}
+    differences['integrated deviation'] = {}
+    differences['integrated normed deviation'] = {}
+    differences['rms'] = {}
+    differences['normalized rms'] = {}
+    differences['r'] = {}
+    differences['r2'] = {}
     # differences['normalized2 rms'] = {}
-    difference_units["deviation"] = "N"
-    difference_units["normalized deviation"] = "%"
-    difference_units["integrated deviation"] = "N s"
-    difference_units["integrated normed deviation"] = "%"
-    difference_units["rms"] = "N"
-    difference_units["normalized rms"] = "%"
-    difference_units["r"] = "nu"
-    difference_units["r2"] = "nu"
+    difference_units['deviation'] = 'N'
+    difference_units['normalized deviation'] = '%'
+    difference_units['integrated deviation'] = 'N s'
+    difference_units['integrated normed deviation'] = '%'
+    difference_units['rms'] = 'N'
+    difference_units['normalized rms'] = '%'
+    difference_units['r'] = 'nu'
+    difference_units['r2'] = 'nu'
     # difference_units['normalized2 rms'] = '%'
     for digit in trial.digit_forces.keys():
         a_digit_force = np.array(trial.digit_forces[digit])
@@ -154,27 +154,27 @@ def calculate_differences(trial):
         ap_a_df = a_digit_force[active_period_flag]
         ap_m_df = m_digit_force[active_period_flag]
 
-        tv_differences["deviation"][digit] = np.abs(a_digit_force - m_digit_force)
-        differences["deviation"][digit] = np.mean(np.abs(ap_a_df - ap_m_df))
+        tv_differences['deviation'][digit] = np.abs(a_digit_force - m_digit_force)
+        differences['deviation'][digit] = np.mean(np.abs(ap_a_df - ap_m_df))
 
-        tv_differences["normalized deviation"][digit] = (
-            tv_differences["deviation"][digit] / max_total_force
+        tv_differences['normalized deviation'][digit] = (
+            tv_differences['deviation'][digit] / max_total_force
         ) * 100.0
-        differences["normalized deviation"][digit] = (
-            differences["deviation"][digit] / max_total_force
-        ) * 100.0
-
-        differences["integrated deviation"][digit] = np.sum(dt * np.abs(ap_a_df - ap_m_df))
-        differences["integrated normed deviation"][digit] = (
-            differences["integrated deviation"][digit] / total_force_integral
+        differences['normalized deviation'][digit] = (
+            differences['deviation'][digit] / max_total_force
         ) * 100.0
 
-        differences["rms"][digit] = np.sqrt(np.sum(np.square(ap_a_df - ap_m_df)))
-        differences["normalized rms"][digit] = (differences["rms"][digit] / summed_force) * 100.0
+        differences['integrated deviation'][digit] = np.sum(dt * np.abs(ap_a_df - ap_m_df))
+        differences['integrated normed deviation'][digit] = (
+            differences['integrated deviation'][digit] / total_force_integral
+        ) * 100.0
+
+        differences['rms'][digit] = np.sqrt(np.sum(np.square(ap_a_df - ap_m_df)))
+        differences['normalized rms'][digit] = (differences['rms'][digit] / summed_force) * 100.0
 
         res = scipy.stats.linregress(ap_m_df, ap_a_df)
-        differences["r"][digit] = res.rvalue
-        differences["r2"][digit] = res.rvalue**2
+        differences['r'][digit] = res.rvalue
+        differences['r2'][digit] = res.rvalue**2
         # n2rms_f = (np.mean(ap_a_df) + np.mean(ap_m_df)) / 2
         # if n2rms_f < 0.01 * max_total_force:
         #     differences['normalized2 rms'][digit] = 0.
@@ -203,28 +203,28 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
     tools.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(server)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
-        ws("A subset of trials was selected, only the first session will be used.")
+        ws('A subset of trials was selected, only the first session will be used.')
         sessions = sessions[:1]
 
     # sort
     sessions.sort()
-    rs("Found {} sessions: {}".format(len(sessions), ", ".join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     trials_by_session = {}
 
-    for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
+    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
-        rs("Processing session {}.".format(session))
+        rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
 
         if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+            ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
@@ -233,8 +233,8 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                 server_session, check_manual_log=True
             )
         except Exception as e:
-            ws("Could not load meta data from session {}, skipping.".format(session))
-            ws("Error message: {}".format(e))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
+            ws('Error message: {}'.format(e))
             continue
 
         # accumulate data
@@ -254,8 +254,8 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             continue
 
         rs(
-            "Found {} trials: {}".format(
-                len(trials), ", ".join([str(t.trial_number) for t in trials])
+            'Found {} trials: {}'.format(
+                len(trials), ', '.join([str(t.trial_number) for t in trials])
             )
         )
 
@@ -265,8 +265,8 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                 random.sample(trials, find_good_n), key=lambda t: t.trial_number
             )
             rs(
-                "Selection of {} good trials: {}".format(
-                    find_good_n, ", ".join([str(t.trial_number) for t in good_trials_select])
+                'Selection of {} good trials: {}'.format(
+                    find_good_n, ', '.join([str(t.trial_number) for t in good_trials_select])
                 )
             )
             continue
@@ -275,11 +275,11 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             continue
 
         # get the force profiles
-        for trial in tqdm.tqdm(trials, ncols=100, desc="Calculate digit forces"):
+        for trial in tqdm.tqdm(trials, ncols=100, desc='Calculate digit forces'):
             calculate_digit_forces(mstruct, trial)
 
         # calculate summary statistics per trial
-        for trial in tqdm.tqdm(trials, ncols=100, desc="Calculate differences"):
+        for trial in tqdm.tqdm(trials, ncols=100, desc='Calculate differences'):
             calculate_differences(trial)
         difference_metrics = list(trials[0].differences.keys())
 
@@ -290,27 +290,27 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
         figsize = (16, 9)
 
         # objects
-        object_cmap = mpl.cm.get_cmap("gist_rainbow")
+        object_cmap = mpl.cm.get_cmap('gist_rainbow')
 
         def ocmap(object_id):
             return object_cmap(object_id / (len(mobject) - 1))
 
         # report on individual trials
-        rs("Individual trial reports")
-        lbls = ["trial number", "object id"] + difference_metrics
-        rs("|".join(["{:20s}".format(lbl) for lbl in lbls]))
+        rs('Individual trial reports')
+        lbls = ['trial number', 'object id'] + difference_metrics
+        rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
         for trial in trials:
-            v = ["{}".format(lbl) for lbl in [trial.trial_number, trial.object_id]]
+            v = ['{}'.format(lbl) for lbl in [trial.trial_number, trial.object_id]]
             values = [np.mean(list(trial.differences[dm].values())) for dm in difference_metrics]
-            v += ["{:.4f}".format(value) for value in values]
-            rs("|".join(["{:20s}".format(lbl) for lbl in v]))
+            v += ['{:.4f}'.format(value) for value in values]
+            rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
 
         # make plots
         for dm in difference_metrics:
-            rs("{}, {}".format(dm, trials[0].difference_units[dm]))
+            rs('{}, {}'.format(dm, trials[0].difference_units[dm]))
             rs(
-                "\t{:10}: {:>10} {:>10} {:>10} {:>10} {:>10}".format(
-                    "digit", "mean", "median", "min", "max", "std"
+                '\t{:10}: {:>10} {:>10} {:>10} {:>10} {:>10}'.format(
+                    'digit', 'mean', 'median', 'min', 'max', 'std'
                 )
             )
             if make_plots:
@@ -326,12 +326,12 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
 
                 # plot
                 if make_plots:
-                    plt.hist(tdd, color="k")
+                    plt.hist(tdd, color='k')
                     plt.title(digit)
 
                 # report
                 rs(
-                    "\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}".format(
+                    '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
                         digit, np.mean(tdd), np.median(tdd), np.min(tdd), np.max(tdd), np.std(tdd)
                     )
                 )
@@ -339,8 +339,8 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                 [[trial.differences[dm][digit] for trial in trials] for digit in digit_names], []
             )
             rs(
-                "\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}".format(
-                    "TOTAL",
+                '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
+                    'TOTAL',
                     np.mean(tdd_total),
                     np.median(tdd_total),
                     np.min(tdd_total),
@@ -349,9 +349,9 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                 )
             )
             if make_plots:
-                ax.set_xlabel("{}, {}".format(dm, trials[0].difference_units[dm]))
-                ax.set_ylabel("Number of trials")
-                fig.suptitle("{}, session {}".format(dm, session))
+                ax.set_xlabel('{}, {}'.format(dm, trials[0].difference_units[dm]))
+                ax.set_ylabel('Number of trials')
+                fig.suptitle('{}, session {}'.format(dm, session))
 
         # make time-varying plots
         if make_plots:
@@ -375,37 +375,37 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
 
                     plt.title(digit)
 
-                ax.set_ylabel("{}, {}".format(dm, trials[0].difference_units[dm]))
-                ax.set_xlabel("Time, s")
+                ax.set_ylabel('{}, {}'.format(dm, trials[0].difference_units[dm]))
+                ax.set_xlabel('Time, s')
                 plt.sca(ax)
                 for uoi in used_object_ids:
-                    plt.plot(0, 0, color=ocmap(uoi), label="object type #{}".format(uoi))
+                    plt.plot(0, 0, color=ocmap(uoi), label='object type #{}'.format(uoi))
                 plt.legend()
-                fig.suptitle("{}, session {}".format(dm, session))
+                fig.suptitle('{}, session {}'.format(dm, session))
 
         trials_by_session[session] = trials
 
-    if "difference_metrics" not in locals():
-        ws("No sessions processed successfully.")
+    if 'difference_metrics' not in locals():
+        ws('No sessions processed successfully.')
         return
 
     # report together for all sessions
-    rs("Total {} trials.".format(sum([len(trials) for trials in trials_by_session.values()])))
-    rs("Individual trial reports")
-    lbls = ["session", "trial number", "object id"] + difference_metrics
-    rs("|".join(["{:20s}".format(lbl) for lbl in lbls]))
+    rs('Total {} trials.'.format(sum([len(trials) for trials in trials_by_session.values()])))
+    rs('Individual trial reports')
+    lbls = ['session', 'trial number', 'object id'] + difference_metrics
+    rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
     for session, trials in trials_by_session.items():
         for trial in trials:
-            v = ["{}".format(lbl) for lbl in [session, trial.trial_number, trial.object_id]]
+            v = ['{}'.format(lbl) for lbl in [session, trial.trial_number, trial.object_id]]
             values = [np.mean(list(trial.differences[dm].values())) for dm in difference_metrics]
-            v += ["{:.4f}".format(value) for value in values]
-            rs("|".join(["{:20s}".format(lbl) for lbl in v]))
+            v += ['{:.4f}'.format(value) for value in values]
+            rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
     # general metrics for all trials together
     for dm in difference_metrics:
-        rs("{}, {}".format(dm, trials[0].difference_units[dm]))
+        rs('{}, {}'.format(dm, trials[0].difference_units[dm]))
         rs(
-            "\t{:10}: {:>10} {:>10} {:>10} {:>10} {:>10}".format(
-                "digit", "mean", "median", "min", "max", "std"
+            '\t{:10}: {:>10} {:>10} {:>10} {:>10} {:>10}'.format(
+                'digit', 'mean', 'median', 'min', 'max', 'std'
             )
         )
         for i_digit, digit in enumerate(digit_names):
@@ -417,7 +417,7 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                 [],
             )
             rs(
-                "\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}".format(
+                '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
                     digit, np.mean(tdd), np.median(tdd), np.min(tdd), np.max(tdd), np.std(tdd)
                 )
             )
@@ -435,8 +435,8 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             [],
         )
         rs(
-            "\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}".format(
-                "TOTAL",
+            '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
+                'TOTAL',
                 np.mean(tdd_total),
                 np.median(tdd_total),
                 np.min(tdd_total),
@@ -458,9 +458,9 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             ],
             [],
         )
-        ax.hist(data, color="k", bins=30)
-        tools.actual_vline(ax, np.median(data), color="r")
-        rs("{} median {} {}.".format(dm, np.median(data), trials[0].difference_units[dm]))
+        ax.hist(data, color='k', bins=30)
+        tools.actual_vline(ax, np.median(data), color='r')
+        rs('{} median {} {}.'.format(dm, np.median(data), trials[0].difference_units[dm]))
         ax.set_xlim(left=0)
-        ax.set_xlabel("{}, {}".format(dm, trials[0].difference_units[dm]))
-        ax.set_ylabel("Number of trials")
+        ax.set_xlabel('{}, {}'.format(dm, trials[0].difference_units[dm]))
+        ax.set_ylabel('Number of trials')

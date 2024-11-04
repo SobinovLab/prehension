@@ -32,30 +32,30 @@ from .tools import filesystem
 
 # We want to upload the following dirs and folders
 GENERAL_DIRS = (
-    "mujoco_models",
-    "opensim_models",
+    'mujoco_models',
+    'opensim_models',
 )
 
 GENERAL_FILES = ()
 
 # We want to upload the following dirs and folder PER session directory
 SESSION_DIRS = (
-    "aligned_joint_angles",
-    "behavior",
-    "digit_forces",
-    "filtered_sensors",
-    "markers_3D",
-    "matched_contacts",
-    "neural_processed_nwb",
-    "segment_forces",
+    'aligned_joint_angles',
+    'behavior',
+    'digit_forces',
+    'filtered_sensors',
+    'markers_3D',
+    'matched_contacts',
+    'neural_processed_nwb',
+    'segment_forces',
 )
 
 SESSION_FILES = (
-    "meta_dof.csv",
-    "meta_object.csv",
-    "meta_session.csv",
-    "meta_structure.json",
-    "timepoints.csv",
+    'meta_dof.csv',
+    'meta_object.csv',
+    'meta_session.csv',
+    'meta_structure.json',
+    'timepoints.csv',
 )
 
 
@@ -73,10 +73,10 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
     logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     monkey_dir = os.path.basename(os.path.dirname(server))
-    rs("Identified monkey directory {}.".format(monkey_dir))
+    rs('Identified monkey directory {}.'.format(monkey_dir))
     target_dir = os.path.join(target_dir, monkey_dir)
 
     if len(sessions) == 0:
@@ -84,7 +84,7 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
 
     # sort
     sessions.sort()
-    rs("Found {} sessions: {}".format(len(sessions), ", ".join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     start_time = time.time()
     copy_function = filesystem.PrintCopyAccumulateSize(dry_run, 1)
@@ -100,13 +100,13 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
         box=True,
     )
 
-    for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
+    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
-        rs("Processing session {}.".format(session))
+        rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
 
         if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+            ws('Session {} does not exist on the server.'.format(session))
             continue
 
         filesystem.copy_folder_contents(
@@ -121,6 +121,6 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
 
     timedelta = str(datetime.timedelta(seconds=time.time() - start_time))
     if dry_run:
-        rs("In total, found {} files for copying. Search took {}.".format(copy_function, timedelta))
+        rs('In total, found {} files for copying. Search took {}.'.format(copy_function, timedelta))
     else:
-        rs("In total, copied {} files over {}.".format(copy_function, timedelta))
+        rs('In total, copied {} files over {}.'.format(copy_function, timedelta))

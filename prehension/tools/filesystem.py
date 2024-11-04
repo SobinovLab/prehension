@@ -39,22 +39,22 @@ def humanbytes(B):
     TB = float(KB**4)  # 1,099,511,627,776
 
     if B < KB:
-        return "{0} {1}".format(B, "Bytes" if 0 == B > 1 else "Byte")
+        return '{0} {1}'.format(B, 'Bytes' if 0 == B > 1 else 'Byte')
     elif KB <= B < MB:
-        return "{0:.2f} KB".format(B / KB)
+        return '{0:.2f} KB'.format(B / KB)
     elif MB <= B < GB:
-        return "{0:.2f} MB".format(B / MB)
+        return '{0:.2f} MB'.format(B / MB)
     elif GB <= B < TB:
-        return "{0:.2f} GB".format(B / GB)
+        return '{0:.2f} GB'.format(B / GB)
     elif TB <= B:
-        return "{0:.2f} TB".format(B / TB)
+        return '{0:.2f} TB'.format(B / TB)
     else:
-        return "{0:.2f} TB".format(B / TB)
+        return '{0:.2f} TB'.format(B / TB)
 
 
 def print_copy(*args, **kwargs):
     """Simulates shutil.copy, but only prints out the targets."""
-    print("{} -> {}".format(args[0], args[1]))
+    print('{} -> {}'.format(args[0], args[1]))
 
 
 class PrintCopyAccumulateSize:
@@ -212,7 +212,7 @@ def copytree(
         shutil.copystat(src, dst)
     except OSError as why:
         # Copying file access times may fail on Windows
-        if getattr(why, "winerror", None) is None:
+        if getattr(why, 'winerror', None) is None:
             errors.append((src, dst, str(why)))
     if errors:
         raise shutil.Error(errors)
@@ -270,7 +270,7 @@ def copy_folder_contents(
             )
         else:
             if not suppress_warnings:
-                ws(f"Warning: could not find expected directory ({src}) to upload")
+                ws(f'Warning: could not find expected directory ({src}) to upload')
 
     for fname in file_names:
         f_src = os.path.join(src_dir, fname)
@@ -278,7 +278,7 @@ def copy_folder_contents(
 
         if not os.path.isfile(f_src):
             if not suppress_warnings:
-                ws(f"Warning: could not find expected file ({f_src}) to upload")
+                ws(f'Warning: could not find expected file ({f_src}) to upload')
             continue
 
         # Check if the destination file exists
@@ -289,11 +289,11 @@ def copy_folder_contents(
     timedelta = str(datetime.timedelta(seconds=time.time() - start_time))
     # if shutil copy, the report won't be meaningful
     if local_copy_function:
-        rs("Found {} files for copying during {}.".format(copy_function, timedelta))
+        rs('Found {} files for copying during {}.'.format(copy_function, timedelta))
 
 
 def get_image_list(path=None, sort=True):
-    """Returns a list of all image filenames.
+    '''Returns a list of all image filenames.
 
     Wrapper for 'utilities.get_file_list' with file_extensions defined as:
         ('jpg', 'jpeg', 'png', 'bmp')
@@ -303,13 +303,13 @@ def get_image_list(path=None, sort=True):
         sort {bool} -- alphanumeric sort the output list (default: {True})
     Output:
         strings {list of strings} -- list of all image filenames.
-    """
+    '''
 
-    return get_file_list(("jpg", "jpeg", "png", "bmp"), path=path, sort=sort)
+    return get_file_list(('jpg', 'jpeg', 'png', 'bmp'), path=path, sort=sort)
 
 
 def get_file_list(file_extensions, path=None, sort=True):
-    """Returns a list of all filenames with a specific extension.
+    '''Returns a list of all filenames with a specific extension.
 
     Files with extensions .jpg, .jpeg, .png, .bmp are considered images. Searches shell-style for
         <path>/*.<file extension>
@@ -322,21 +322,21 @@ def get_file_list(file_extensions, path=None, sort=True):
         sort {bool} -- alphanumeric sort the output list (default: {True})
     Output:
         strings {list of strings} -- list of all filenames with specified extension.
-    """
+    '''
     if isinstance(file_extensions, str):
         file_extensions = [file_extensions]
 
     if file_extensions is None or len(file_extensions) == 0:
-        file_extensions = ("*",)
+        file_extensions = ('*',)
     else:
-        file_extensions = [ifx.strip(".") for ifx in file_extensions]
+        file_extensions = [ifx.strip('.') for ifx in file_extensions]
 
     files = []
     for file_extension in file_extensions:
         if path is None:
-            files += glob("*." + file_extension)
+            files += glob('*.' + file_extension)
         else:
-            files += glob(os.path.join(path, "*." + file_extension))
+            files += glob(os.path.join(path, '*.' + file_extension))
 
     if sort:
         files = alphanumeric_sort(files)
@@ -345,7 +345,7 @@ def get_file_list(file_extensions, path=None, sort=True):
 
 
 def alphanumeric_sort(strings):
-    """Alphanumeric sorter that considers parts of the numerical parts of the string independently.
+    '''Alphanumeric sorter that considers parts of the numerical parts of the string independently.
 
     For example, 'text9moretext' < 'text10moretext' when using this sorting function.
     Useful for:
@@ -358,12 +358,12 @@ def alphanumeric_sort(strings):
         strings {list of strings} -- list of strings (e.g. filenames to be sorted)
     Output:
         strings {list of strings} -- sorted list of strings
-    """
+    '''
 
     def convert(text):
         return int(text) if text.isdigit() else text
 
     def alphanum_key(key):
-        return [convert(c) for c in re.split("([0-9]+)", key)]
+        return [convert(c) for c in re.split('([0-9]+)', key)]
 
     return sorted(strings, key=alphanum_key)
