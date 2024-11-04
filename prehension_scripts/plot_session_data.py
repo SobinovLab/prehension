@@ -27,10 +27,12 @@ import os
 import sys
 import matplotlib as mpl
 
+from tqdm import tqdm
 from datetime import timedelta
 from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.logs import rs, setup_logging
 from prehension.tools import cmd_args
+from prehension.visualization.session_data_visualization import SessionWrapper, SessionGroup
 from prehension.tools.session_management import (
     does_trianing_servers_exist,
     fetch_server_session_dirs,
@@ -93,7 +95,7 @@ def main(preset, sessions, temp, overwrite, transfer=True):
             experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(
                 preset, sessions, filter=False
             )
-            for sw in tqdm.tqdm(
+            for sw in tqdm(
                 [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs_pre_move]
             ):
                 sw.ensure_transfer_to_training_server(
@@ -117,9 +119,9 @@ def main(preset, sessions, temp, overwrite, transfer=True):
     exp_grp = SessionGroup(exp_session_wrappers, group_label="Experiment")
     train_grp = SessionGroup(train_session_wrappers, group_label="Training")
 
-    exp_grp.do_all_analysis(sessions=sessions)
+    exp_grp.do_all_analysis(overwrite, sessions=sessions)
     rs("\n" * 3 + "=" * 200)
-    train_grp.do_all_analysis(sessions=sessions)
+    train_grp.do_all_analysis(overwrite, sessions=sessions)
 
 
 # Entry

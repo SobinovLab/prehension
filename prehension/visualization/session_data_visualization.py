@@ -198,17 +198,22 @@ class SessionGroup:
         # Group label for tqdm later
         self.group_label = group_label
 
-    def do_all_analysis(self, sessions=[]):
-        self.do_single_sess_analysis(sessions=sessions)
+    def do_all_analysis(self, overwrite, sessions=[]):
+        self.do_single_sess_analysis(overwrite, sessions=sessions)
         self.do_group_analysis(sessions=sessions)
 
-    def do_single_sess_analysis(self, sessions=[]):
+    def do_single_sess_analysis(self, overwrite, sessions=[]):
         # Experiment single sess analysis
         if sessions:
             to_process = [sw for sw in self.session_wrappers if sw.sess_name in sessions]
         else:
             to_process = self.session_wrappers
-        for sw in tqdm.tqdm(to_process, "Plotting Single Session Analysis"):
+
+        if not overwrite:
+            # Filter out folders where plots already exist
+            to_process = [sw for sw in to_process if not sw.has_plots]
+
+        for sw in tqdm(to_process, "Plotting Single Session Analysis"):
             sw.plot_force_trace()
             sw.plot_cond_success_matrix()
 
@@ -221,9 +226,7 @@ class SessionGroup:
         # First sort all of the session wrappers by ascending datetime
         all_trials = []
 
-        for sw in tqdm.tqdm(
-            self.session_wrappers, desc="Plotting Average Conditional Success Matrix"
-        ):
+        for sw in tqdm(self.session_wrappers, desc="Plotting Average Conditional Success Matrix"):
             all_trials += sw.msession  # Extend list of all trials
 
             if sessions:
@@ -370,7 +373,7 @@ class SessionGroup:
             date_l_trial_success_dict[datetime] = trial_success_list_per_date
 
         # Now loop through session wrappers and plot
-        for sw in tqdm.tqdm(self.session_wrappers, desc="Plotting Performance"):
+        for sw in tqdm(self.session_wrappers, desc="Plotting Performance"):
             # Find valid subset of keys within range for each session wrapper
             dates_total = [dt for dt in list(date_l_trial_success_dict.keys()) if dt <= sw.datetime]
             dates_10_day = [dt for dt in dates_total if dt >= sw.datetime - timedelta(days=10)]
@@ -397,6 +400,15 @@ class SessionWrapper:
     - force traces for session
     - conditional success matrix for session
     """
+
+    EXPECTED_PLOT_NAMES = [
+        "AvgCondSuccessMatrix.png",
+        "CondSuccessMatrix.png",
+        "ForceTrace_from_success_grasp_start.png",
+        "ForceTrace_from_ttl_to_reward.png",
+        "Performance.png",
+        "PerformanceLast10Days.png",
+    ]
 
     def __init__(self, raw_ss, proc_ss):
 
@@ -434,6 +446,13 @@ class SessionWrapper:
 
         # Bind conditional data to each trial within msession
         self.attach_fields_to_trials()
+
+    @property
+    def has_plots(self):
+        for fname in SessionWrapper.EXPECTED_PLOT_NAMES:
+            if not os.path.exists(os.path.join(self.results_dir, fname)):
+                return False
+        return True
 
     def ensure_transfer_to_training_server(
         self, raw_training_server, proc_training_server, overwrite=False
@@ -757,7 +776,9 @@ class SessionWrapper:
             filtered_trials = [tr for tr in trials_flattened if hasattr(tr, "force_interped")]
             filtered_trials = [tr for tr in filtered_trials if tr.force_interped is not None]
 
-            assert len(filtered_trials) > 0, "No trials with interpolated force data"
+            if not filtered_trials:
+                ws("No trials with interpolated force data")
+                continue
 
             # Start plotting ...
             # 1. Normal mode (discrete targets)
