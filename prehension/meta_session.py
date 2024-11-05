@@ -153,9 +153,7 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
         if len(manual_log) > 1:
             warnings.warn(
                 'Too many manual session log filenames found: {}. Using first one.'.format(
-                    manual_log
-                )
-            )
+                    manual_log))
             mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
         elif len(manual_log) == 0:
             warnings.warn('Could not find manual session log filenames in {}.'.format(log_rel_dir))
@@ -163,11 +161,9 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
             mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
 
     mstruct['opensim_model_locked_base'] = '{}_locked_{}.osim'.format(
-        mstruct['opensim_model'][:-5], session
-    )
+        mstruct['opensim_model'][:-5], session)
     mstruct['mujoco_model_sensorized'] = '{}_Tessellated_{}.xml'.format(
-        mstruct['mujoco_model'][:-4], session
-    )
+        mstruct['mujoco_model'][:-4], session)
 
     # identify cameras
     if os.path.exists(os.path.join(raw_ss, mstruct['videos_dir'])):
@@ -287,8 +283,7 @@ def import_meta_object(meta_object_path):
             answ[object_id]['def'][odc] = values[column_names.index(odc)][i_object]
         answ[object_id]['sstr'] = ' '.join(str(v) for v in answ[object_id]['def'].values())
         answ[object_id]['str'] = ', '.join(
-            '{}: {}'.format(k, v) for k, v in answ[object_id]['def'].items()
-        )
+            '{}: {}'.format(k, v) for k, v in answ[object_id]['def'].items())
     return answ
 
 
@@ -314,12 +309,9 @@ def import_manual_log(filename):
         raise ValueError('Could not find manual_log in {}'.format(filename))
 
     column_names, values = import_csv(filename, cast=str)
-    mlog = {
-        int(trial_number): code.split(',')
-        for trial_number, code in zip(
-            values[column_names.index('Trial')], values[column_names.index('Code')]
-        )
-    }
+    mlog = {int(trial_number): code.split(',')
+            for trial_number, code in zip(values[column_names.index('Trial')],
+                                          values[column_names.index('Code')])}
     return mlog
 
 
@@ -407,9 +399,8 @@ def load_meta_information(
                 check_manual_log = False
 
     msession = []
-    for i_trial, (trial_number, success, object_id) in enumerate(
-        zip(trial_numbers, successs, object_ids)
-    ):
+    for i_trial, (trial_number, success, object_id) in enumerate(zip(
+            trial_numbers, successs, object_ids)):
         if only_successful_trials and not success:
             continue
         if only_successful_trials and check_manual_log:
