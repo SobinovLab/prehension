@@ -1,11 +1,15 @@
 prehension/pressure_sensors/preprocess_pressure_sensors.py
 prehension/tools/session_management.py
-prehension/visualization/session_visualization.py
+prehension/visualization/session_data_visualization.py
 prehension/visualization/session_status_visualization.py
 prehension_scripts/create_timepoints.py
+prehension_scripts/create_meta.py
 prehension_scripts/display_sessions_status.py
 prehension_scripts/export_digit_forces.py
 prehension_scripts/filter_pressure_sensors.py
 prehension_scripts/kinematics/autolabel_videos.py
 prehension_scripts/kinematics/calibration.py
 prehension_scripts/plot_session_data.py
+prehension\meta_session.py
+prehension\create_meta.py
+prehension\find_event_onsets.py

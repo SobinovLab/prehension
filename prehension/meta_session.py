@@ -26,6 +26,7 @@ import re
 import warnings
 
 from .tools.io import import_csv, export_csv
+from .tools.logs import rs, ws
 from .trial_info import TrialInfo
 
 
@@ -114,18 +115,20 @@ def get_default_meta_structure():
 
 
 # meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
-def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='behavior'):
+def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
     '''If the meta structure dictionary has empty auto_log and manual_log, script searches for them.
     Replacement is done in place.
 
     Also fills mujoco and opensim models, and identifies cameras
     '''
 
+    raw_ss = os.path.normpath(raw_ss)
+
     # Search auto log
     if len(mstruct['auto_log']) == 0:
         # search automatically
         auto_log = glob.glob(os.path.join(
-            raw_dir, log_rel_dir, 'session_*.csv'))
+            raw_ss, log_rel_dir, 'session_*.csv'))
         if len(auto_log) > 1:
             # sort them
             def order(v):
@@ -135,29 +138,34 @@ def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='b
 
             auto_log.sort(key=order)
 
-            warnings.warn('Several session log filenames found: {}'.format(auto_log))
+            warnings.warn(
+                'Several session log filenames found: {}'.format(auto_log))
         elif len(auto_log) == 0:
-            raise ValueError('Could not find auto log session filenames in {}.'.format(raw_dir))
+            raise ValueError(
+                'Could not find auto log session filenames in {}.'.format(raw_ss))
 
-        mstruct['auto_log'] = auto_log  ### SWITCH TO FULL PATH
+        mstruct['auto_log'] = auto_log  # SWITCH TO FULL PATH
 
     # Search manual log
     if len(mstruct['manual_log']) == 0:
         # search automatically
         manual_log = glob.glob(os.path.join(
-            raw_dir, log_rel_dir, '*Daily experiment log - trials*.csv'))
+            raw_ss, log_rel_dir, '*Daily experiment log - trials*.csv'))
         if len(manual_log) == 0:
             manual_log = glob.glob(os.path.join(
-                raw_dir, log_rel_dir, 'Manual_*.csv'))
+                raw_ss, log_rel_dir, 'Manual_*.csv'))
         if len(manual_log) > 1:
             warnings.warn(
                 'Too many manual session log filenames found: {}. Using first one.'.format(
                     manual_log))
-            mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
+            mstruct['manual_log'] = os.path.join(
+                log_rel_dir, os.path.basename(manual_log[0]))
         elif len(manual_log) == 0:
-            warnings.warn('Could not find manual session log filenames in {}.'.format(log_rel_dir))
+            warnings.warn(
+                'Could not find manual session log filenames in {}.'.format(log_rel_dir))
         else:
-            mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
+            mstruct['manual_log'] = os.path.join(
+                log_rel_dir, os.path.basename(manual_log[0]))
 
     mstruct['opensim_model_locked_base'] = '{}_locked_{}.osim'.format(
         mstruct['opensim_model'][:-5], session)
@@ -165,25 +173,27 @@ def fill_meta_structure(mstruct, raw_dir, processed_dir, session, log_rel_dir='b
         mstruct['mujoco_model'][:-4], session)
 
     # identify cameras
-    if os.path.exists(os.path.join(raw_dir, mstruct['videos_dir'])):
+    if os.path.exists(os.path.join(raw_ss, mstruct['videos_dir'])):
         # TODO suboptimal
-        _cameras = glob.glob(os.path.join(raw_dir, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
+        _cameras = glob.glob(os.path.join(
+            raw_ss, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
             try:
                 serial = int(camera[3:-4])
-            except Exception as e:
+            except Exception:
                 continue
             _cameras_dict[serial] = camera[:-4]
     else:
-        _cameras = glob.glob(os.path.join(raw_dir, mstruct['images_dir'], 'cam*'))
+        _cameras = glob.glob(os.path.join(
+            raw_ss, mstruct['images_dir'], 'cam*'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
             try:
                 serial = int(camera[3:])
-            except Exception as e:
+            except Exception:
                 continue
             _cameras_dict[serial] = camera
     mstruct['cameras'] = _cameras_dict
@@ -195,10 +205,15 @@ def normjoinpath(dirname, p):
     return os.path.normpath(os.path.join(dirname, p))
 
 
-def import_meta_structure(raw_dir, proc_dir):
-    filename = os.path.join(proc_dir, 'meta_structure.json')
-    with open(filename, 'r') as f:
+def import_meta_structure(meta_structure_path, raw_dir=None, proc_dir=None):
+
+    assert 'ProcessedData' in meta_structure_path, '{} is not a meta structure path.'.format(
+        meta_structure_path)
+
+    with open(meta_structure_path, 'r') as f:
         mstruct = json.load(f)
+
+    assert 'jarvis_video_dir' in mstruct, 'No jarvis video directory in meta structure.'
 
     # resolve relative paths
     # on processed server
@@ -223,6 +238,7 @@ def import_meta_structure(raw_dir, proc_dir):
 
     def add_key(ptr, d):
         if ptr not in mstruct.keys():
+            print(f'ptr {ptr} not in mstruct @ {f}, not adding key')
             return
         # in case one has multiple elements
         if isinstance(mstruct[ptr], (list, tuple)):
@@ -230,53 +246,26 @@ def import_meta_structure(raw_dir, proc_dir):
         else:
             mstruct[ptr] = normjoinpath(d, mstruct[ptr])
 
-    for ptr in pth_2_resolve_proc:
-        add_key(ptr, proc_dir)
-    for ptr in pth_2_resolve_raw:
-        if ptr in pth_2_resolve_proc:
-            raise Exception(f'Attempting to resolve path for {ptr} twice.')
-        add_key(ptr, raw_dir)
+    if proc_dir is not None:
+        for ptr in pth_2_resolve_proc:
+            add_key(ptr, proc_dir)
+    else:
+        ws(f'No processed directory provided, skipping {len(pth_2_resolve_proc)} paths')
 
-    ###############################################################################################
-    # HACK FOR saving videos
-    ###############################################################################################
-    # should only work for *_camera_copy presets
-    # mojito lhem
-    default_server = os.path.join(
-        r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data', 'Spring_2021',
-        'Recording_sessions', 'Mojito')
-    new_default_server = os.path.join(
-        r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'MojitoLeftHemisphere',
-        'sessions')
-    if default_server in mstruct['videos_dir']:
-        mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
-
-    # pimms rhem
-    default_server = os.path.join(
-        r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data', 'Pimms',
-        'RightHem_Recordings')
-    new_default_server = os.path.join(
-        r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'PimmsRightHemisphere',
-        'sessions')
-    if default_server in mstruct['videos_dir']:
-        mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
-
-    # mojito rhem
-    default_server = os.path.join(
-        r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'Data', 'Mojito',
-        'RightHem_Recordings')
-    new_default_server = os.path.join(
-        r'\\192.170.210.120', 'Data', 'ProjectFolders', 'Prehension', 'MojitoRightHemisphere',
-        'sessions')
-    if default_server in mstruct['videos_dir']:
-        mstruct['videos_dir'] = mstruct['videos_dir'].replace(default_server, new_default_server)
+    if raw_dir is not None:
+        for ptr in pth_2_resolve_raw:
+            if ptr in pth_2_resolve_proc:
+                raise Exception(
+                    f'Attempting to resolve path for {ptr} twice.')
+            add_key(ptr, raw_dir)
+    else:
+        ws(f'No raw directory provided, skipping {len(pth_2_resolve_raw)} paths')
 
     return mstruct
 
 
-def import_meta_object(dirname):
-    filename = os.path.join(dirname, 'meta_object.csv')
-    column_names, values = import_csv(filename)
+def import_meta_object(meta_object_path):
+    column_names, values = import_csv(meta_object_path)
     object_ids = values[column_names.index('id')]
     object_def_columns = [v for v in column_names if v != 'id']
 
@@ -285,7 +274,8 @@ def import_meta_object(dirname):
     for i_object, object_id in enumerate(object_ids):
         answ[object_id] = {'def': {}}
         for odc in object_def_columns:
-            answ[object_id]['def'][odc] = values[column_names.index(odc)][i_object]
+            answ[object_id]['def'][odc] = values[column_names.index(
+                odc)][i_object]
         answ[object_id]['sstr'] = ' '.join(
             str(v) for v in answ[object_id]['def'].values())
         answ[object_id]['str'] = ', '.join(
@@ -293,9 +283,8 @@ def import_meta_object(dirname):
     return answ
 
 
-def import_meta_dof(dirname):
-    filename = os.path.join(dirname, 'meta_dof.csv')
-    column_names, values = import_csv(filename)
+def import_meta_dof(meta_dof_path):
+    column_names, values = import_csv(meta_dof_path)
 
     i_dofname = column_names.index('dof_name')
     i_rmin = column_names.index('range_min')
@@ -311,6 +300,10 @@ def import_meta_dof(dirname):
 
 
 def import_manual_log(filename):
+    if not os.path.isfile(filename):
+        raise ValueError(
+            'Could not find manual_log in {}'.format(filename))
+
     column_names, values = import_csv(filename, cast=str)
     mlog = {int(trial_number): code.split(',')
             for trial_number, code in zip(values[column_names.index('Trial')],
@@ -326,19 +319,64 @@ def _column_pop(k, column_names, values):
     return answ
 
 
+# Custom error class
+class IncompleteMetaError(Exception):
+    def __init__(self, missing_files):
+        self.missing_files = missing_files
+        super().__init__(self._generate_message())
+
+    def _generate_message(self):
+        return self.__str__()
+
+    def __str__(self) -> str:
+        pretty_string = '\n'.join(
+            [os.path.join(*os.path.normpath(f).split(os.sep)[-5:])
+             for f in self.missing_files]
+        )
+        return (f"Incomplete metadata: {len(self.missing_files)} file(s) missing." + "\n"
+                f"Missing files:\n" + pretty_string)
+
+
+def import_all_meta(raw_dir, proc_dir):
+    # Check if proc dir exists
+    if not os.path.isdir(proc_dir):
+        raise ValueError(
+            f'Processed directory {proc_dir} does not exist.')
+
+    assert 'ProcessedData' in proc_dir, 'ProcessedData directory not found in {}'.format(
+        proc_dir)
+
+    meta_structure_path = os.path.join(
+        proc_dir, 'meta_structure.json')
+    meta_dof_path = os.path.join(proc_dir, 'meta_dof.csv')
+    meta_object_path = os.path.join(proc_dir, 'meta_object.csv')
+    meta_session_path = os.path.join(proc_dir, 'meta_session.csv')
+
+    files = [meta_structure_path, meta_dof_path,
+             meta_object_path, meta_session_path]
+    missing_files = [f for f in files if not os.path.isfile(f)]
+
+    if len(missing_files) > 0:
+        raise IncompleteMetaError(missing_files)
+
+    mstruct = import_meta_structure(
+        meta_structure_path, raw_dir=raw_dir, proc_dir=proc_dir)
+    mdof = import_meta_dof(meta_dof_path)
+    mobject = import_meta_object(meta_object_path)
+    msess_cols, msess_values = import_csv(meta_session_path)
+
+    return mstruct, mdof, mobject, msess_cols, msess_values
+
+
 def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
                           check_manual_log=False, session=None):
     # find the session name if it was None
     if session is None:
         session = os.path.basename(raw_dir)
 
-    mstruct = import_meta_structure(raw_dir, proc_dir)
-    mdof = import_meta_dof(proc_dir)
-    mobject = import_meta_object(proc_dir)
-
-    # meta session
-    meta_session_filename = os.path.join(proc_dir, 'meta_session.csv')
-    column_names, values = import_csv(meta_session_filename)
+    # Check all meta exists and load the files
+    mstruct, mdof, mobject, column_names, values = import_all_meta(
+        raw_dir, proc_dir)
 
     # essential trial parameters
     trial_numbers = _column_pop('trial_number', column_names, values)
@@ -348,15 +386,18 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
     # load manual log
     if check_manual_log:
         if mstruct['manual_log'] is None:
-            warnings.warn('No manual log specified in session structure, cannot check it.')
+            warnings.warn(
+                'No manual log specified in session structure, cannot check it.')
             check_manual_log = False
         else:
             try:
                 mlog = import_manual_log(mstruct['manual_log'])
                 # total fail or multigrasp or multireach or ?
-                mlog_failed_numbers = ['0', '2', '3', '4', '5', '?', '14']
+                mlog_failed_numbers = [
+                    '0', '2', '3', '4', '5', '?', '14']
             except Exception as e:
-                warnings.warn('Could not load manual log: {}'.format(repr(e)))
+                warnings.warn(
+                    'Could not load manual log: {}'.format(repr(e)))
                 check_manual_log = False
 
     msession = []
@@ -367,9 +408,10 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
         if only_successful_trials and check_manual_log:
             if any([mfn in mlog[trial_number] for mfn in mlog_failed_numbers]):
                 continue
-        msession.append(TrialInfo(session, trial_number, object_id, success,
-                                  other_info={k: v[i_trial] for k, v in zip(column_names, values)}))
-        msession[-1].generate_filenames(mstruct)
+        trial_info = TrialInfo(session, trial_number, object_id, success,
+                               other_info={k: v[i_trial] for k, v in zip(column_names, values)})
+        trial_info.generate_filenames(mstruct)
+        msession.append(trial_info)
 
     return mstruct, mdof, mobject, msession
 
@@ -378,10 +420,13 @@ def import_adjustment_trials(dirname):
     if not os.path.exists(os.path.join(dirname, 'adjustment_files.csv')):
         return {}
 
-    column_names, values = import_csv(os.path.join(dirname, 'adjustment_files.csv'))
+    column_names, values = import_csv(
+        os.path.join(dirname, 'adjustment_files.csv'))
 
-    trial_numbers = [int(v) for v in values[column_names.index('trial_number')]]
-    adjustment_trials = [int(v) for v in values[column_names.index('adjustment_trial')]]
+    trial_numbers = [int(v)
+                     for v in values[column_names.index('trial_number')]]
+    adjustment_trials = [
+        int(v) for v in values[column_names.index('adjustment_trial')]]
 
     return {k: v for k, v in zip(trial_numbers, adjustment_trials)}
 
@@ -403,7 +448,8 @@ def get_trial_log_info(mstruct, trial_number, column_names):
     # sy_data = np.array(sy_data).transpose()
 
     # TODO check if the trial not in the list
-    row = sy_data[sy_column_names.index('trial_num')].index(trial_number)
+    row = sy_data[sy_column_names.index(
+        'trial_num')].index(trial_number)
 
     column_ids = [sy_column_names.index(cn) for cn in column_names]
 
@@ -420,7 +466,9 @@ def export_optimal_frames(filename, trial_numbers, optimal_frames):
 def import_optimal_frames(filename):
     column_names, values = import_csv(filename)
 
-    trial_numbers = [int(v) for v in values[column_names.index('trial_number')]]
-    optimal_frames = [int(v) for v in values[column_names.index('optimal_frame')]]
+    trial_numbers = [int(v)
+                     for v in values[column_names.index('trial_number')]]
+    optimal_frames = [int(v)
+                      for v in values[column_names.index('optimal_frame')]]
 
     return {k: v for k, v in zip(trial_numbers, optimal_frames)}
