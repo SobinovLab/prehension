@@ -31,11 +31,8 @@ from prehension.visualization.session_data_visualization import SessionWrapper
 from colorama import init
 
 
-preset_names = [
-    'daiquiri_right_hemisphere',
-    'pimms_left_hemisphere_training_k1',
-    'pappy_left_hemisphere_training_v1',
-]
+preset_names = ['daiquiri_right_hemisphere', 'pimms_left_hemisphere_training_k1',
+                'pappy_left_hemisphere_training_v1']
 
 
 def main(args):
@@ -60,9 +57,9 @@ def main(args):
         exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
         train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
 
-        session_status_visualization.display_session_info(
-            exp_session_wrappers, train_session_wrappers, args.clean, args.last
-        )
+        session_status_visualization.display_session_info(exp_session_wrappers,
+                                                          train_session_wrappers,
+                                                          args.clean, args.last)
         print()
         print()
 
