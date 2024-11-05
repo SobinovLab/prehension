@@ -141,8 +141,7 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
         # load session meta
         try:
             mstruct, _, _, msession = meta_session.load_meta_information(
-                server_session, processed_session
-            )
+                server_session, processed_session)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
@@ -181,13 +180,8 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
         # sys.exit()
 
         if len(p_args) > 0:
-            pool = ReportingPool(
-                transform_trial,
-                p_args,
-                processes=processes,
-                report_on_change=True,
-                track_failures=True,
-            )
+            pool = ReportingPool(transform_trial, p_args, processes=processes,
+                                 report_on_change=True, track_failures=True)
             pool.start()
 
             if len(pool.failed_i_jobs) > 0:
