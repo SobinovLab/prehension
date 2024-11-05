@@ -173,7 +173,8 @@ SC_BODY_SCALE = '''
 '''
 
 
-def make_ik_file(filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file, time_range, verbose=0):
+def make_ik_file(filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file, time_range,
+                 verbose=0):
     if ik_xml_str is None:
         ik_xml_str = IK_XML_STR.format(model_file="Unassigned")
     if verbose > 0:

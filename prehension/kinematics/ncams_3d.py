@@ -372,7 +372,8 @@ def triangulate(
     )
 
 
-def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, threshold, do_triangulate, preset):
+def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, threshold,
+                    do_triangulate, preset):
     """Triangulates marker positions from 2D to 3D and creates inverse kinematics files.
 
     Arguments:

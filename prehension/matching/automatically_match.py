@@ -76,15 +76,16 @@ def automatically_match(
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
         trials_sel {int} --- List of trials for processing. If empty, find all unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} -- Number of parallel processes in the pool.
         overwrite {bool} -- Overwrites the created files if they exist.
         executable_filename {str} --- Filename of the executable MuJoCo file.
         visualize {bool} -- Visualize the grasping motion. Disables parallel execution.
-        skip_export {bool} --- Does not export the results. Useful when just trying to visualize the trial,
-            instead of specifying `overwrite`.
+        skip_export {bool} --- Does not export the results. Useful when just trying to visualize
+            the trial, instead of specifying `overwrite`.
         write_video {bool} --- Write video during force matching simulation, when running.
         quality_threshold {float} --- If the unmatched force exceeds this portion of total force,
             the trial will throw  an error. Useful to detect when the model is actually breaking bad.

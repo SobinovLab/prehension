@@ -99,13 +99,16 @@ def transform_trial(trial, make_plots):
         fig.set_suptitle('Trial {}'.format(trial.trial_number))
 
 
-def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overwrite, make_plots, preset):
+def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overwrite, make_plots,
+                            preset):
     """Compare manually-labeled to the automatically-labeled forces using sensor masks.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all
+            unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} --- Number of parallel processes in the pool.
         overwrite {bool} --- Overwrites the created files if they exist.

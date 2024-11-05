@@ -334,8 +334,8 @@ def create_scaling_files(server, session, trial_number, temp, overwrite, period,
         temp {str} --- Folder for local temporary storage.
         overwrite {bool} --- Overwrites the created files if they exist.
         period {float} --- Time period in seconds to use for scaling. If empty, use best estimation.
-        transfer_position {bool} --- Transfer the joint angles that have resulted from IK into the model
-            that is being scaled. Different mode of operation, does not generate scaling files.
+        transfer_position {bool} --- Transfer the joint angles that have resulted from IK into the
+        model that is being scaled. Different mode of operation, does not generate scaling files.
     """
     tools.setup_logging(temp, sessions_dir=server)
 

@@ -120,7 +120,8 @@ def import_logs(dirname, mstruct):
     return sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
 
 
-def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja_data,    sy_ps_column_names, sy_ps_data):
+def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja_data,
+                             sy_ps_column_names, sy_ps_data):
     '''
     This is equivalent to reorder_to_common_trials but instead of the common trials = (protocol U
     camera) U sensor, we exclude the camera overlap if camera logs are empty
@@ -141,7 +142,8 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
                 if trial in last_occurrence:
                     # Store the current index as a duplicate index for this trial number
                     duplicate_indices.setdefault(trial, []).append(index)
-                # Add entry to dict where key is the trial in question and value is the last valid index
+                # Add entry to dict where key is the trial in question and value is the last
+                # valid index
                 last_occurrence[trial] = index
 
             # Include if we want more verbosity at some point

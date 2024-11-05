@@ -212,7 +212,8 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         for failed_trial_report in failed_trial_reports:
             ws('\t{}'.format(failed_trial_report))
 
-def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]):
+def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes,
+                                sessions_sel=[]):
     """Creates meta information for a session.
 
     Arguments:

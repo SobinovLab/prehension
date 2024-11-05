@@ -332,21 +332,24 @@ def tessellate_sensors(
     tree.write(out_model, encoding='UTF-8', xml_declaration=True)
 
 
-def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite, make_mask, tessellate, sense_distance):
+def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite, make_mask, tessellate,
+                         sense_distance):
     """Generates a mask of pressure sensors matrix that highlights activated sensels
     and tessellates model sensors based on it.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all
+            unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         overwrite {bool} --- Overwrites the created files if they exist.
         make_mask {bool} --- Converts.
         tessellate {bool} --- Tessellates the pressure sensors into sensels.
-        sense_distance {float} --- Distance between geom centers for "contact" calculation. Larger values slow down
-            the execution, but low values are too short for relatively large bending bones like metacarpals
-            and large muscle areas like thenar eminence. In meters.
+        sense_distance {float} --- Distance between geom centers for "contact" calculation.
+            Larger values slow down the execution, but low values are too short for relatively large
+            bending bones like metacarpals and large muscle areas like thenar eminence. In meters.
     """
     tools.setup_logging(temp, sessions_dir=server)
 
