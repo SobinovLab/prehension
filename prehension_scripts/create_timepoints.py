@@ -55,9 +55,8 @@ if __name__ == "__main__":
     # Add arguments
     preset_name, current_preset, argv = preset.process_args_for_preset()
 
-    parser = argparse.ArgumentParser(
-        description="Outputs a csv of movement onset times for each session"
-    )
+    parser = argparse.ArgumentParser(description=("Outputs a csv of movement onset times "
+                                                  " for each session"))
 
     cmd_args.add_default_kwarguments(parser, {"server": current_preset["default_server"]})
     cmd_args.add_default_arguments(parser, ("sessions", "trials", "temp", "overwrite", "processes",
@@ -78,16 +77,7 @@ if __name__ == "__main__":
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    find_event_onsets(
-        current_preset,
-        args.sessions,
-        args.trials,
-        args.temp,
-        args.overwrite,
-        args.processes,
-        args.make_plots,
-        args.store_plots,
-        args.make_trial_plots,
-        not args.dont_show_plots,
-    )
+    find_event_onsets(current_preset, args.sessions, args.trials, args.temp, args.overwrite,
+                      args.processes, args.make_plots, args.store_plots, args.make_trial_plots,
+                      not args.dont_show_plots)
     rs("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
