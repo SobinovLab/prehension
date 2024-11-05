@@ -47,13 +47,7 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
     start_time = time.time()
 
-    ppps.preprocess_pressure_sensors(
-        current_preset,
-        args.trials,
-        args.temp,
-        args.overwrite,
-        args.processes,
-        sessions_sel=args.sessions,
-    )
+    ppps.preprocess_pressure_sensors(current_preset, args.trials, args.temp, args.overwrite,
+                                     args.processes, sessions_sel=args.sessions)
 
     print('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))
