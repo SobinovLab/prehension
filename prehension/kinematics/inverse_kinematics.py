@@ -173,9 +173,7 @@ SC_BODY_SCALE = '''
 '''
 
 
-def make_ik_file(
-    filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file, time_range, verbose=0
-):
+def make_ik_file(filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file, time_range, verbose=0):
     if ik_xml_str is None:
         ik_xml_str = IK_XML_STR.format(model_file="Unassigned")
     if verbose > 0:
@@ -294,8 +292,7 @@ def triangulated_to_trc(
     frame_range=None,
     rotation=None,
     verbose=0,
-    reflect=False,
-):
+    reflect=False):
     '''Transforms triangulated data from NCams/DLC format into OpenSim trc.
 
     Arguments:

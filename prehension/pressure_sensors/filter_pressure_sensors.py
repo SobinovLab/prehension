@@ -99,9 +99,7 @@ def transform_trial(trial, make_plots):
         fig.set_suptitle('Trial {}'.format(trial.trial_number))
 
 
-def filter_pressure_sensors(
-    server, sessions, trials_sel, temp, processes, overwrite, make_plots, preset
-):
+def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overwrite, make_plots, preset):
     """Compare manually-labeled to the automatically-labeled forces using sensor masks.
 
     Arguments:

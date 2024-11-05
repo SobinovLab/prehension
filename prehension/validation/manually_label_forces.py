@@ -891,9 +891,7 @@ def manual_force_labeling(trial, lps_ref_video_filename, rps_ref_video_filename,
     plt.show()
 
 
-def manually_label_forces(
-    server, session, trial_number, temp, lps_ref_camera_name, rps_ref_camera_name, show_automatic
-):
+def manually_label_forces(server, session, trial_number, temp, lps_ref_camera_name, rps_ref_camera_name, show_automatic):
     """Opens a GUI to manually assign sensels to digits.
 
     Arguments:

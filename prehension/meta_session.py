@@ -377,8 +377,7 @@ def import_all_meta(raw_dir, proc_dir):
 
 
 def load_meta_information(
-    raw_dir, proc_dir, only_successful_trials=False, check_manual_log=False, session=None
-):
+    raw_dir, proc_dir, only_successful_trials=False, check_manual_log=False, session=None):
     # find the session name if it was None
     if session is None:
         session = os.path.basename(raw_dir)

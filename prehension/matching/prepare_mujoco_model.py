@@ -144,8 +144,7 @@ def tessellate_sensor(
     leave_edges=False,
     inverse_x=False,
     inverse_y=False,
-    switch_xy=False,
-):
+    switch_xy=False):
     att = wb.find(".//body[@name='{}']".format(name))
     if att is None:
         raise ValueError('Did not find the pressure sensor {}.'.format(name))
@@ -230,8 +229,7 @@ def tessellate_sensors(
     right_color=(0.129, 0.588, 0.952, 1),
     left_ps_mask_filename=None,
     right_ps_mask_filename=None,
-    geoms_contact_floor=('Thorax_thorax', 'LPS_base_geom', 'RPS_base_geom'),
-):
+    geoms_contact_floor=('Thorax_thorax', 'LPS_base_geom', 'RPS_base_geom')):
     tree = ET.parse(mjc_model)
     root = tree.getroot()
     if root.tag != 'mujoco':
@@ -334,9 +332,7 @@ def tessellate_sensors(
     tree.write(out_model, encoding='UTF-8', xml_declaration=True)
 
 
-def prepare_mujoco_model(
-    server, sessions, trials_sel, temp, overwrite, make_mask, tessellate, sense_distance
-):
+def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite, make_mask, tessellate, sense_distance):
     """Generates a mask of pressure sensors matrix that highlights activated sensels
     and tessellates model sensors based on it.
 

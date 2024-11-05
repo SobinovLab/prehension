@@ -18,9 +18,7 @@ UNCLAIMED_NAME = constants.UNCLAIMED_NAME
 UNCLAIMED_INDEX = constants.UNCLAIMED_INDEX
 
 
-def calculate_force_traces(
-    trial, aligned_times, filtered_times, filtered_matrices, matched_contacts, groups
-):
+def calculate_force_traces(trial, aligned_times, filtered_times, filtered_matrices, matched_contacts, groups):
     # find the closest timepoints in filtered times to aligned times
     aligned_timepoints = []
     atp = 0

@@ -44,9 +44,7 @@ from prehension.tools.forces import get_summed_force_data
 from tqdm import tqdm
 
 
-def create_heatmap_from_trials_list(
-    tr_list, cmap, max_discrete_conds=9, bin_width_N=1, savename=None
-):
+def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_width_N=1, savename=None):
     """create performance heatmap from a list of trials
 
     Args:

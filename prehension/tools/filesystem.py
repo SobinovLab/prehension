@@ -86,8 +86,7 @@ def copytree(
     make_dir=True,
     dir_exist_ok=False,
     overwrite_existing=None,
-    verbose=False,
-):
+    verbose=False):
     """Recursively copy a directory tree.
 
     ADAPTED from shutil.py function. Changes:
@@ -245,8 +244,7 @@ def copy_folder_contents(
     dry_run=False,
     copy_function=None,
     box=False,
-    overwrite=False,
-):
+    overwrite=False):
     start_time = time.time()
     if copy_function is None:
         local_copy_function = True

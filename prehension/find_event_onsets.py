@@ -253,9 +253,7 @@ def get_abs_normed_velocity(position_data):
     return vels
 
 
-def find_velocity_threshold_crossing_time(
-    time_ax, ja_columns, thresh_dec, ax=None, title=None, col_names=None, from_minima=False
-):
+def find_velocity_threshold_crossing_time(time_ax, ja_columns, thresh_dec, ax=None, title=None, col_names=None, from_minima=False):
     """
     Create velocity data from a set of joint-angle columns per timestep.
     Return a list of pairs of points that cross above and below the given threshold of the max.
@@ -503,8 +501,7 @@ def find_grasp_events(
     onset_thresh,
     offset_thresh,
     min_grasp_time_s=None,
-    merge_gaps_less_than=None,
-):
+    merge_gaps_less_than=None):
     """
     Find grasp events in a dataset of force measurements.
 
@@ -669,8 +666,7 @@ def find_return_to_init_position(
     last_grasp_end,
     df,
     time_ax,
-    ax,
-):
+    ax):
     init_pos_cols = [df[col_name].values for col_name in PREGRASP_POSITION_JAS]
 
     def get_vector(t):
@@ -787,8 +783,7 @@ def find_trial_timepoints(
     trial,
     make_trial_plots,
     pregrasp_movement_window_s=1,
-    postgrasp_return_window_s=3,
-):
+    postgrasp_return_window_s=3):
     """
     Create a list of timepoints for a single trial (TrialInfo) to track various events and onsets.
 
@@ -940,8 +935,7 @@ def create_plot_from_dictionary(
     grasp_pairs=None,
     on_off_thresholds=None,
     time_ax=None,
-    normed_force_data=None,
-):
+    normed_force_data=None):
     fig, ax = plt.subplots(figsize=FIGSIZE)
     # Choose a colormap
     cmap = plt.get_cmap('brg')
@@ -1013,8 +1007,7 @@ def find_event_onsets(
     make_plots,
     store_plots,
     make_trial_plots,
-    show_plots,
-):
+    show_plots):
     """Outputs a csv of movement onset times for each session.
 
     Arguments:

@@ -19,8 +19,7 @@ def match_trial(
     skip_export,
     write_video,
     quality_threshold,
-    verbose,
-):
+    verbose):
     # unpack
     ja_filename = trial.post_kinematic_filename_csv
     post_ps_filenames = trial.get_post_ps_filenames()
@@ -72,8 +71,7 @@ def automatically_match(
     skip_export,
     write_video,
     quality_threshold,
-    verbose,
-):
+    verbose):
     """Automatically matches sensels with hand segments using MuJoCo program.
 
     Arguments:

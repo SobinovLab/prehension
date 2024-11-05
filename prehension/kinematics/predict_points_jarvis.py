@@ -307,8 +307,7 @@ def predict_points_jarvis(
     processes,
     predict,
     transform,
-    make_videos,
-):
+    make_videos):
     """Runs a trained Jarvis model on videos generating 3D points and IK files.
 
     Arguments:

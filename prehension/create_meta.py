@@ -120,9 +120,7 @@ def import_logs(dirname, mstruct):
     return sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
 
 
-def reorder_to_common_trials(
-    sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
-):
+def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja_data,    sy_ps_column_names, sy_ps_data):
     '''
     This is equivalent to reorder_to_common_trials but instead of the common trials = (protocol U
     camera) U sensor, we exclude the camera overlap if camera logs are empty

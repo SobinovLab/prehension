@@ -29,9 +29,7 @@ import numpy as np
 import timed_sparse_matrix as tsm
 
 
-def import_matrices(
-    filename, equalize_period=-np.inf, rowscols=None, zero_time_start=False, force_positive=False
-):
+def import_matrices(filename, equalize_period=-np.inf, rowscols=None, zero_time_start=False, force_positive=False):
     '''Load a CSV or TSM matrix.
 
     Switches between TSM and CSV based on extension.

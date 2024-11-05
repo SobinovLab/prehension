@@ -51,9 +51,7 @@ PROXIMAL_MARKERS = ('M_SternumTop', 'M_SternumBot', 'M_RScapulaAnt', 'M_RScapula
 PS_CENTROID_RADIUS = 80
 
 
-def analyze_videos(
-    server, sessions, trials_sel, temp, overwrite, dlc_config_path, analyze, make_videos, preset
-):
+def analyze_videos(server, sessions, trials_sel, temp, overwrite, dlc_config_path, analyze, make_videos, preset):
     """Uses pretrained machine vision network to label videos.
 
     Arguments:
@@ -303,8 +301,7 @@ def triangulate(
     marker_name_dict,
     reflect,
     mstruct,
-    do_triangulate,
-):
+    do_triangulate):
     '''Triangulate and export of OpenSim'''
     pressure_sensor_markers = []
     for ps_markers in mstruct['ps_markers'].values():
@@ -375,9 +372,7 @@ def triangulate(
     )
 
 
-def run_triangulate(
-    server, sessions, trials_sel, temp, processes, overwrite, threshold, do_triangulate, preset
-):
+def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, threshold, do_triangulate, preset):
     """Triangulates marker positions from 2D to 3D and creates inverse kinematics files.
 
     Arguments:
