@@ -388,89 +388,64 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
         raise ValueError('Session {} does not have an auto log.'.format(session))
 
     # generate meta session
-    if (
-        overwrite
-        or not os.path.exists(os.path.join(processed_ss, 'meta_session.csv'))
-        or not os.path.exists(os.path.join(processed_ss, 'meta_object.csv'))
-    ):
-        (
-            sy_column_names,
-            sy_data,
-            sy_ja_column_names,
-            sy_ja_data,
-            sy_ps_column_names,
-            sy_ps_data,
+    if (overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_session.csv'))
+        or not os.path.exists(os.path.join(processed_ss, 'meta_object.csv'))):
+        (sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
         ) = import_logs(raw_ss, mstruct)
 
         # take subset of data that exists in all logs
         # now all data structure rows refer to the same trials in the same order
         # (nb) cannot merge them together because they have duplicate columns
         common_trials, sy_data, sy_ja_data, sy_ps_data = reorder_to_common_trials(
-            sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
-        )
+            sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data)
 
         # find successful ones
         rewarded_trials = (sy_data[:, sy_column_names.index('reward')] > 0.0).astype(int)
 
         # synchronization period length
-        sync_period_length = (
-            sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')] -
+        sync_period_length = (sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')] -
             sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
 
         # NS Added:
         # NS: get the time offset to object in position time
-        ttl_to_obj_end_pos = (
-            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] -
+        ttl_to_obj_end_pos = (sy_data[:, sy_column_names.index('object_in_position_time(ms)')] -
             sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
-        ttl_to_obj_end_pos[
-            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] == 0
-        ] = math.nan
+        ttl_to_obj_end_pos[sy_data[:, sy_column_names.index('object_in_position_time(ms)')] == 0
+                          ] = math.nan
 
         # NS: get the time offset to beep (go cue)
-        ttl_to_cue = (
-            sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
-        ) / 1000
-        ttl_to_cue[sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] == 0] = (
-            math.nan
-        )
+        ttl_to_cue = (sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+        ttl_to_cue[sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] == 0
+                          ] = math.nan
 
         # NS: get the time offset to reach
-        ttl_to_reach = (
-            sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
-        ) / 1000
+        ttl_to_reach = (sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')]
+                        - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
         ttl_to_reach[sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')] == 0] = math.nan
 
         # calculate time offsets (in seconds)
         # values on unsuccessful trials are undefined
         # get the time offset to grasp
-        ttl_to_success_grasp = (
-            sy_data[:, sy_column_names.index('started_touching_time(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
-        ) / 1000
+        ttl_to_success_grasp = (sy_data[:, sy_column_names.index('started_touching_time(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
         ttl_to_success_grasp[np.logical_not(rewarded_trials.astype(bool))] = math.nan
 
         # NS: get the time offset to end trial/reward
-        ttl_to_reward = (
-            sy_data[:, sy_column_names.index('trial_end_time(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
-        ) / 1000
+        ttl_to_reward = (sy_data[:, sy_column_names.index('trial_end_time(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
 
         # get camera time offset from TTL to start
         if len(sy_ja_data) > 0:
-            ja_ttl_to_rec_start = (
-                sy_ja_data[:, sy_ja_column_names.index('startedRecording(ms)')]
-                - sy_ja_data[:, sy_ja_column_names.index('syncTrialStartTime(ms)')]
-            ) / 1000
+            ja_ttl_to_rec_start = (sy_ja_data[:, sy_ja_column_names.index('startedRecording(ms)')]
+                - sy_ja_data[:, sy_ja_column_names.index('syncTrialStartTime(ms)')]) / 1000
         else:
             ja_ttl_to_rec_start = [math.nan] * len(ttl_to_reward)
 
         # make an object-based meta_object and assign object_id to each trial
         # Only keeps the columns present in the columns
-        u_objects, object_ids, object_def_columns = get_object_sets(
-            sy_column_names, sy_data, preset['object_def_columns']
-        )
+        u_objects, object_ids, object_def_columns = get_object_sets(sy_column_names, sy_data,
+                                                                    preset['object_def_columns'])
 
         # export the meta object information
         meta_object_filename = os.path.join(processed_ss, 'meta_object.csv')
@@ -483,41 +458,35 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
 
         # export the meta session
         meta_session_filename = os.path.join(processed_ss, 'meta_session.csv')
-        column_names = [
-            'trial_number',
-            'success',
-            'object_id',
-            'sync_period_length',
-            'ttl_to_obj_end_pos',
-            'ttl_to_cue',
-            'ttl_to_reach',
-            'ttl_to_success_grasp',
-            'ttl_to_reward',
-            'ttl_to_ja_start',
-        ]
-        values = [
-            common_trials,
-            rewarded_trials,
-            object_ids,
-            sync_period_length,
-            ttl_to_obj_end_pos,
-            ttl_to_cue,
-            ttl_to_reach,
-            ttl_to_success_grasp,
-            ttl_to_reward,
-            ja_ttl_to_rec_start,
-        ]
+        column_names = ['trial_number',
+                        'success',
+                        'object_id',
+                        'sync_period_length',
+                        'ttl_to_obj_end_pos',
+                        'ttl_to_cue',
+                        'ttl_to_reach',
+                        'ttl_to_success_grasp',
+                        'ttl_to_reward',
+                        'ttl_to_ja_start']
+        values = [common_trials,
+                  rewarded_trials,
+                  object_ids,
+                  sync_period_length,
+                  ttl_to_obj_end_pos,
+                  ttl_to_cue,
+                  ttl_to_reach,
+                  ttl_to_success_grasp,
+                  ttl_to_reward,
+                  ja_ttl_to_rec_start]
+
         io.export_csv(meta_session_filename, column_names, values)
         rs('Exported session meta information to {}'.format(meta_session_filename))
 
     meta_dof_filename = os.path.join(processed_ss, 'meta_dof.csv')
     if export_roms and (overwrite or not os.path.exists(meta_dof_filename)):
         export_roms_from_osim(ORIGINAL_OPENSIM_MODEL, meta_dof_filename)
-        rs(
-            'Exported session meta DOF information from {} to {}'.format(
-                ORIGINAL_OPENSIM_MODEL, meta_dof_filename
-            )
-        )
+        rs('Exported session meta DOF information from {} to {}'.format(
+            ORIGINAL_OPENSIM_MODEL, meta_dof_filename))
 
 
 def create_meta(current_preset, temp, overwrite, export_roms, sessions=[]):
@@ -534,15 +503,13 @@ def create_meta(current_preset, temp, overwrite, export_roms, sessions=[]):
     """
 
     # Step 1: process experiment sessions
-    apply_to_sessions_helper(
-        current_preset['default_server'],
-        current_preset['processed_server'],
-        current_preset,
-        temp,
-        create_session_meta,
-        args=(overwrite, export_roms),
-        sessions=sessions,
-    )
+    apply_to_sessions_helper(current_preset['default_server'],
+                             current_preset['processed_server'],
+                             current_preset,
+                             temp,
+                             create_session_meta,
+                             args=(overwrite, export_roms),
+                             sessions=sessions)
 
     # Step 2: process training sessions
     if not current_preset['default_training_server']:
@@ -554,12 +521,10 @@ def create_meta(current_preset, temp, overwrite, export_roms, sessions=[]):
         return
 
     # Step 2: Process training sessions
-    apply_to_sessions_helper(
-        current_preset['default_training_server'],
-        current_preset['processed_training_server'],
-        current_preset,
-        temp,
-        create_session_meta,
-        args=(overwrite, export_roms),
-        sessions=sessions,
-    )
+    apply_to_sessions_helper(current_preset['default_training_server'],
+                             current_preset['processed_training_server'],
+                             current_preset,
+                             temp,
+                             create_session_meta,
+                             args=(overwrite, export_roms),
+                             sessions=sessions)
