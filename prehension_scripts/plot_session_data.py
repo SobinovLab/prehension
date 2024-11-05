@@ -67,57 +67,53 @@ def main(preset, sessions, temp, overwrite, transfer=True):
     """
 
     # Check both raw and processed servers exist
-    if not os.path.exists(preset["default_server"]):
-        raise ValueError(
-            "Default server directory {} does not exist or is inaccessible.".format(
-                preset["default_server"]
-            )
-        )
+    if not os.path.exists(preset['default_server']):
+        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(
+            preset['default_server']))
 
-    if not os.path.exists(preset["processed_server"]):
-        raise ValueError(
-            "Default server directory {} does not exist or is inaccessible.".format(
-                preset["default_server"]
-            )
-        )
+    if not os.path.exists(preset['processed_server']):
+        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(
+            preset['default_server']))
 
     # Setup logging
-    setup_logging(temp, sessions_dir=preset["processed_server"])
+    setup_logging(temp, sessions_dir=preset['processed_server'])
 
     # Check if preset defines training servers, if so we try transferring sessions to training,
     has_training_server = does_trianing_servers_exist(preset)
 
     # Move sessions from experiment to training
     if transfer:
-        rs("\n" * 3 + "=" * 200)
+        rs('\n'*3 + '='*200)
         if has_training_server:
-            rs("Moving training sessions")
+            rs('Moving training sessions')
             experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(
-                preset, sessions, filter=False
-            )
-            for sw in tqdm(
-                [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs_pre_move]
-            ):
+                preset, sessions, filter=False)
+            for sw in tqdm([SessionWrapper(*exp_pair) for exp_pair in
+                            experimental_ss_pairs_pre_move]):
+
                 sw.ensure_transfer_to_training_server(
-                    preset["default_training_server"],
-                    preset["processed_training_server"],
-                    overwrite,
-                )
-            rs("\n" * 3 + "=" * 200)
+                    preset['default_training_server'],
+                    preset['processed_training_server'],
+                    overwrite)
+
+            rs('\n'*3 + '='*200)
         else:
-            rs(
-                f"No training servers defined for preset {preset['names'][0]}, skipping transfer step."
-            )
+            rs(f"No training servers defined for preset {preset['names'][0]}, skipping transfer step.")
 
     # Get raw/processed session dirs for preset
     # Note: we want to fetch all sessions here for performance analysis
-    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, filter=True)
+    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(
+        preset, filter=True)
 
-    exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
-    train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
+    exp_session_wrappers = [SessionWrapper(
+        *exp_pair) for exp_pair in experimental_ss_pairs]
+    train_session_wrappers = [SessionWrapper(
+        *train_pair) for train_pair in training_ss_pairs]
 
-    exp_grp = SessionGroup(exp_session_wrappers, group_label="Experiment")
-    train_grp = SessionGroup(train_session_wrappers, group_label="Training")
+    exp_grp = SessionGroup(
+        exp_session_wrappers, group_label='Experiment')
+    train_grp = SessionGroup(
+        train_session_wrappers, group_label='Training')
 
     exp_grp.do_all_analysis(overwrite, sessions=sessions)
     rs("\n" * 3 + "=" * 200)
@@ -129,18 +125,22 @@ if __name__ == "__main__":
 
     preset_name = sys.argv[1]
     if preset_name not in PRESETS.keys():
-        raise ValueError(f"preset_name {preset_name} not found in presets {list(PRESETS.keys())}")
+        raise ValueError(
+            f'preset_name {preset_name} not found in presets {list(PRESETS.keys())}')
 
     current_preset = PRESETS[preset_name]
 
     # Remove axis spines from plot
-    mpl.rcParams["axes.spines.right"] = False
-    mpl.rcParams["axes.spines.top"] = False
+    mpl.rcParams['axes.spines.right'] = False
+    mpl.rcParams['axes.spines.top'] = False
 
     # Add arguments
-    parser = argparse.ArgumentParser(description=("Create plots for a given monkey"))
+    parser = argparse.ArgumentParser(
+        description=("Create plots for a given monkey"))
 
-    cmd_args.add_default_arguments(parser, ("sessions", "temp", "overwrite"))
+    cmd_args.add_default_arguments(
+        parser, ("sessions", "temp", "overwrite")
+    )
 
     args = parser.parse_args(sys.argv[2:])
     start_time = time.time()
@@ -152,4 +152,5 @@ if __name__ == "__main__":
         args.overwrite,
     )
 
-    rs("Program took {}.".format(timedelta(seconds=time.time() - start_time)))
+    rs('Program took {}.'.format(
+        timedelta(seconds=time.time() - start_time)))

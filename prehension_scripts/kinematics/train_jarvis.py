@@ -41,10 +41,11 @@ from prehension.kinematics.train_jarvis import train_jarvis
 def tuple_list(s):
     try:
         tuples = []
-        for pair in s.split(","):
-            values = pair.split(":")
+        for pair in s.split(','):
+            values = pair.split(':')
             if len(values) != 2:
-                raise argparse.ArgumentTypeError("Tuples must be in the format (x:y)")
+                raise argparse.ArgumentTypeError(
+                    "Tuples must be in the format (x:y)")
             tuples.append((str(values[0]), str(values[1])))
         return tuples
     except ValueError:
@@ -52,13 +53,14 @@ def tuple_list(s):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=("Trains Jarvis (pronounced 'Yar-vuh-s' in BULK."))
+    parser = argparse.ArgumentParser(
+        description=("Trains Jarvis (pronounced \'Yar-vuh-s\' in BULK."))
 
-    parser.add_argument("--combos", type=tuple_list, help="List of project:model tuples to train")
-    parser.add_argument(
-        "--epochs", default=50, type=int, required=False, help="Num epochs for training"
-    )
-    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument('--combos', type=tuple_list,
+                        help='List of project:model tuples to train')
+    parser.add_argument('--epochs', default=50, type=int, required=False,
+                        help="Num epochs for training")
+    parser.add_argument('--verbose', action='store_true')
     # parser.add_argument(
     #     '--bodyparts',
     #     type=list, default=[],
@@ -70,4 +72,5 @@ if __name__ == "__main__":
     start_time = time.time()
     train_jarvis(args.combos, args.epochs, args.verbose)
 
-    print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
+    print('Program took {}.'.format(
+        datetime.timedelta(seconds=time.time() - start_time)))

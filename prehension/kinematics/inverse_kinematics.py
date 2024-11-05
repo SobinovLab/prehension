@@ -40,7 +40,7 @@ from ..tools import opensim_io
 from ..tools.logs import rs, ws
 
 # Default accuracy of 1e-5 does not produce precise enough results for hand and finger movements.
-IK_XML_STR = """\
+IK_XML_STR = '''\
 <?xml version="1.0" encoding="UTF-8" ?>
 <OpenSimDocument Version="40000">
     <InverseKinematicsTool>
@@ -75,9 +75,9 @@ IK_XML_STR = """\
         <report_marker_locations>false</report_marker_locations>
     </InverseKinematicsTool>
 </OpenSimDocument>
-"""
+'''
 
-SC_XML_STR = """\
+SC_XML_STR = '''\
 <?xml version="1.0" encoding="UTF-8" ?>
 <OpenSimDocument Version="40000">
     <ScaleTool name="{tool_name}">
@@ -149,9 +149,9 @@ SC_XML_STR = """\
         </MarkerPlacer>
     </ScaleTool>
 </OpenSimDocument>
-"""
+'''
 
-SC_EMPTY_MEASUREMENT = """
+SC_EMPTY_MEASUREMENT = '''
                     <Measurement name="{name}">
                         <apply>true</apply>
                         <MarkerPairSet>
@@ -165,65 +165,69 @@ SC_EMPTY_MEASUREMENT = """
                             <groups />
                         </BodyScaleSet>
                     </Measurement>
-"""
-SC_BODY_SCALE = """
+'''
+SC_BODY_SCALE = '''
                                 <BodyScale name="{}">
                                     <axes> X Y Z</axes>
                                 </BodyScale>
-"""
+'''
 
 
-def make_ik_file(
-    filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file, time_range, verbose=0
-):
+def make_ik_file(filename, ik_xml_str, marker_weights, trc_file, ik_out_mot_file, time_range,
+                 verbose=0):
     if ik_xml_str is None:
         ik_xml_str = IK_XML_STR.format(model_file="Unassigned")
     if verbose > 0:
-        print("Making IK file {}".format(filename))
+        print('Making IK file {}'.format(filename))
 
     # check the basic elements
     root = ET.fromstring(ik_xml_str)
-    if root.tag != "OpenSimDocument":
-        raise ValueError(
-            "Wrong structure of the IK string. OpenSimDocument is not present at " "top-level."
-        )
+    if root.tag != 'OpenSimDocument':
+        raise ValueError('Wrong structure of the IK string. OpenSimDocument is not present at '
+                         'top-level.')
 
-    ikt = root.find("InverseKinematicsTool")
+    ikt = root.find('InverseKinematicsTool')
     if ikt is None:
-        raise ValueError("Wrong structure of the IK string. InverseKinematicsTool is not present.")
+        raise ValueError(
+            'Wrong structure of the IK string. InverseKinematicsTool is not present.')
 
     # add the IK task and objects (markers) if missing
-    ikts = _add_xml_element(ikt, "IKTaskSet")
-    _add_xml_element(ikts, "groups")
-    iktso = _add_xml_element(ikts, "objects", text="\n" + " " * 16, tail="\n" + " " * 12)
+    ikts = _add_xml_element(ikt, 'IKTaskSet')
+    _add_xml_element(ikts, 'groups')
+    iktso = _add_xml_element(
+        ikts, 'objects', text='\n' + ' '*16, tail='\n' + ' '*12)
 
     # add each marker with weights
     for marker_name, marker_weight in marker_weights.items():
-        mare = _add_xml_element(
-            iktso, "IKMarkerTask", text="\n" + " " * 20, tail="\n" + " " * 16, unique=False
-        )
-        mare.set("name", marker_name)
+        mare = _add_xml_element(iktso, 'IKMarkerTask',
+                                text='\n' + ' '*20, tail='\n' + ' '*16,
+                                unique=False)
+        mare.set('name', marker_name)
 
-        _add_xml_element(mare, "weight", text=str(marker_weight), tail="\n" + " " * 20)
+        _add_xml_element(mare, 'weight', text=str(
+            marker_weight), tail='\n' + ' '*20)
 
         if marker_weight < 1e-8:
-            _add_xml_element(mare, "apply", text="false", tail="\n" + " " * 16)
+            _add_xml_element(
+                mare, 'apply', text='false', tail='\n' + ' '*16)
         else:
-            _add_xml_element(mare, "apply", text="true", tail="\n" + " " * 16)
+            _add_xml_element(
+                mare, 'apply', text='true', tail='\n' + ' '*16)
 
     # other elements
-    _add_xml_element(ikt, "time_range", text="{} {}".format(time_range[0], time_range[1]))
-    _add_xml_element(ikt, "marker_file", text=trc_file)
-    _add_xml_element(ikt, "output_motion_file", text=ik_out_mot_file)
+    _add_xml_element(ikt, 'time_range', text='{} {}'.format(
+        time_range[0], time_range[1]))
+    _add_xml_element(ikt, 'marker_file', text=trc_file)
+    _add_xml_element(ikt, 'output_motion_file', text=ik_out_mot_file)
 
     tree = ET.ElementTree(element=root)
-    tree.write(filename, encoding="UTF-8", xml_declaration=True)
+    tree.write(filename, encoding='UTF-8', xml_declaration=True)
 
 
 def _add_xml_element(parent, name, text=None, tail=None, unique=True):
-    """Adds an element to the parent. If unique, checks if such element already exists in the parent
+    '''Adds an element to the parent. If unique, checks if such element already exists in the parent
     and does not add it if it does. Otherwise always adds.
-    """
+    '''
     if unique:
         el = parent.find(name)
     if not unique or el is None:
@@ -241,62 +245,54 @@ def set_opensim_model_default_position(osim_model_in, osim_model_ou, positions, 
     root = tree.getroot()
 
     for dof_name, position in positions.items():
-        coordinate = root.find(".//Coordinate[@name='{}']".format(dof_name))
+        coordinate = root.find(
+            ".//Coordinate[@name='{}']".format(dof_name))
         c_defval = coordinate.find("default_value")
         c_defval.text = str(position)
         if lock:
             c_locked = coordinate.find("locked")
-            c_locked.text = "true"
+            c_locked.text = 'true'
 
-    tree.write(osim_model_ou, encoding="UTF-8", xml_declaration=True)
+    tree.write(osim_model_ou, encoding='UTF-8', xml_declaration=True)
 
 
-def make_sc_file(filename, tool_name, measurements, marker_file, time_range, verbose=0):
+def make_sc_file(filename, tool_name, measurements, marker_file, time_range,
+                 verbose=0):
     sc_xml_str = SC_XML_STR.format(
         tool_name=tool_name,
-        time_range="{} {}".format(time_range[0], time_range[1]),
-        marker_file=marker_file,
-    )
+        time_range='{} {}'.format(time_range[0], time_range[1]),
+        marker_file=marker_file)
     if verbose > 0:
-        print("Making SC file {}".format(filename))
+        print('Making SC file {}'.format(filename))
 
     # check the basic elements
     root = ET.fromstring(sc_xml_str)
-    sct = root.find("ScaleTool")
+    sct = root.find('ScaleTool')
 
     # add the SC ModelScaler and objects (measurements) if missing
-    ms = _add_xml_element(sct, "ModelScaler")
-    mset = _add_xml_element(ms, "MeasurementSet")
-    _add_xml_element(mset, "groups")
-    mseto = _add_xml_element(mset, "objects", text="\n" + " " * 20, tail="\n" + " " * 16)
+    ms = _add_xml_element(sct, 'ModelScaler')
+    mset = _add_xml_element(ms, 'MeasurementSet')
+    _add_xml_element(mset, 'groups')
+    mseto = _add_xml_element(
+        mset, 'objects', text='\n' + ' '*20, tail='\n' + ' '*16)
 
     for measurement, body_scales in measurements.items():
         sc_meas = SC_EMPTY_MEASUREMENT.format(
             name=measurement,
-            body_scales="".join([SC_BODY_SCALE.format(body_scale) for body_scale in body_scales]),
-        )
+            body_scales=''.join([SC_BODY_SCALE.format(body_scale) for body_scale in body_scales]))
         meas = ET.fromstring(sc_meas)
-        meas.tail = "\n" + " " * 20
+        meas.tail = '\n' + ' ' * 20
         mseto.append(meas)
-    meas.tail = "\n" + " " * 16
+    meas.tail = '\n' + ' ' * 16
 
     tree = ET.ElementTree(element=root)
-    tree.write(filename, encoding="UTF-8", xml_declaration=True)
+    tree.write(filename, encoding='UTF-8', xml_declaration=True)
 
 
-def triangulated_to_trc(
-    triang_csv,
-    trc_file,
-    marker_name_dict,
-    data_unit_convert=None,
-    rate=50,
-    zero_marker=None,
-    frame_range=None,
-    rotation=None,
-    verbose=0,
-    reflect=False,
-):
-    """Transforms triangulated data from NCams/DLC format into OpenSim trc.
+def triangulated_to_trc(triang_csv, trc_file, marker_name_dict, data_unit_convert=None,
+                        rate=50, zero_marker=None, frame_range=None,
+                        rotation=None, verbose=0, reflect=False):
+    '''Transforms triangulated data from NCams/DLC format into OpenSim trc.
 
     Arguments:
         triang_csv {string} -- get the triangulated data from this file.
@@ -323,10 +319,11 @@ def triangulated_to_trc(
         verbose {int} -- verbosity level. Higher verbosity prints more output {default: 0}.
         reflect {bool} -- reflects the data along an axis (x = -x). Needed when processing data
             from a left-handed experiment to right-handed model. {default: False}
-    """
+    '''
     # import triangulated file
     # frame numbers are only to take the subset using frame_range
-    frame_numbers, triang_data = logs.import_triangulated_csv(triang_csv)
+    frame_numbers, triang_data = logs.import_triangulated_csv(
+        triang_csv)
 
     # change into numpy arrays
     frame_numbers = np.array(frame_numbers)
@@ -364,7 +361,8 @@ def triangulated_to_trc(
         zero_index = bodyparts.index(zero_marker)
         zero_xyz = points[0, zero_marker, :]
         if math.isnan(zero_xyz[0]):
-            warnings.warn("Zero marker is NaN. All data will be NaNs.")
+            warnings.warn(
+                'Zero marker is NaN. All data will be NaNs.')
         points = points - zero_xyz
 
     # convert
@@ -378,28 +376,26 @@ def triangulated_to_trc(
 
     # reflect
     if reflect:
-        points[:, :, 0] = -points[:, :, 0]
+        points[:, :, 0] = - points[:, :, 0]
 
     # calculate how much data is nans
     n_frames = len(points)
     num_dats = {}
     for ibp, bp in enumerate(bodyparts):
         num_dats[bp] = n_frames - np.sum(np.isnan(points[:, ibp, 0]))
-    marker_weights = {marker_name_dict[bp]: num_dats[bp] / n_frames for bp in bodyparts}
+    marker_weights = {
+        marker_name_dict[bp]: num_dats[bp]/n_frames for bp in bodyparts}
     if verbose > 0:
-        print("Portion of the data being data and not NaNs:")
-        print(
-            "\n".join(
-                "\t{}: {:.3f}".format(marker_name, marker_weight)
-                for marker_name, marker_weight in marker_weights.items()
-            )
-        )
+        print('Portion of the data being data and not NaNs:')
+        print('\n'.join('\t{}: {:.3f}'.format(marker_name, marker_weight)
+                        for marker_name, marker_weight in marker_weights.items()))
 
     # export
-    opensim_io.export_trc(trc_file, marker_names, points.tolist(), rate)
+    opensim_io.export_trc(trc_file, marker_names,
+                          points.tolist(), rate)
 
     # estimate time_range
-    period = 1.0 / rate
+    period = 1./rate
     time_range = [0, period * len(points)]
 
     # return variables for creation of IK files
@@ -413,10 +409,9 @@ def run_ik_f(ik_file, log_file):
 
     # needed for independent logging
     import opensim
-
     opensim.Logger.removeFileSink()
     opensim.Logger.addFileSink(log_file)
-    opensim.Logger.setLevelString("warn")
+    opensim.Logger.setLevelString('warn')
     task = opensim.tools.InverseKinematicsTool(ik_file)
 
     task.run()
@@ -440,35 +435,39 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
     logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
+            server))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(server)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
-        ws("A subset of trials was selected, only the first session will be used.")
+        ws('A subset of trials was selected, only the first session will be used.')
         sessions = sessions[:1]
 
     # sort
     sessions.sort()
-    rs("Found {} sessions: {}".format(len(sessions), ", ".join(sessions)))
+    rs('Found {} sessions: {}'.format(
+        len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
-    for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
+    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
-        rs("Processing session {}.".format(session))
+        rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
 
         if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+            ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
-            _, _, _, msession = meta_session.load_meta_information(server_session)
+            _, _, _, msession = meta_session.load_meta_information(
+                server_session)
         except Exception as e:
-            ws("Could not load meta data from session {}, skipping.".format(session))
-            ws("Error message: {}".format(e))
+            ws('Could not load meta data from session {}, skipping.'.format(
+                session))
+            ws('Error message: {}'.format(e))
             continue
 
         trials = []
@@ -496,33 +495,27 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
         if not trials:
             continue
 
-        rs(
-            "Found {} trials: {}".format(
-                len(trials), ", ".join([str(t.trial_number) for t in trials])
-            )
-        )
+        rs('Found {} trials: {}'.format(
+            len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
         p_args = list(zip(*[ik_files, log_files]))
 
         if len(p_args) > 0:
-            pool = ReportingPool(
-                run_ik_f, p_args, processes=processes, report_on_change=True, track_failures=True
-            )
+            pool = ReportingPool(run_ik_f, p_args, processes=processes,
+                                 report_on_change=True, track_failures=True)
             pool.start()
 
             if len(pool.failed_i_jobs) > 0:
                 print()
-                ws("Failed to transform trials:")
+                ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws("\t{}: {}".format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append(
-                        "session {} trial {} error: {}".format(
-                            session, trials[v].trial_number, pool.error_reports[v]
-                        )
-                    )
+                    ws('\t{}: {}'.format(
+                        trials[v].trial_number, pool.error_reports[v]))
+                    failed_trial_reports.append('session {} trial {} error: {}'.format(
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()
-        ws("Failed converting trials across sessions:")
+        ws('Failed converting trials across sessions:')
         for failed_trial_report in failed_trial_reports:
-            ws("\t{}".format(failed_trial_report))
+            ws('\t{}'.format(failed_trial_report))

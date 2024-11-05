@@ -69,7 +69,8 @@ class PSDisplayer:
         if self.image is not None:
             self.image.remove()
         matrix = self.ps_matrices[i_frame] / self.ps_vmax
-        self.image = self.ax.imshow(self.force_map_transform(matrix), vmin=0, vmax=1, cmap="Greys")
+        self.image = self.ax.imshow(self.force_map_transform(matrix),
+                                    vmin=0, vmax=1, cmap='Greys')
 
     def display_time(self, time):
         i_frame = misc.find_first(self.ps_times >= time)
@@ -83,9 +84,9 @@ def animate_ps(mstruct, trial):
 
     # load data
     times_transformed, matrices_transformed = io.import_matrices(
-        trial.transformed_ps_filenames[ps_name]
-    )
-    times_filtered, matrices_filtered = io.import_matrices(trial.filtered_ps_filenames[ps_name])
+        trial.transformed_ps_filenames[ps_name])
+    times_filtered, matrices_filtered = io.import_matrices(
+        trial.filtered_ps_filenames[ps_name])
 
     times = times_transformed
     dt = np.median(np.diff(times)) * 1000  # msec
@@ -96,41 +97,37 @@ def animate_ps(mstruct, trial):
     ax_fi = fig.add_axes([0.5, 0.3, 0.5, 0.6])
     ax_to = fig.add_axes([0.05, 0.05, 0.9, 0.2])
 
-    psd_tr = PSDisplayer(ax_tr, times_transformed, matrices_transformed)
+    psd_tr = PSDisplayer(ax_tr, times_transformed,
+                         matrices_transformed)
     psd_fi = PSDisplayer(ax_fi, times_filtered, matrices_filtered)
     ps_vmax = psd_fi.ps_vmax
     psd_tr.ps_vmax = psd_fi.ps_vmax = ps_vmax
     st_max = psd_fi.st_max
     psd_tr.st_max = psd_fi.st_max = st_max
 
-    ax_to.plot(times_transformed, psd_tr.sensor_total, "k")
-    ax_to.plot(times_filtered, psd_fi.sensor_total, "r--")
+    ax_to.plot(times_transformed, psd_tr.sensor_total, 'k')
+    ax_to.plot(times_filtered, psd_fi.sensor_total, 'r--')
     ax_to.set_xlim([times[0], times[-1]])
-    yrange = [0, st_max * 1.05]
-    yrange = [0, st_max * 0.05]
+    yrange = [0, st_max*1.05]
+    yrange = [0, st_max*0.05]
     ax_to.set_ylim(yrange)
-    (line,) = ax_to.plot([times[0]] * 2, yrange, "g")
-    ax_to.set_xlabel("Time, s")
-    ax_to.set_ylabel("Force, N")
+    line, = ax_to.plot([times[0]]*2, yrange, 'g')
+    ax_to.set_xlabel('Time, s')
+    ax_to.set_ylabel('Force, N')
 
     def update(frame):
         psd_tr.display_time(times[frame])
         psd_fi.display_time(times[frame])
-        line.set_data([times[frame]] * 2, yrange)
+        line.set_data([times[frame]]*2, yrange)
         return [psd_tr.image, psd_fi.image, line]
 
     ani = mpl_ani.FuncAnimation(
-        fig, update, frames=range(len(times)), blit=True, repeat=False, interval=dt / speed
-    )
+        fig, update,
+        frames=range(len(times)), blit=True, repeat=False,
+        interval=dt/speed)
 
-    ani.save(
-        "mymovie_larger.mp4",
-        writer="ffmpeg",
-        fps=int(1000 / dt),
-        dpi=120,
-        codec="h264",
-        progress_callback=lambda i, n: print(f"Saving frame {i}/{n}", end="\r"),
-    )
+    ani.save('mymovie_larger.mp4', writer='ffmpeg', fps=int(1000/dt), dpi=120, codec='h264',
+             progress_callback=lambda i, n: print(f'Saving frame {i}/{n}', end='\r'))
 
     # plt.show()
 
@@ -147,13 +144,15 @@ def animate_pressure_sensors(server, session, trial_number):
         session = meta_session.find_session_dirs(server)[0]
 
     server_session = os.path.join(server, session)
-    mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+    mstruct, _, _, msession = meta_session.load_meta_information(
+        server_session)
 
     trial = meta_session.find_trial(msession, trial_number)
 
     if trial is None:
-        raise ValueError("Could not find the trial.")
+        raise ValueError('Could not find the trial.')
     if not trial.do_matched_contacts_files_exist():
-        raise ValueError("Associated matched contacts files do not exist.")
+        raise ValueError(
+            'Associated matched contacts files do not exist.')
 
     animate_ps(mstruct, trial)

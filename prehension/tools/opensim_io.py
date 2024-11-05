@@ -27,7 +27,7 @@ from .logs import ws
 
 
 def import_mot(fname):
-    """Import OpenSim motion file into a python structure.
+    '''Import OpenSim motion file into a python structure.
 
     Arguments:
         fname {str} -- motion file.
@@ -37,12 +37,12 @@ def import_mot(fname):
         times {list of numbers} -- time series.
         dofs {list} -- each item corresponds to values for that DOF for each frame.
             dofs[iDOF][iTime]
-    """
-    with open(fname, "r") as f:
-        rdr = csv.reader(f, dialect="excel-tab")
+    '''
+    with open(fname, 'r') as f:
+        rdr = csv.reader(f, dialect='excel-tab')
 
         li = next(rdr)
-        while len(li) < 1 or not li[0].strip().lower() == "time":
+        while len(li) < 1 or not li[0].strip().lower() == 'time':
             li = next(rdr)
 
         dof_names = [i.strip() for i in li[1:]]
@@ -58,35 +58,37 @@ def import_mot(fname):
 
 
 def export_mot(fname, dof_names, times, dofs):
-    """Exports python structures into a motion file for OpenSim.
+    '''Exports python structures into a motion file for OpenSim.
 
     Arguments:
         fname {str} -- filename of the mot file to output into.
         dof_names {list of str} -- each element is the DOF string name.
         times {list of numbers} -- time series.
         dofs {list} -- each item corresponds to values for that DOF for each frame.
-    """
-    with open(fname, "w", newline="") as f:
-        wrr = csv.writer(f, dialect="excel-tab")
+    '''
+    with open(fname, 'w', newline='') as f:
+        wrr = csv.writer(f, dialect='excel-tab')
 
-        wrr.writerow(["Coordinates"])
-        wrr.writerow(["version=1"])
-        wrr.writerow(["nRows={}".format(len(times))])
-        wrr.writerow(["nColumns={}".format(len(dof_names) + 1)])
-        wrr.writerow(["inDegrees=yes"])
+        wrr.writerow(['Coordinates'])
+        wrr.writerow(['version=1'])
+        wrr.writerow(['nRows={}'.format(len(times))])
+        wrr.writerow(['nColumns={}'.format(len(dof_names)+1)])
+        wrr.writerow(['inDegrees=yes'])
         wrr.writerow([])
-        wrr.writerow(["Units are S.I. units (second, meters, Newtons, ...)"])
-        wrr.writerow(["Angles are in degrees."])
+        wrr.writerow(
+            ['Units are S.I. units (second, meters, Newtons, ...)'])
+        wrr.writerow(['Angles are in degrees.'])
         wrr.writerow([])
-        wrr.writerow(["endheader"])
-        wrr.writerow(["time"] + dof_names)
+        wrr.writerow(['endheader'])
+        wrr.writerow(['time'] + dof_names)
 
         for itime, time in enumerate(times):
-            wrr.writerow([time] + [dof_vals[itime] for dof_vals in dofs])
+            wrr.writerow([time] + [dof_vals[itime]
+                         for dof_vals in dofs])
 
 
 def import_trc(filename):
-    """Import OpenSim trc file into a Python structure format.
+    '''Import OpenSim trc file into a Python structure format.
 
     Arguments:
         filename {str} -- trc file name.
@@ -97,16 +99,16 @@ def import_trc(filename):
         points {array NFrames X NBodyparts X 3} -- [iframe][ibodypart][0:x,1:y,2:z]
         rate {float} -- DataRate.
         units {str} - units of the data.
-    """
-    with open(filename, "r") as fin:
-        rdr = csv.reader(fin, delimiter="\t", dialect="excel-tab")
+    '''
+    with open(filename, 'r') as fin:
+        rdr = csv.reader(fin, delimiter='\t', dialect='excel-tab')
 
         li = next(rdr)  # flavor text
         li = next(rdr)  # flavor text
 
         li = next(rdr)
         if not li[0] == li[1] or not li[0] == li[5]:
-            ws("DataRate, CameraRate or OrigDataRate do not match. Using DataRate.")
+            ws('DataRate, CameraRate or OrigDataRate do not match. Using DataRate.')
         rate = float(li[0])
         units = li[4]
 
@@ -127,19 +129,19 @@ def import_trc(filename):
             points.append([])
             for ibp in range(len(bodyparts)):
                 points[-1].append([])
-                if li[2 + ibp * 3] == "":
+                if li[2+ibp*3] == '':
                     points[-1][-1].append(math.nan)
                     points[-1][-1].append(math.nan)
                     points[-1][-1].append(math.nan)
                 else:
-                    points[-1][-1].append(float(li[2 + ibp * 3]))
-                    points[-1][-1].append(float(li[2 + ibp * 3 + 1]))
-                    points[-1][-1].append(float(li[2 + ibp * 3 + 2]))
+                    points[-1][-1].append(float(li[2+ibp*3]))
+                    points[-1][-1].append(float(li[2+ibp*3+1]))
+                    points[-1][-1].append(float(li[2+ibp*3+2]))
     return bodyparts, frame_numbers, times, points, rate, units
 
 
-def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None, units="mm"):
-    """Exports marker data into OpenSim-compatible trc file.
+def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None, units='mm'):
+    '''Exports marker data into OpenSim-compatible trc file.
 
     Arguments:
         filename {str} -- output file name.
@@ -152,45 +154,38 @@ def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None
         times {list of floats} -- Time column. If None, generated from rate and length of
             points starting at 0.
         units {str} - units of the data. {default: 'mm'}
-    """
+    '''
     if frame_numbers is None:
         frame_numbers = list(range(1, len(points) + 1))
     if times is None:
-        period = 1.0 / rate
+        period = 1. / rate
         times = [i * period for i in range(len(frame_numbers))]
 
     n_bodyparts = len(bodyparts)
     n_frames = len(frame_numbers)
 
-    with open(filename, "w", newline="") as fou:
-        wrr = csv.writer(fou, delimiter="\t", dialect="excel-tab")
+    with open(filename, 'w', newline='') as fou:
+        wrr = csv.writer(fou, delimiter='\t', dialect='excel-tab')
 
         # header
-        wrr.writerow(["PathFileType", "4", "(X/Y/Z)", ntpath.basename(filename)])
+        wrr.writerow(['PathFileType', '4', '(X/Y/Z)',
+                     ntpath.basename(filename)])
+        wrr.writerow(['DataRate', 'CameraRate', 'NumFrames', 'NumMarkers', 'Units', 'OrigDataRate',
+                      'OrigDataStartFrame', 'OrigNumFrames'])
         wrr.writerow(
-            [
-                "DataRate",
-                "CameraRate",
-                "NumFrames",
-                "NumMarkers",
-                "Units",
-                "OrigDataRate",
-                "OrigDataStartFrame",
-                "OrigNumFrames",
-            ]
-        )
-        wrr.writerow([rate, rate, n_frames, n_bodyparts, units, rate, 1, 1])
+            [rate, rate, n_frames, n_bodyparts, units, rate, 1, 1])
 
         # bodyparts
-        lo = ["Frame#", "Time"]
+        lo = ['Frame#', 'Time']
         for bp in bodyparts:
-            lo += [bp, "", ""]
+            lo += [bp, '', '']
         wrr.writerow(lo)
 
         # XYZ columns
-        lo = ["", ""]
+        lo = ['', '']
         for ibp in range(n_bodyparts):
-            lo += ["X{}".format(ibp + 1), "Y{}".format(ibp + 1), "Z{}".format(ibp + 1)]
+            lo += ['X{}'.format(ibp+1),
+                   'Y{}'.format(ibp+1), 'Z{}'.format(ibp+1)]
         wrr.writerow(lo)
         wrr.writerow([])  # necessary
 
@@ -199,13 +194,13 @@ def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None
             lo = [frame_number, time]
             for ibp in range(n_bodyparts):
                 if math.isnan(point[ibp][0]):
-                    lo += ["", "", ""]
+                    lo += ['', '', '']
                 else:
                     lo += point[ibp]
 
             # OpenSim4.0 cannot read the line properly when the last value is
             # empty and wants an additional tab:
-            if lo[-1] == "":
-                lo.append("")
+            if lo[-1] == '':
+                lo.append('')
 
             wrr.writerow(lo)

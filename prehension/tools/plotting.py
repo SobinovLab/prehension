@@ -29,8 +29,8 @@ def savefig(dirname, filename):
         return
     os.makedirs(dirname, exist_ok=True)
 
-    plt.savefig(os.path.join(dirname, filename + ".png"))
-    plt.savefig(os.path.join(dirname, filename + ".pdf"))
+    plt.savefig(os.path.join(dirname, filename + '.png'))
+    plt.savefig(os.path.join(dirname, filename + '.pdf'))
 
 
 def actual_vline(ax, x, **kwargs):

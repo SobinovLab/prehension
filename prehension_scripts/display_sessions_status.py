@@ -31,11 +31,8 @@ from prehension.visualization.session_data_visualization import SessionWrapper
 from colorama import init
 
 
-preset_names = [
-    "daiquiri_right_hemisphere",
-    "pimms_left_hemisphere_training_k1",
-    "pappy_left_hemisphere_training_v1",
-]
+preset_names = ['daiquiri_right_hemisphere',
+                'pimms_left_hemisphere_training_k1', 'pappy_left_hemisphere_training_v1',]
 
 
 def main(args):
@@ -50,21 +47,21 @@ def main(args):
 
         if preset_name not in PRESETS.keys():
             raise ValueError(
-                f"preset_name {preset_name} not found in presets {list(PRESETS.keys())}"
-            )
+                f'preset_name {preset_name} not found in presets {list(PRESETS.keys())}')
 
         current_preset = PRESETS[preset_name]
         # Get raw/processed session dirs for preset
-        experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(
-            current_preset, sessions=[], filter=False
-        )
+        experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(current_preset,
+                                                                             sessions=[],
+                                                                             filter=False)
 
-        exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
-        train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
+        exp_session_wrappers = [SessionWrapper(
+            *exp_pair) for exp_pair in experimental_ss_pairs]
+        train_session_wrappers = [SessionWrapper(
+            *train_pair) for train_pair in training_ss_pairs]
 
-        session_status_visualization.display_session_info(
-            exp_session_wrappers, train_session_wrappers, args.clean, args.last
-        )
+        session_status_visualization.display_session_info(exp_session_wrappers,
+                                                   train_session_wrappers, args.clean, args.last)
         print()
         print()
 
@@ -73,20 +70,19 @@ def main(args):
 if __name__ == "__main__":
 
     # Add arguments
-    parser = argparse.ArgumentParser(description=("Display session info about a given monkey"))
+    parser = argparse.ArgumentParser(
+        description=("Display session info about a given monkey"))
 
     parser.add_argument(
-        "--clean",
-        action="store_true",
-        help=(
-            "Remove session folders if the log file is found somewhere else and there is"
-            " no sensor data in raw"
-        ),
-        default=False,
+        '--clean', action='store_true',
+        help=('Remove session folders if the log file is found somewhere else and there is'
+              ' no sensor data in raw'),
+        default=False
     )
 
     parser.add_argument(
-        "--last", type=int, default=-1, help=("Number of sessions to display. Default: -1 (all)")
+        '--last', type=int, default=-1,
+        help=('Number of sessions to display. Default: -1 (all)')
     )
 
     args = parser.parse_args(sys.argv[1:])
