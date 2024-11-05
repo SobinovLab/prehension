@@ -38,25 +38,16 @@ if __name__ == '__main__':
 
     # custom
     parser.add_argument('--make_plots', action='store_true')
-    parser.add_argument(
-        '--dont_export_roms',
-        dest='export_roms',
-        action='store_false',
-        help=('Exports range of motion data from OpenSim model into a convenient CSV meta file.'
-              ' If this flag is provided, meta_dof is not created.'))
+    parser.add_argument('--dont_export_roms',
+                        dest='export_roms',
+                        action='store_false',
+                        help=('Exports range of motion data from OpenSim model into a convenient '
+                              ' CSV meta file. If this flag is provided, meta_dof is not created.'))
 
     args = parser.parse_args(args=argv)
     start_time = time.time()
 
-    fps.filter_pressure_sensors(
-        args.server,
-        args.sessions,
-        args.trials,
-        args.temp,
-        args.processes,
-        args.overwrite,
-        args.make_plots,
-        current_preset,
-    )
+    fps.filter_pressure_sensors(args.server, args.sessions, args.trials, args.temp, args.processes,
+                                args.overwrite, args.make_plots, current_preset,)
 
     print('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))
