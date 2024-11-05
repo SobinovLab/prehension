@@ -242,10 +242,6 @@ def preprocess_pressure_sensors(
         sessions=sessions_sel,
     )
 
-    import pdb
-
-    pdb.set_trace()
-
     # Step 2: process training sessions
     if not current_preset['default_training_server']:
         ws('No raw training server specified in preset. Skipping...')
