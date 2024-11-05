@@ -83,14 +83,12 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
         train_session_names = sessions
 
     # Build initial list of raw and proc server session dirs
-    raw_server_sessions = [
-        os.path.normpath(os.path.join(preset["default_server"], os.path.basename(ss)))
-        for ss in exp_session_names
-    ]
-    proc_server_sessions = [
-        os.path.normpath(os.path.join(preset["processed_server"], os.path.basename(ss)))
-        for ss in exp_session_names
-    ]
+    raw_server_sessions = [os.path.normpath(os.path.join(preset["default_server"],
+                                                         os.path.basename(ss)))
+                                                         for ss in exp_session_names]
+    proc_server_sessions = [os.path.normpath(os.path.join(preset["processed_server"],
+                                                          os.path.basename(ss)))
+                                                          for ss in exp_session_names]
 
     # now raw and proc ss lists should be the same length, read through and filter out/warn
     # on any that do not exist
@@ -104,17 +102,13 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
     raw_training_sessions = []
     proc_training_sessions = []
     if does_trianing_servers_exist(preset):
-        raw_training_sessions += [
-            os.path.normpath(os.path.join(preset["default_training_server"], os.path.basename(ss)))
-            for ss in train_session_names
-        ]
+        raw_training_sessions += [os.path.normpath(os.path.join(preset["default_training_server"],
+                                                                os.path.basename(ss)))
+                                                                for ss in train_session_names]
 
-        proc_training_sessions += [
-            os.path.normpath(
-                os.path.join(preset["processed_training_server"], os.path.basename(ss))
-            )
-            for ss in train_session_names
-        ]
+        proc_training_sessions += [os.path.normpath(os.path.join(preset["processed_training_server"],
+                                                                 os.path.basename(ss)))
+                                                                 for ss in train_session_names]
 
     if filter:
         training_raw_proc_pairs = _filter_pairs(raw_training_sessions, proc_training_sessions)
