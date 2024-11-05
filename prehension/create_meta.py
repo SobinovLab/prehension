@@ -120,9 +120,8 @@ def import_logs(dirname, mstruct):
     return sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
 
 
-def reorder_to_common_trials(
-    sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
-):
+def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja_data,
+                             sy_ps_column_names, sy_ps_data):
     '''
     This is equivalent to reorder_to_common_trials but instead of the common trials = (protocol U
     camera) U sensor, we exclude the camera overlap if camera logs are empty
@@ -173,14 +172,11 @@ def reorder_to_common_trials(
 
         absent_from_a = np.isin(a_trials, common, invert=True)
         if sum(absent_from_a) > 0:
-            rs(
-                '{} {} trials are absent from {}: {}'.format(
-                    sum(absent_from_a),
-                    b_label,
-                    a_label,
-                    ', '.join([str(v) for v in a_trials[absent_from_a]]),
-                )
-            )
+            rs('{} {} trials are absent from {}: {}'.format(
+                sum(absent_from_a),
+                b_label,
+                a_label,
+                ', '.join([str(v) for v in a_trials[absent_from_a]])))
         else:
             rs(f'No {b_label} trials are absent from {a_label}.')
 
@@ -188,13 +184,9 @@ def reorder_to_common_trials(
         absent_from_b = np.isin(b_trials, common, invert=True)
 
         if sum(absent_from_b) > 0:
-            rs(
-                '{} trials are absent from {}: {}'.format(
-                    sum(absent_from_b),
-                    b_label,
-                    ', '.join([str(v) for v in b_trials[absent_from_b]]),
-                )
-            )
+            rs('{} trials are absent from {}: {}'.format(
+                sum(absent_from_b), b_label,
+                ', '.join([str(v) for v in b_trials[absent_from_b]])))
         else:
             rs(f'No {a_label} trials are absent from {b_label}.')
 
@@ -211,34 +203,27 @@ def reorder_to_common_trials(
     if len(ja_trials) > 0:
         common_prot_cam = np.intersect1d(protocol_trials, ja_trials)
         print_absent_trials(protocol_trials, ja_trials, common_prot_cam, 'protocol', 'camera')
-        assert (
-            len(common_prot_cam) > 0
-        ), f"Found {len(ja_trials)} camera logs but found zero common trials with protocol"
+        assert len(common_prot_cam) > 0, (
+            f"Found {len(ja_trials)} camera logs but found zero common trials with protocol")
 
         # Common between all (protocol, camera, ps)
         common_trials_all = np.intersect1d(common_prot_cam, ps_trials)
         matched_types = 'main protocol, camera recordings, and pressure sensors'
 
     else:
-        rs(
-            'No camera trials found, searching for pressure sensor logs to match to protocol'
-            ' logs...'
-        )
+        rs('No camera trials found, searching for pressure sensor logs to match to protocol'
+           ' logs...')
         # Common between protocol and ps only since we lack any camera logs
         common_trials_all = np.intersect1d(protocol_trials, ps_trials)
         matched_types = 'main protocol and pressure sensors'
 
-    print_absent_trials(
-        protocol_trials, ps_trials, common_trials_all, 'protocol', 'pressure sensor'
-    )
+    print_absent_trials(protocol_trials, ps_trials, common_trials_all, 'protocol',
+                        'pressure sensor')
 
     common_trials_all.sort()
 
-    rs(
-        '{} trials are common to {}: {}'.format(
-            len(common_trials_all), matched_types, ', '.join(str(v) for v in common_trials_all)
-        )
-    )
+    rs('{} trials are common to {}: {}'.format(
+        len(common_trials_all), matched_types, ', '.join(str(v) for v in common_trials_all)))
 
     # recreate data based on the common trials
     sy_data = sy_data[np.isin(protocol_trials, common_trials_all), :]
@@ -327,9 +312,8 @@ def find_calibration(session, calibrations_dir):
     candidate_dates = [str2date(extract_date(c)) for c in candidates]
 
     # sort by date
-    candidates, candidate_dates = (
-        list(x) for x in zip(*sorted(zip(candidates, candidate_dates), key=lambda p: p[1]))
-    )
+    candidates, candidate_dates = (list(x) for x in zip(*sorted(zip(candidates, candidate_dates),
+                                                                key=lambda p: p[1])))
     session_date = str2date(extract_date(session))
     if candidate_dates[0] > session_date:
         ValueError('Could not find calibration before the session date.')
@@ -346,9 +330,8 @@ def find_ncams_config(session, calibrations_dir):
         return None
     f = os.path.join(d, 'ncams_config.yaml')
     if not os.path.exists(f):
-        ValueError(
-            'Calibration folder exists, but the calibration has not been performed in {}.'.format(d)
-        )
+        ValueError('Calibration folder exists, but the calibration has not been performed'
+                   ' in {}.'.format(d))
     return f
 
 
@@ -431,16 +414,14 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
 
         # synchronization period length
         sync_period_length = (
-            sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
-        ) / 1000
+            sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')] -
+            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
 
         # NS Added:
         # NS: get the time offset to object in position time
         ttl_to_obj_end_pos = (
-            sy_data[:, sy_column_names.index('object_in_position_time(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
-        ) / 1000
+            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] -
+            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
         ttl_to_obj_end_pos[
             sy_data[:, sy_column_names.index('object_in_position_time(ms)')] == 0
         ] = math.nan
