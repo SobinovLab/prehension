@@ -64,14 +64,10 @@ def loadTrialLog(trial_log_filename, trials):
     trial_timestamps = []
     for trial in trials:
         row = f[f['trial_num'] == trial].iloc[0]
-        trial_timestamps.append(
-            [
-                row['startedRecording(ms)'],
-                row['syncTrialStartTime(ms)'],
-                row['syncTrialEndTime(ms)'],
-                row['finishedRecording(ms)'],
-            ]
-        )
+        trial_timestamps.append([row['startedRecording(ms)'],
+                                 row['syncTrialStartTime(ms)'],
+                                 row['syncTrialEndTime(ms)'],
+                                 row['finishedRecording(ms)']])
     return np.array(trial_timestamps)
 
 
