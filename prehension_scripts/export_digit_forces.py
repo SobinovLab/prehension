@@ -24,8 +24,7 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    export_digit_forces(args.server, args.sessions, args.trials,
-                        args.temp, args.overwrite, args.processes)
+    export_digit_forces(args.server, args.sessions, args.trials, args.temp, args.overwrite, args.processes)
     print('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))
 

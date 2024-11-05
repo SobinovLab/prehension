@@ -138,13 +138,11 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
 
             auto_log.sort(key=order)
 
-            warnings.warn(
-                'Several session log filenames found: {}'.format(auto_log))
+            warnings.warn('Several session log filenames found: {}'.format(auto_log))
         elif len(auto_log) == 0:
-            raise ValueError(
-                'Could not find auto log session filenames in {}.'.format(raw_ss))
+            raise ValueError('Could not find auto log session filenames in {}.'.format(raw_ss))
 
-        mstruct['auto_log'] = auto_log  # SWITCH TO FULL PATH
+        mstruct['auto_log'] = auto_log  ### SWITCH TO FULL PATH
 
     # Search manual log
     if len(mstruct['manual_log']) == 0:
@@ -158,14 +156,11 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
             warnings.warn(
                 'Too many manual session log filenames found: {}. Using first one.'.format(
                     manual_log))
-            mstruct['manual_log'] = os.path.join(
-                log_rel_dir, os.path.basename(manual_log[0]))
+            mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
         elif len(manual_log) == 0:
-            warnings.warn(
-                'Could not find manual session log filenames in {}.'.format(log_rel_dir))
+            warnings.warn('Could not find manual session log filenames in {}.'.format(log_rel_dir))
         else:
-            mstruct['manual_log'] = os.path.join(
-                log_rel_dir, os.path.basename(manual_log[0]))
+            mstruct['manual_log'] = os.path.join(log_rel_dir, os.path.basename(manual_log[0]))
 
     mstruct['opensim_model_locked_base'] = '{}_locked_{}.osim'.format(
         mstruct['opensim_model'][:-5], session)
@@ -175,8 +170,7 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
     # identify cameras
     if os.path.exists(os.path.join(raw_ss, mstruct['videos_dir'])):
         # TODO suboptimal
-        _cameras = glob.glob(os.path.join(
-            raw_ss, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
+        _cameras = glob.glob(os.path.join(raw_ss, mstruct['videos_dir'], 'trial*', 'cam*.mp4'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
@@ -186,8 +180,7 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
                 continue
             _cameras_dict[serial] = camera[:-4]
     else:
-        _cameras = glob.glob(os.path.join(
-            raw_ss, mstruct['images_dir'], 'cam*'))
+        _cameras = glob.glob(os.path.join(raw_ss, mstruct['images_dir'], 'cam*'))
         _cameras_dict = {}
         for _c in _cameras:
             camera = os.path.split(_c)[1]
@@ -207,8 +200,7 @@ def normjoinpath(dirname, p):
 
 def import_meta_structure(meta_structure_path, raw_dir=None, proc_dir=None):
 
-    assert 'ProcessedData' in meta_structure_path, '{} is not a meta structure path.'.format(
-        meta_structure_path)
+    assert 'ProcessedData' in meta_structure_path, '{} is not a meta structure path.'.format(meta_structure_path)
 
     with open(meta_structure_path, 'r') as f:
         mstruct = json.load(f)
@@ -274,8 +266,7 @@ def import_meta_object(meta_object_path):
     for i_object, object_id in enumerate(object_ids):
         answ[object_id] = {'def': {}}
         for odc in object_def_columns:
-            answ[object_id]['def'][odc] = values[column_names.index(
-                odc)][i_object]
+            answ[object_id]['def'][odc] = values[column_names.index(odc)][i_object]
         answ[object_id]['sstr'] = ' '.join(
             str(v) for v in answ[object_id]['def'].values())
         answ[object_id]['str'] = ', '.join(
@@ -330,8 +321,7 @@ class IncompleteMetaError(Exception):
 
     def __str__(self) -> str:
         pretty_string = '\n'.join(
-            [os.path.join(*os.path.normpath(f).split(os.sep)[-5:])
-             for f in self.missing_files]
+            [os.path.join(*os.path.normpath(f).split(os.sep)[-5:]) for f in self.missing_files]
         )
         return (f"Incomplete metadata: {len(self.missing_files)} file(s) missing." + "\n"
                 f"Missing files:\n" + pretty_string)
@@ -343,8 +333,7 @@ def import_all_meta(raw_dir, proc_dir):
         raise ValueError(
             f'Processed directory {proc_dir} does not exist.')
 
-    assert 'ProcessedData' in proc_dir, 'ProcessedData directory not found in {}'.format(
-        proc_dir)
+    assert 'ProcessedData' in proc_dir, 'ProcessedData directory not found in {}'.format(proc_dir)
 
     meta_structure_path = os.path.join(
         proc_dir, 'meta_structure.json')
@@ -352,15 +341,13 @@ def import_all_meta(raw_dir, proc_dir):
     meta_object_path = os.path.join(proc_dir, 'meta_object.csv')
     meta_session_path = os.path.join(proc_dir, 'meta_session.csv')
 
-    files = [meta_structure_path, meta_dof_path,
-             meta_object_path, meta_session_path]
+    files = [meta_structure_path, meta_dof_path, meta_object_path, meta_session_path]
     missing_files = [f for f in files if not os.path.isfile(f)]
 
     if len(missing_files) > 0:
         raise IncompleteMetaError(missing_files)
 
-    mstruct = import_meta_structure(
-        meta_structure_path, raw_dir=raw_dir, proc_dir=proc_dir)
+    mstruct = import_meta_structure(meta_structure_path, raw_dir=raw_dir, proc_dir=proc_dir)
     mdof = import_meta_dof(meta_dof_path)
     mobject = import_meta_object(meta_object_path)
     msess_cols, msess_values = import_csv(meta_session_path)
@@ -375,8 +362,7 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
         session = os.path.basename(raw_dir)
 
     # Check all meta exists and load the files
-    mstruct, mdof, mobject, column_names, values = import_all_meta(
-        raw_dir, proc_dir)
+    mstruct, mdof, mobject, column_names, values = import_all_meta(raw_dir, proc_dir)
 
     # essential trial parameters
     trial_numbers = _column_pop('trial_number', column_names, values)
@@ -386,8 +372,7 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
     # load manual log
     if check_manual_log:
         if mstruct['manual_log'] is None:
-            warnings.warn(
-                'No manual log specified in session structure, cannot check it.')
+            warnings.warn('No manual log specified in session structure, cannot check it.')
             check_manual_log = False
         else:
             try:
@@ -409,7 +394,7 @@ def load_meta_information(raw_dir, proc_dir, only_successful_trials=False,
             if any([mfn in mlog[trial_number] for mfn in mlog_failed_numbers]):
                 continue
         trial_info = TrialInfo(session, trial_number, object_id, success,
-                               other_info={k: v[i_trial] for k, v in zip(column_names, values)})
+                                  other_info={k: v[i_trial] for k, v in zip(column_names, values)})
         trial_info.generate_filenames(mstruct)
         msession.append(trial_info)
 
@@ -420,13 +405,10 @@ def import_adjustment_trials(dirname):
     if not os.path.exists(os.path.join(dirname, 'adjustment_files.csv')):
         return {}
 
-    column_names, values = import_csv(
-        os.path.join(dirname, 'adjustment_files.csv'))
+    column_names, values = import_csv(os.path.join(dirname, 'adjustment_files.csv'))
 
-    trial_numbers = [int(v)
-                     for v in values[column_names.index('trial_number')]]
-    adjustment_trials = [
-        int(v) for v in values[column_names.index('adjustment_trial')]]
+    trial_numbers = [int(v) for v in values[column_names.index('trial_number')]]
+    adjustment_trials = [int(v) for v in values[column_names.index('adjustment_trial')]]
 
     return {k: v for k, v in zip(trial_numbers, adjustment_trials)}
 
@@ -466,9 +448,7 @@ def export_optimal_frames(filename, trial_numbers, optimal_frames):
 def import_optimal_frames(filename):
     column_names, values = import_csv(filename)
 
-    trial_numbers = [int(v)
-                     for v in values[column_names.index('trial_number')]]
-    optimal_frames = [int(v)
-                      for v in values[column_names.index('optimal_frame')]]
+    trial_numbers = [int(v) for v in values[column_names.index('trial_number')]]
+    optimal_frames = [int(v) for v in values[column_names.index('optimal_frame')]]
 
     return {k: v for k, v in zip(trial_numbers, optimal_frames)}

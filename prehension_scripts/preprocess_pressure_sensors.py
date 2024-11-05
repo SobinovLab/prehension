@@ -36,8 +36,7 @@ if __name__ == '__main__':
         description=('Creates meta information for a session.'))
     cmd_args.add_default_kwarguments(
         parser, {'server': current_preset['default_server']})
-    cmd_args.add_default_arguments(
-        parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
+    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
 
     # custom
     parser.add_argument(

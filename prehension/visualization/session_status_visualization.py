@@ -40,6 +40,7 @@ EXPECTED_PLOT_NAMES = [
 
 def display_session_info(experimental_server_wrappers, training_server_wrappers, clean, last_n):
 
+
     # Function to format and color the session status
     def format_status(session_path):
         if session_path and os.path.exists(session_path):
@@ -49,10 +50,8 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
     # Function to check if specific folders (behavior, sensors) exist in sw.raw_ss
     def check_folders(session_path):
-        behavior_exists = os.path.exists(
-            os.path.join(session_path, 'behavior'))
-        sensors_exists = os.path.exists(
-            os.path.join(session_path, 'sensors'))
+        behavior_exists = os.path.exists(os.path.join(session_path, 'behavior'))
+        sensors_exists = os.path.exists(os.path.join(session_path, 'sensors'))
 
         behavior_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if behavior_exists else f" {Fore.RED}✘{Style.RESET_ALL} "
         sensors_symbol = f" {Fore.GREEN}✔{Style.RESET_ALL} " if sensors_exists else f" {Fore.RED}✘{Style.RESET_ALL} "
@@ -90,8 +89,7 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
     # Function to check for timepoints.csv in sw.proc_ss
     def check_timepoints(proc_path):
-        timepoints_exist = os.path.exists(
-            os.path.join(proc_path, 'timepoints.csv'))
+        timepoints_exist = os.path.exists(os.path.join(proc_path, 'timepoints.csv'))
         return f" {Fore.GREEN}✔{Style.RESET_ALL} " if timepoints_exist else f" {Fore.RED}✘{Style.RESET_ALL} "
 
     # Function to check and format the has_meta property
@@ -109,19 +107,18 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
             '**', logname), recursive=True)) - set([logname_full, ])
         duplicates = len(matching_logs_other) > 0
 
-        mark_for_delete = not os.path.exists(
-            os.path.join(sw.raw_ss, 'sensors')) and duplicates
+        mark_for_delete = not os.path.exists(os.path.join(sw.raw_ss, 'sensors')) and duplicates
 
         msg = ""
         if delete:
             if mark_for_delete:
                 shutil.rmtree(sw.raw_ss)
                 shutil.rmtree(sw.proc_ss)
-                msg = 'D!'
+                msg='D!'
         return f" {Fore.RED}DELETE{msg}{Style.RESET_ALL} " if mark_for_delete else "KEEP"
 
-    # Helper function to format the table rows
 
+    # Helper function to format the table rows
     def format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status, meta_status, can_delete):
         return (f"{raw_status:<25} {folder_status_raw:<40} {proc_status:<25} {folder_status_proc:<25} "
                 f"{timepoints_status:<7} {meta_status:<7} {can_delete:<7}")
@@ -135,8 +132,7 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         print('-' * 135)
 
     print_header('EXPERIMENTAL SESSIONS')
-    sorted_exp_sessions = sorted(
-        experimental_server_wrappers, key=lambda x: (x.datetime, x.set_number))
+    sorted_exp_sessions = sorted(experimental_server_wrappers, key=lambda x: (x.datetime, x.set_number))
     if last_n > 0:
         sorted_exp_sessions = sorted_exp_sessions[-last_n:]
     for sw in sorted_exp_sessions:
@@ -150,14 +146,12 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
             can_delete_status = can_delete(sw, delete=True)
         else:
             can_delete_status = "----"
-        print(format_row(raw_status, folder_status_raw, proc_status,
-              folder_status_proc, timepoints_status, meta_status, can_delete_status))
+        print(format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status, meta_status, can_delete_status))
 
     print()  # Line break between sections
 
     print_header('TRAINING SESSIONS')
-    sorted_training_sessions = sorted(
-        training_server_wrappers, key=lambda x: (x.datetime, x.set_number))
+    sorted_training_sessions = sorted(training_server_wrappers, key=lambda x: (x.datetime, x.set_number))
     if last_n > 0:
         sorted_training_sessions = sorted_training_sessions[-last_n:]
     for sw in sorted_training_sessions:
