@@ -33,6 +33,7 @@ from . import meta_session
 from .tools import logs
 from .tools import io
 from .tools.logs import rs, ws
+from .tools.forces import get_summed_force_data
 
 # ============================================ Notes ============================================= #
 # Lint with: py -3.7 -m pycodestyle find_event_onsets.py --max-line-length 100 --ignore E402
@@ -101,11 +102,7 @@ PREGRASP_POSITION_JAS = [
 ]
 SHOULDER_COLS = PREGRASP_POSITION_JAS
 ELBOW_COLS = ["ra_el_e_f"]
-WRIST_COLS = [
-    "ra_wr_sup_pro",
-    "ra_wr_rd_ud",
-    'ra_wr_e_f'
-]
+WRIST_COLS = ["ra_wr_sup_pro", "ra_wr_rd_ud", 'ra_wr_e_f']
 FINGER_COLS = [
     "ra_cmc1_f_e",
     "ra_cmc1_opp",
@@ -133,9 +130,7 @@ THUMB_COLS = [
     "ra_cmc1_opp",
     "ra_cmc1_f_e",
 ]
-INDEX_COLS = [
-    "ra_mcp2_e_f"
-]
+INDEX_COLS = ["ra_mcp2_e_f"]
 
 TIMEPOINT_LABELS = [
     'shoulder_onset',  # shoulder_movement_onset,
@@ -148,20 +143,16 @@ TIMEPOINT_LABELS = [
     'release_start',  # release start
     'release',  # release
     'hand_retreat_time',  # hand retreated
-    'success_grasp_start',  # Successful (as determined by meta ttl times)
+    # Successful (as determined by meta ttl times)
+    'success_grasp_start',
     'success_grasp_end',  # See above
-    'regrasp_bool'  # regrasp (bool)
-
+    'regrasp_bool',  # regrasp (bool)
 ]
 
 
 # ========================================= Functions ============================================ #
 def get_empty_plot_dict():
-    return {
-        'normed_force_data': None,
-        'time_ax': None,
-        'grasp_pairs': None
-    }
+    return {'normed_force_data': None, 'time_ax': None, 'grasp_pairs': None}
 
 
 def create_timepoints_dict(trial_number):
@@ -205,7 +196,8 @@ def find_local_minima(x, y):
     local_min_y = []
     if len(x) != len(y):
         raise ValueError("Arrays must have the same length")
-    for i in range(1, len(y) - 1):  # Exclude the endpoints because they can't be local minima
+    # Exclude the endpoints because they can't be local minima
+    for i in range(1, len(y) - 1):
         if y[i] < y[i - 1] and y[i] < y[i + 1]:
             local_min_x.append(x[i])
             local_min_y.append(y[i])
@@ -231,7 +223,8 @@ def find_local_maxima(x, y):
     local_max_y = []
     if len(x) != len(y):
         raise ValueError("Arrays must have the same length")
-    for i in range(1, len(y) - 1):  # Exclude the endpoints because they can't be local maxima
+    # Exclude the endpoints because they can't be local maxima
+    for i in range(1, len(y) - 1):
         if y[i] > y[i - 1] and y[i] > y[i + 1]:
             local_max_x.append(x[i])
             local_max_y.append(y[i])
@@ -254,13 +247,15 @@ def get_abs_normed_velocity(position_data):
     vels -= np.min(vels)
 
     if np.max(vels) > 0:  # Should almost always be the case
-        vels /= np.max(vels)  # Normalize so each value is weighted the same
+        # Normalize so each value is weighted the same
+        vels /= np.max(vels)
 
     return vels
 
 
-def find_velocity_threshold_crossing_time(time_ax, ja_columns, thresh_dec, ax=None,
-                                          title=None, col_names=None, from_minima=False):
+def find_velocity_threshold_crossing_time(
+    time_ax, ja_columns, thresh_dec, ax=None, title=None, col_names=None, from_minima=False
+):
     """
     Create velocity data from a set of joint-angle columns per timestep.
     Return a list of pairs of points that cross above and below the given threshold of the max.
@@ -322,7 +317,6 @@ def find_velocity_threshold_crossing_time(time_ax, ja_columns, thresh_dec, ax=No
 
     # if from_minima is true, only consider range from closest prior local min (below thresh)
     if from_minima:
-
         # Sort local minima indices in descending order
         minima_indices = np.sort(argrelmin(ja_abs_normed_vels_sum)[0])[::-1]
 
@@ -334,10 +328,12 @@ def find_velocity_threshold_crossing_time(time_ax, ja_columns, thresh_dec, ax=No
                 break
 
         if should_plot:
-            ax.scatter(time_ax_vel[minima_indices],
-                       ja_abs_normed_vels_sum[minima_indices],
-                       label='Local mins',
-                       marker='x')
+            ax.scatter(
+                time_ax_vel[minima_indices],
+                ja_abs_normed_vels_sum[minima_indices],
+                label='Local mins',
+                marker='x',
+            )
             ax.axvline(x=time_ax_vel[ll_idx], linestyle='--')
 
         # Now shape time axis and joint angle velocities accordingly
@@ -398,7 +394,6 @@ def find_threshold_crossing_points(x_data, y_data, threshold):
     cross_below = []
 
     for i in post_cross_indices:
-
         # Using numpy interp
         # (flip the xp and yp because we want to evaluate at the threhshold on the y axis)
         yp = [x_data[i - 1], x_data[i]]
@@ -447,7 +442,8 @@ def get_max_thumb_index_aperture(df, time_window, ax=None):
     if len(maxx_arr) > 0:
         max_idx = np.argmax(
             maxy_arr
-        )  # The index of the minimum angle difference (actually the max but it's inverted)
+            # The index of the minimum angle difference (actually the max but it's inverted)
+        )
         t_MGA = maxx_arr[max_idx]
         MGA = thumb_index_abs_diffs[max_idx]
 
@@ -460,66 +456,6 @@ def get_max_thumb_index_aperture(df, time_window, ax=None):
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=3)
 
     return t_MGA, MGA
-
-
-def get_summed_force_data(tsm1_file, tsm2_file, verbose=False):
-
-    # ---- ----- ---- ---- #
-
-    # Handle different start/end times
-    # load time and ps data for each file
-    ps_times1, ps_matrices1 = io.import_matrices(tsm1_file)
-    ps_times2, ps_matrices2 = io.import_matrices(tsm2_file)
-
-    # Get the sums at each timestep
-    ps_sum1 = np.sum(ps_matrices1, axis=(1, 2))
-    ps_sum2 = np.sum(ps_matrices2, axis=(1, 2))
-
-    # Sanity check that time and pressure data are the same size
-    if ps_times1.size != ps_sum1.size:
-        raise ValueError("Size of tsm1 time and pressure data not equal")
-    if ps_times2.size != ps_sum2.size:
-        raise ValueError("Size of tsm2 time and pressure data not equal")
-
-    # find smallest common time range
-    tmin = max([ps_times1[0], ps_times2[0]])
-    tmax = min([ps_times1[-1], ps_times2[-1]])
-
-    # trim both datasets to that range
-    valid_idx1 = (ps_times1 >= tmin) & (ps_times1 <= tmax)
-    ps_times1 = np.array(ps_times1[valid_idx1])
-    ps_sum1 = np.array(ps_sum1[valid_idx1])
-
-    valid_idx2 = (ps_times2 >= tmin) & (ps_times2 <= tmax)
-    ps_times2 = np.array(ps_times2[valid_idx2])
-    ps_sum2 = np.array(ps_sum2[valid_idx2])
-
-    # Take union of times to get all common times
-    U_times = np.union1d(ps_times1, ps_times2)
-    max_size = max(ps_times1.size, ps_times2.size)
-    added_times_pct = abs(U_times.size - max_size) / max_size
-    if added_times_pct > 0.05:
-        if verbose:
-            ws("Times union size is greater 5% of the max"
-               f" ps_times array: pct diff = ({added_times_pct})")
-
-    # Interp the missing sums
-    ps_sum1_fill = np.interp(U_times, ps_times1, ps_sum1)
-    ps_sum2_fill = np.interp(U_times, ps_times2, ps_sum2)
-
-    if ps_sum1_fill.size != ps_sum2_fill.size:
-        raise ValueError(
-            f"Len of ps sum 1 and 2 not equal "
-            f"({ps_sum1_fill.size} / {ps_sum2_fill.size})"
-        )
-
-    # Left/Right force sums
-    fss_total = np.sum([ps_sum1_fill, ps_sum2_fill], axis=0)
-
-    return (
-        U_times,
-        fss_total
-    )
 
 
 def merge_pairs(point_list, x_tolerance):
@@ -726,9 +662,15 @@ def get_fingers_static_on_off(df, grasp_start, grasp_release, vel_threshold, vel
     return fingers_static, begin_release
 
 
-def find_return_to_init_position(pregrasp_movement_window_s, postgrasp_return_window_s,
-                                 timepoints_d, last_grasp_end, df, time_ax, ax):
-
+def find_return_to_init_position(
+    pregrasp_movement_window_s,
+    postgrasp_return_window_s,
+    timepoints_d,
+    last_grasp_end,
+    df,
+    time_ax,
+    ax,
+):
     init_pos_cols = [df[col_name].values for col_name in PREGRASP_POSITION_JAS]
 
     def get_vector(t):
@@ -744,7 +686,7 @@ def find_return_to_init_position(pregrasp_movement_window_s, postgrasp_return_wi
 
     # This is the vector difference from the initial position to time t
     # We want to plot this if fig and ax are provided
-    Dt = np.array([np.sqrt(np.sum((P0 - get_vector(t))**2)) for t in search_times])
+    Dt = np.array([np.sqrt(np.sum((P0 - get_vector(t)) ** 2)) for t in search_times])
     loc_mins_x, loc_mins_y = find_local_minima(search_times, Dt)
 
     # Find the lowest local min
@@ -753,20 +695,29 @@ def find_return_to_init_position(pregrasp_movement_window_s, postgrasp_return_wi
         timepoints_d["hand_retreat_time"] = loc_mins_x[i_min]
 
     # Plotting for debug plot
-    if (ax is not None):
+    if ax is not None:
         ax.plot(search_times, Dt, label='Difference from t0')
         ax.set_yticks([])
         ax.set_title('Return to pregrasp state')
-        ax.axvline(timepoints_d["hand_retreat_time"], label='Hand retreat time',
-                   linestyle='--', color='red')
+        ax.axvline(
+            timepoints_d["hand_retreat_time"],
+            label='Hand retreat time',
+            linestyle='--',
+            color='red',
+        )
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=3)
 
 
 def find_finger_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
     finger_cols = [df[col_name].values[pre_grasp_idx] for col_name in FINGER_COLS]
     finger_vel_cross_above, _ = find_velocity_threshold_crossing_time(
-        times_pre, finger_cols, VELOCITY_THRESH_FINGER, ax, 'finger onset', FINGER_COLS,
-        from_minima=True
+        times_pre,
+        finger_cols,
+        VELOCITY_THRESH_FINGER,
+        ax,
+        'finger onset',
+        FINGER_COLS,
+        from_minima=True,
     )
 
     if len(finger_vel_cross_above) > 0:
@@ -780,8 +731,13 @@ def find_finger_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
 def find_wrist_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
     wrist_cols = [df[col_name].values[pre_grasp_idx] for col_name in WRIST_COLS]
     wrist_vel_cross_above, _ = find_velocity_threshold_crossing_time(
-        times_pre, wrist_cols, VELOCTIY_THRESH_WRIST, ax, "wrist onset", WRIST_COLS,
-        from_minima=True
+        times_pre,
+        wrist_cols,
+        VELOCTIY_THRESH_WRIST,
+        ax,
+        "wrist onset",
+        WRIST_COLS,
+        from_minima=True,
     )
 
     if len(wrist_vel_cross_above) > 0:
@@ -795,8 +751,7 @@ def find_wrist_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
 def find_elbow_onset(timepoints_d, df, pre_grasp_i, times_pre, ax=None):
     el_cols = [df[col_name].values[pre_grasp_i] for col_name in ELBOW_COLS]
     elbow_vel_cross_above, _ = find_velocity_threshold_crossing_time(
-        times_pre, el_cols, VELOCITY_THRESH_ELBOW, ax, "elbow onset", ELBOW_COLS,
-        from_minima=True
+        times_pre, el_cols, VELOCITY_THRESH_ELBOW, ax, "elbow onset", ELBOW_COLS, from_minima=True
     )
 
     if len(elbow_vel_cross_above) > 0:
@@ -808,15 +763,19 @@ def find_elbow_onset(timepoints_d, df, pre_grasp_i, times_pre, ax=None):
 
 
 def find_shoulder_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
-
     sh_cols = [df[col_name].values[pre_grasp_idx] for col_name in SHOULDER_COLS]
 
     if not np.all([len(col) == len(times_pre) for col in sh_cols]):
         raise ValueError("Length of joint angle data is not equal to the pre grasp time data")
 
     shoulder_vel_cross_above, _ = find_velocity_threshold_crossing_time(
-        times_pre, sh_cols, VELOCITY_THRESH_SHOULDER, ax, "shoulder onset",
-        SHOULDER_COLS, from_minima=True
+        times_pre,
+        sh_cols,
+        VELOCITY_THRESH_SHOULDER,
+        ax,
+        "shoulder onset",
+        SHOULDER_COLS,
+        from_minima=True,
     )
 
     timepoints_d['shoulder_onset'] = (
@@ -851,13 +810,14 @@ def find_trial_timepoints(
     # W1: Check if pressure sensor data is not found
     expected_ps_files = [trial.transformed_ps_filenames[k] for k in keys]
     if np.any([not os.path.exists(k) for k in expected_ps_files]):
-        ws(f"trial {trial.trial_number}: No pressure sensor data found. Searched"
-           f" {expected_ps_files} Skipping.")
+        ws(
+            f"trial {trial.trial_number}: No pressure sensor data found. Searched"
+            f" {expected_ps_files} Skipping."
+        )
         return timepoints_d, plot_addons, None
 
     # Get the normalized summed L/R force
-    time_ax, tsmSums = get_summed_force_data(
-        *[trial.transformed_ps_filenames[k] for k in keys])
+    time_ax, tsmSums = get_summed_force_data(*[trial.transformed_ps_filenames[k] for k in keys])
 
     # Check if the max force is super low
     if np.max(tsmSums) <= LOWER_FORCE_THRESHOLD:
@@ -921,8 +881,8 @@ def find_trial_timepoints(
         axs[-1].set_xlabel('Seconds since TTL')
 
     pre_grasp_idx = np.where(
-        (times < timepoints_d['first_grasp_start']) & (
-            times > timepoints_d['first_grasp_start'] - pregrasp_movement_window_s)
+        (times < timepoints_d['first_grasp_start'])
+        & (times > timepoints_d['first_grasp_start'] - pregrasp_movement_window_s)
     )
     times_pre = df["time"].values[pre_grasp_idx]
 
@@ -942,8 +902,15 @@ def find_trial_timepoints(
     find_finger_onset(timepoints_d, df, pre_grasp_idx, times_pre, axs[3])
 
     # Return to init position.
-    find_return_to_init_position(pregrasp_movement_window_s, postgrasp_return_window_s,
-                                 timepoints_d, last_grasp_end, df, times, axs[4])
+    find_return_to_init_position(
+        pregrasp_movement_window_s,
+        postgrasp_return_window_s,
+        timepoints_d,
+        last_grasp_end,
+        df,
+        times,
+        axs[4],
+    )
 
     # Max grasp aperture
     MGA_window = (timepoints_d['first_grasp_start'] - 0.5, timepoints_d['first_grasp_start'])
@@ -951,9 +918,14 @@ def find_trial_timepoints(
 
     # Finger static & release start
     # TODO do we use end of first grasp or end of last grasp
-    args = (df, timepoints_d['first_grasp_start'],
-            timepoints_d['first_grasp_start'] + grasp_durations[0],
-            FING_STATIC_JA_THRESH, FINGER_COLS, axs[6])
+    args = (
+        df,
+        timepoints_d['first_grasp_start'],
+        timepoints_d['first_grasp_start'] + grasp_durations[0],
+        FING_STATIC_JA_THRESH,
+        FINGER_COLS,
+        axs[6],
+    )
     timepoints_d['fingers_static'], timepoints_d['release_start'] = get_fingers_static_on_off(*args)
 
     if make_trial_plots:
@@ -962,9 +934,14 @@ def find_trial_timepoints(
     return timepoints_d, plot_addons, debug_fig
 
 
-def create_plot_from_dictionary(timepoints_d, trial,
-                                grasp_pairs=None, on_off_thresholds=None,
-                                time_ax=None, normed_force_data=None):
+def create_plot_from_dictionary(
+    timepoints_d,
+    trial,
+    grasp_pairs=None,
+    on_off_thresholds=None,
+    time_ax=None,
+    normed_force_data=None,
+):
     fig, ax = plt.subplots(figsize=FIGSIZE)
     # Choose a colormap
     cmap = plt.get_cmap('brg')
@@ -989,7 +966,7 @@ def create_plot_from_dictionary(timepoints_d, trial,
     ax.set_xlabel('Time from TTL (s)')
 
     msg = ''
-    if (normed_force_data is None and time_ax is None and grasp_pairs is None):
+    if normed_force_data is None and time_ax is None and grasp_pairs is None:
         msg = '(Missing: force and grasp events)'
     ax.set_title(f"Trial {timepoints_d['trial_number']} Timepoints {msg}")
 
@@ -997,8 +974,9 @@ def create_plot_from_dictionary(timepoints_d, trial,
     for i, (k, v) in enumerate(sub_d.items()):
         clr = cmap(i / len(sub_d))
         ax.axvline(x=v, linestyle='--', label=k, color=clr)
-        ax.annotate(k, [v, 0.5 + 0.5 * (len(sub_d) - i) / len(sub_d)],
-                    color=clr, ha='left', va='top')
+        ax.annotate(
+            k, [v, 0.5 + 0.5 * (len(sub_d) - i) / len(sub_d)], color=clr, ha='left', va='top'
+        )
 
     if normed_force_data is not None and time_ax is not None:
         ax.plot(time_ax, normed_force_data, label='Normalized force data', color='blue')
@@ -1006,16 +984,14 @@ def create_plot_from_dictionary(timepoints_d, trial,
 
     # Optional but nice to have plotting only available if not run in 'create from csv' mode
     if grasp_pairs is not None:
-        kwargs = {'color': 'beige',
-                  'alpha': 0.8,
-                  'label': 'grasp_event'}
+        kwargs = {'color': 'beige', 'alpha': 0.8, 'label': 'grasp_event'}
         for pt in grasp_pairs:
             ax.scatter(*pt[0], color="green")
             ax.scatter(*pt[1], color="red")
-            ax.fill_between([pt[0][0], pt[1][0]], 0, 1,
-                            **kwargs)
+            ax.fill_between([pt[0][0], pt[1][0]], 0, 1, **kwargs)
             if 'label' in kwargs.keys():
-                del kwargs['label']  # So we don't relabel the grasp events
+                # So we don't relabel the grasp events
+                del kwargs['label']
 
     if on_off_thresholds is not None:
         onset_thresh, offset_thresh = on_off_thresholds
@@ -1027,8 +1003,18 @@ def create_plot_from_dictionary(timepoints_d, trial,
     return fig
 
 
-def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
-                      processes, make_plots, store_plots, make_trial_plots, show_plots, preset):
+def find_event_onsets(
+    preset,
+    sessions,
+    trials_sel,
+    temp,
+    overwrite,
+    processes,
+    make_plots,
+    store_plots,
+    make_trial_plots,
+    show_plots,
+):
     """Outputs a csv of movement onset times for each session.
 
     Arguments:
@@ -1056,13 +1042,17 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
     >>> find_event_onsets(server_directory, session_directories, temp_dir, overwrite_output,
         num_processes, create_plots)
     """
-    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
-    if not os.path.exists(server):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(server))
+    proc_dir = preset['processed_server']
+    raw_dir = preset['default_server']
+
+    logs.setup_logging(temp, sessions_dir=proc_dir)
+
+    if not os.path.exists(raw_dir):
+        raise ValueError("Server directory {} does not exist or is inaccessible.".format(raw_dir))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(raw_dir)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -1082,17 +1072,22 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
     for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
         print()
         rs("Processing session {}.".format(session))
-        server_session = os.path.join(server, session)
-        processed_session = os.path.join(preset['processed_server'], session)
+        raw_ss = os.path.join(raw_dir, session)
+        proc_ss = os.path.join(proc_dir, session)
 
-        if not os.path.exists(server_session):
-            ws("Session {} does not exist on the server.".format(session))
+        if not os.path.exists(raw_ss):
+            ws("Session {} does not exist on the server.".format(raw_ss))
             continue
 
         # load session meta
         try:
             mstruct, _, _, msession = meta_session.load_meta_information(
-                server_session, processed_session)
+                raw_ss,
+                proc_ss,
+            )
+        except meta_session.IncompleteMetaError as imfe:
+            ws(f'Skipping {raw_ss} due to incomplete meta: {imfe}')
+            continue
         except Exception as e:
             ws('Could not load meta data from session {} ({}), skipping.'.format(session, repr(e)))
             continue
@@ -1117,8 +1112,15 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
         else:
             trials = [t for t in msession if t.trial_number in trials_sel]
 
-        rs('Found {} trials: {}'.format(
-            len(trials), ', '.join([str(t.trial_number) for t in trials])))
+        # Just continue if no trials
+        if not trials:
+            continue
+
+        rs(
+            'Found {} trials: {}'.format(
+                len(trials), ', '.join([str(t.trial_number) for t in trials])
+            )
+        )
 
         # FIND THE TIMEPOINTS
         df = None
@@ -1126,10 +1128,7 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
         debug_figs = None
 
         if len(trials) > 0:
-            p_args = list(zip(*[
-                trials,
-                [make_trial_plots] * len(trials)
-            ]))
+            p_args = list(zip(*[trials, [make_trial_plots] * len(trials)]))
 
             if len(p_args) > 0:
                 pool = reporting_pool.ReportingPool(
@@ -1150,15 +1149,20 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
                     ws("Failed to find timepoints for the following trials:")
                     for v in pool.failed_i_jobs:
                         ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                        failed_trial_reports.append('session {} trial {} error: {}'.format(
-                            session, trials[v].trial_number, pool.error_reports[v]))
+                        failed_trial_reports.append(
+                            'session {} trial {} error: {}'.format(
+                                session, trials[v].trial_number, pool.error_reports[v]
+                            )
+                        )
 
                 # Extract plot kwargs
-                plot_kwargs = {elem[0]['trial_number']: elem[1]
-                               for elem in pool_results if elem is not None}
+                plot_kwargs = {
+                    elem[0]['trial_number']: elem[1] for elem in pool_results if elem is not None
+                }
 
-                debug_figs = {elem[0]['trial_number']: elem[2]
-                              for elem in pool_results if elem is not None}
+                debug_figs = {
+                    elem[0]['trial_number']: elem[2] for elem in pool_results if elem is not None
+                }
 
                 # 1. Check if we found anything and if so write new csv
                 if len(pool_results) > 0:
@@ -1193,7 +1197,7 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
             if column == 'trial_number':
                 continue
             non_nan_count = df[column].notna().sum()
-            percentage_non_nan = (non_nan_count / len(df))
+            percentage_non_nan = non_nan_count / len(df)
 
             # Align the output using string formatting
             print(f"\t{column:20s}: {percentage_non_nan:.2%} trials")
@@ -1236,27 +1240,33 @@ def find_event_onsets(server, sessions, trials_sel, temp, overwrite,
         # Trial plots
         if make_trial_plots and (store_plots or show_plots):
             for row in tqdm.tqdm(
-                    df.itertuples(index=False, name=None), desc="Building plots", total=len(df)):
-
+                df.itertuples(index=False, name=None), desc="Building plots", total=len(df)
+            ):
                 row_d = dict(zip(df.columns, row))
                 trial_number = row_d['trial_number']
-                plot_kwarg = (plot_kwargs[trial_number]
-                              if trial_number in plot_kwargs.keys() else {})
+                plot_kwarg = plot_kwargs[trial_number] if trial_number in plot_kwargs.keys() else {}
 
-                debug_fig = (debug_figs[trial_number]
-                             if trial_number in plot_kwargs.keys() else None)
+                debug_fig = debug_figs[trial_number] if trial_number in plot_kwargs.keys() else None
 
                 fig = create_plot_from_dictionary(
-                    row_d, meta_session.find_trial(msession, trial_number),
+                    row_d,
+                    meta_session.find_trial(msession, trial_number),
                     on_off_thresholds=None,
-                    **plot_kwarg)
+                    **plot_kwarg,
+                )
 
                 if store_plots:
-                    fig.savefig(os.path.join(mstruct['timepoint_plots_dir'],
-                                             f"EventsPlot_{trial_number}.png"))
+                    fig.savefig(
+                        os.path.join(
+                            mstruct['timepoint_plots_dir'], f"EventsPlot_{trial_number}.png"
+                        )
+                    )
                     if debug_fig is not None:
-                        debug_fig.savefig(os.path.join(mstruct['timepoint_plots_dir'],
-                                                       f"DebugPlot_{trial_number}.png"))
+                        debug_fig.savefig(
+                            os.path.join(
+                                mstruct['timepoint_plots_dir'], f"DebugPlot_{trial_number}.png"
+                            )
+                        )
 
                 if not show_plots:
                     plt.close(fig)

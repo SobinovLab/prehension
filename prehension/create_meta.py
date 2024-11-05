@@ -37,6 +37,8 @@ from .tools import io
 from .tools import logs
 from .tools.logs import rs, ws
 
+from .tools.session_management import apply_to_sessions_helper
+
 from . import meta_session
 
 
@@ -45,7 +47,7 @@ def get_object_sets(sy_column_names, sy_data, object_def_columns):
     object_def_column_ids = [sy_column_names.index(v) for v in odcs]
     u_objects = np.unique(sy_data[:, object_def_column_ids], axis=0)
 
-    object_ids = np.zeros((np.shape(sy_data)[0], ), dtype=int)
+    object_ids = np.zeros((np.shape(sy_data)[0],), dtype=int)
     object_ids.fill(-1)
 
     rs('\tFound {} unique objects:'.format(np.shape(u_objects)[0]))
@@ -80,7 +82,7 @@ def import_logs(dirname, mstruct):
     if not os.path.exists(sy_ps_file):
         no_ps_log = True
         ws('Pressure sensor log for this session does not exist.')
-        #raise ValueError('Pressure sensor log for this session does not exist.')
+        # raise ValueError('Pressure sensor log for this session does not exist.')
 
     # If neither cam or ps log fail
     if no_cam_log and no_ps_log:
@@ -98,8 +100,10 @@ def import_logs(dirname, mstruct):
     # check for duplication from logs
     trial_nums = sy_data[:, sy_column_names.index('trial_num')].astype(int)
     if len(set(trial_nums)) != len(trial_nums):
-        ws('Auto logs in {} have duplicating trials!'.format(dirname))  # NOT FATAL BECAUSE WE HANDLE LATER
-        #raise ValueError('Auto logs in {} have duplicating trials!'.format(dirname))
+        ws(
+            'Auto logs in {} have duplicating trials!'.format(dirname)
+        )  # NOT FATAL BECAUSE WE HANDLE LATER
+        # raise ValueError('Auto logs in {} have duplicating trials!'.format(dirname))
 
     # cameras data
     if os.path.exists(sy_ja_file):
@@ -116,8 +120,9 @@ def import_logs(dirname, mstruct):
     return sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
 
 
-def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja_data,
-                             sy_ps_column_names, sy_ps_data):
+def reorder_to_common_trials(
+    sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
+):
     '''
     This is equivalent to reorder_to_common_trials but instead of the common trials = (protocol U
     camera) U sensor, we exclude the camera overlap if camera logs are empty
@@ -161,19 +166,6 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
         # Case where we don't have any incoming data (if no cam logs are found for example)
         return np.array([]), np.array([])
 
-    # OLD VERSION THROWS ERROR ON DUPLICATES
-    # def get_logs_and_check_duplicates(data, data_columns, log_label):
-    #     if 'trial_num' in data_columns:
-    #         #pdb.set_trace()
-    #         trials = data[:, data_columns.index('trial_num')].astype(int)
-    #         if len(np.unique(trials)) != len(trials):
-    #             #ws(f'{log_label} trial logs contains duplicates! excluding all but last trial')
-    #             raise ValueError(f'{log_label} trial logs contains duplicates!
-    #             #{find_duplicates(trials)} Aborting...')
-    #         return trials
-    #     # Case where we don't have any incoming data (if no cam logs are found for example)
-    #     return np.array([])
-
     def print_absent_trials(a_trials, b_trials, common, a_label, b_label):
         # In a but not b
         a_trials = np.array(a_trials)
@@ -181,11 +173,14 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
 
         absent_from_a = np.isin(a_trials, common, invert=True)
         if sum(absent_from_a) > 0:
-            rs('{} {} trials are absent from {}: {}'.format(
-                sum(absent_from_a),
-                b_label,
-                a_label,
-                ', '.join([str(v) for v in a_trials[absent_from_a]])))
+            rs(
+                '{} {} trials are absent from {}: {}'.format(
+                    sum(absent_from_a),
+                    b_label,
+                    a_label,
+                    ', '.join([str(v) for v in a_trials[absent_from_a]]),
+                )
+            )
         else:
             rs(f'No {b_label} trials are absent from {a_label}.')
 
@@ -193,9 +188,13 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
         absent_from_b = np.isin(b_trials, common, invert=True)
 
         if sum(absent_from_b) > 0:
-            rs('{} trials are absent from {}: {}'.format(
-                sum(absent_from_b), b_label,
-                ', '.join([str(v) for v in b_trials[absent_from_b]])))
+            rs(
+                '{} trials are absent from {}: {}'.format(
+                    sum(absent_from_b),
+                    b_label,
+                    ', '.join([str(v) for v in b_trials[absent_from_b]]),
+                )
+            )
         else:
             rs(f'No {a_label} trials are absent from {b_label}.')
 
@@ -212,27 +211,34 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
     if len(ja_trials) > 0:
         common_prot_cam = np.intersect1d(protocol_trials, ja_trials)
         print_absent_trials(protocol_trials, ja_trials, common_prot_cam, 'protocol', 'camera')
-        assert len(common_prot_cam) > 0, (
-            f"Found {len(ja_trials)} camera logs but found zero common trials with protocol")
+        assert (
+            len(common_prot_cam) > 0
+        ), f"Found {len(ja_trials)} camera logs but found zero common trials with protocol"
 
         # Common between all (protocol, camera, ps)
         common_trials_all = np.intersect1d(common_prot_cam, ps_trials)
         matched_types = 'main protocol, camera recordings, and pressure sensors'
 
     else:
-        rs('No camera trials found, searching for pressure sensor logs to match to protocol'
-           ' logs...')
+        rs(
+            'No camera trials found, searching for pressure sensor logs to match to protocol'
+            ' logs...'
+        )
         # Common between protocol and ps only since we lack any camera logs
         common_trials_all = np.intersect1d(protocol_trials, ps_trials)
         matched_types = 'main protocol and pressure sensors'
 
-    print_absent_trials(protocol_trials, ps_trials, common_trials_all, 'protocol',
-                        'pressure sensor')
+    print_absent_trials(
+        protocol_trials, ps_trials, common_trials_all, 'protocol', 'pressure sensor'
+    )
 
     common_trials_all.sort()
 
-    rs('{} trials are common to {}: {}'.format(
-        len(common_trials_all), matched_types, ', '.join(str(v) for v in common_trials_all)))
+    rs(
+        '{} trials are common to {}: {}'.format(
+            len(common_trials_all), matched_types, ', '.join(str(v) for v in common_trials_all)
+        )
+    )
 
     # recreate data based on the common trials
     sy_data = sy_data[np.isin(protocol_trials, common_trials_all), :]
@@ -264,8 +270,8 @@ def export_roms_from_osim(osim_filename, o_filename, verbose=False):
 
         rmin, rmax = [float(i) for i in dof_e.find('range').text.strip().split()]
         if '_tra' not in dof_name:
-            rmin *= 180/np.pi
-            rmax *= 180/np.pi
+            rmin *= 180 / np.pi
+            rmax *= 180 / np.pi
 
         if verbose:
             rs('DOF {}: [{}; {}]'.format(dof_name, rmin, rmax))
@@ -321,8 +327,9 @@ def find_calibration(session, calibrations_dir):
     candidate_dates = [str2date(extract_date(c)) for c in candidates]
 
     # sort by date
-    candidates, candidate_dates = (list(x) for x in zip(*sorted(zip(candidates, candidate_dates),
-                                                                key=lambda p: p[1])))
+    candidates, candidate_dates = (
+        list(x) for x in zip(*sorted(zip(candidates, candidate_dates), key=lambda p: p[1]))
+    )
     session_date = str2date(extract_date(session))
     if candidate_dates[0] > session_date:
         ValueError('Could not find calibration before the session date.')
@@ -339,21 +346,45 @@ def find_ncams_config(session, calibrations_dir):
         return None
     f = os.path.join(d, 'ncams_config.yaml')
     if not os.path.exists(f):
-        ValueError('Calibration folder exists, but the calibration has not been performed'
-                   ' in {}.'.format(d))
+        ValueError(
+            'Calibration folder exists, but the calibration has not been performed in {}.'.format(d)
+        )
     return f
 
 
-def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
+def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export_roms):
+    """Create meta information for the given raw session dir and write the meta information to the
+    processed session dir.
+
+    Creates the following files
+    1. meta_dof.csv
+    2. meta_object.csv
+    3. meta_session.csv
+    4. meta_structure.json
+
+    Args:
+        raw_ss (dir): the raw session dir
+        processed_ss (dir): the processed session dir
+        preset (dict): the preset to use
+        session (str): the session name, should exist in the path of procesed_ss and raw_ss
+        overwrite (bool): if True overwrite existing meta
+        export_roms (bool): if True export range of motion data
+
+    Raises:
+        ValueError: raise if no log file is found for session
+    """
+
     # handle meta structure
     # Create output directory if it doesn't exist already
-    processed_dir = os.path.join(preset['processed_server'], session)
-    os.makedirs(processed_dir, exist_ok=True)
+    # processed_ss = os.path.join(preset['processed_server'], session)
+    os.makedirs(processed_ss, exist_ok=True)
 
-    if overwrite or not os.path.exists(os.path.join(processed_dir, 'meta_structure.json')):
+    # raw_ss = os.path.join(preset['default_server'], session)
+    assert os.path.exists(raw_ss), 'server session {} does not exist on the server.'.format(raw_ss)
+
+    if overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_structure.json')):
         mstruct_rel = meta_session.get_default_meta_structure()
-
-        meta_session.fill_meta_structure(mstruct_rel, raw_dir, processed_dir, session)
+        meta_session.fill_meta_structure(mstruct_rel, raw_ss, session)
         mstruct_rel['ncams_config'] = find_ncams_config(session, CALIBRATIONS_DIR)
         mstruct_rel['hand'] = preset['hand']
         mstruct_rel['ps_dic'] = preset['ps_dic']
@@ -362,87 +393,106 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
         if preset['straight_to_video']:
             mstruct_rel['videos_dir'] = mstruct_rel['images_dir']
 
-        export_meta_structure(processed_dir, mstruct_rel)
+        export_meta_structure(processed_ss, mstruct_rel)
         rs('Exported meta structure.')
     else:
         rs('Meta structure already exists. Loading...')
     # this one will have resolved paths
-    mstruct = meta_session.import_meta_structure(raw_dir, processed_dir)
+    mstruct_path = os.path.join(processed_ss, 'meta_structure.json')
+    mstruct = meta_session.import_meta_structure(mstruct_path, raw_ss, processed_ss)
 
     if len(mstruct['auto_log']) == 0:
         raise ValueError('Session {} does not have an auto log.'.format(session))
 
     # generate meta session
-    if (overwrite or not os.path.exists(os.path.join(processed_dir, 'meta_session.csv')) or
-            not os.path.exists(os.path.join(processed_dir, 'meta_object.csv'))):
-        (sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
-         ) = import_logs(raw_dir, mstruct)
+    if (
+        overwrite
+        or not os.path.exists(os.path.join(processed_ss, 'meta_session.csv'))
+        or not os.path.exists(os.path.join(processed_ss, 'meta_object.csv'))
+    ):
+        (
+            sy_column_names,
+            sy_data,
+            sy_ja_column_names,
+            sy_ja_data,
+            sy_ps_column_names,
+            sy_ps_data,
+        ) = import_logs(raw_ss, mstruct)
 
         # take subset of data that exists in all logs
         # now all data structure rows refer to the same trials in the same order
         # (nb) cannot merge them together because they have duplicate columns
         common_trials, sy_data, sy_ja_data, sy_ps_data = reorder_to_common_trials(
-            sy_column_names, sy_data, sy_ja_column_names, sy_ja_data,
-            sy_ps_column_names, sy_ps_data)
+            sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
+        )
 
         # find successful ones
-        rewarded_trials = (sy_data[:, sy_column_names.index('reward')] > 0.).astype(int)
+        rewarded_trials = (sy_data[:, sy_column_names.index('reward')] > 0.0).astype(int)
 
         # synchronization period length
         sync_period_length = (
-            sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')] -
-            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+            sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
+        ) / 1000
 
-        ## NS Added:
+        # NS Added:
         # NS: get the time offset to object in position time
         ttl_to_obj_end_pos = (
-            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] -
-            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+            sy_data[:, sy_column_names.index('object_in_position_time(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
+        ) / 1000
         ttl_to_obj_end_pos[
-            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] == 0] = math.nan
+            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] == 0
+        ] = math.nan
 
         # NS: get the time offset to beep (go cue)
         ttl_to_cue = (
-            sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] -
-            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
-        ttl_to_cue[
-            sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] == 0] = math.nan
+            sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
+        ) / 1000
+        ttl_to_cue[sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] == 0] = (
+            math.nan
+        )
 
         # NS: get the time offset to reach
         ttl_to_reach = (
-            sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')] -
-            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
-        ttl_to_reach[
-            sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')] == 0] = math.nan
+            sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
+        ) / 1000
+        ttl_to_reach[sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')] == 0] = math.nan
 
         # calculate time offsets (in seconds)
         # values on unsuccessful trials are undefined
         # get the time offset to grasp
         ttl_to_success_grasp = (
-            sy_data[:, sy_column_names.index('started_touching_time(ms)')] -
-            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+            sy_data[:, sy_column_names.index('started_touching_time(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
+        ) / 1000
         ttl_to_success_grasp[np.logical_not(rewarded_trials.astype(bool))] = math.nan
 
         # NS: get the time offset to end trial/reward
         ttl_to_reward = (
-            sy_data[:, sy_column_names.index('trial_end_time(ms)')] -
-            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+            sy_data[:, sy_column_names.index('trial_end_time(ms)')]
+            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]
+        ) / 1000
 
         # get camera time offset from TTL to start
         if len(sy_ja_data) > 0:
             ja_ttl_to_rec_start = (
-                sy_ja_data[:, sy_ja_column_names.index('startedRecording(ms)')] -
-                sy_ja_data[:, sy_ja_column_names.index('syncTrialStartTime(ms)')]) / 1000
+                sy_ja_data[:, sy_ja_column_names.index('startedRecording(ms)')]
+                - sy_ja_data[:, sy_ja_column_names.index('syncTrialStartTime(ms)')]
+            ) / 1000
         else:
             ja_ttl_to_rec_start = [math.nan] * len(ttl_to_reward)
 
         # make an object-based meta_object and assign object_id to each trial
         # Only keeps the columns present in the columns
         u_objects, object_ids, object_def_columns = get_object_sets(
-            sy_column_names, sy_data, preset['object_def_columns'])
+            sy_column_names, sy_data, preset['object_def_columns']
+        )
 
         # export the meta object information
-        meta_object_filename = os.path.join(processed_dir, 'meta_object.csv')
+        meta_object_filename = os.path.join(processed_ss, 'meta_object.csv')
         column_names = ['id'] + list(object_def_columns)
         u_objects_t = list(zip(*u_objects))
         values = [list(range(len(u_objects)))] + u_objects_t
@@ -451,77 +501,84 @@ def create_session_meta(session, raw_dir, overwrite, export_roms, preset):
         rs('Exported session meta object information to {}'.format(meta_object_filename))
 
         # export the meta session
-        meta_session_filename = os.path.join(processed_dir, 'meta_session.csv')
+        meta_session_filename = os.path.join(processed_ss, 'meta_session.csv')
         column_names = [
-            'trial_number', 'success', 'object_id', 'sync_period_length',
-            'ttl_to_obj_end_pos', 'ttl_to_cue',
-            'ttl_to_reach', 'ttl_to_success_grasp', 'ttl_to_reward',
-            'ttl_to_ja_start']
+            'trial_number',
+            'success',
+            'object_id',
+            'sync_period_length',
+            'ttl_to_obj_end_pos',
+            'ttl_to_cue',
+            'ttl_to_reach',
+            'ttl_to_success_grasp',
+            'ttl_to_reward',
+            'ttl_to_ja_start',
+        ]
         values = [
-            common_trials, rewarded_trials, object_ids, sync_period_length,
-            ttl_to_obj_end_pos, ttl_to_cue,
-            ttl_to_reach, ttl_to_success_grasp, ttl_to_reward,
-            ja_ttl_to_rec_start]
+            common_trials,
+            rewarded_trials,
+            object_ids,
+            sync_period_length,
+            ttl_to_obj_end_pos,
+            ttl_to_cue,
+            ttl_to_reach,
+            ttl_to_success_grasp,
+            ttl_to_reward,
+            ja_ttl_to_rec_start,
+        ]
         io.export_csv(meta_session_filename, column_names, values)
         rs('Exported session meta information to {}'.format(meta_session_filename))
 
-    meta_dof_filename = os.path.join(processed_dir, 'meta_dof.csv')
+    meta_dof_filename = os.path.join(processed_ss, 'meta_dof.csv')
     if export_roms and (overwrite or not os.path.exists(meta_dof_filename)):
         export_roms_from_osim(ORIGINAL_OPENSIM_MODEL, meta_dof_filename)
-        rs('Exported session meta DOF information from {} to {}'.format(
-            ORIGINAL_OPENSIM_MODEL, meta_dof_filename))
+        rs(
+            'Exported session meta DOF information from {} to {}'.format(
+                ORIGINAL_OPENSIM_MODEL, meta_dof_filename
+            )
+        )
 
 
-def create_meta(server, sessions, temp, overwrite, export_roms, preset):
-    """Creates meta information for a session.
+def create_meta(current_preset, temp, overwrite, export_roms, sessions=[]):
+    """Create meta information for
+    1. all experimental sessions
+    2. all training sessions if preset specifies a raw/processed training server
 
-    Arguments:
-        server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        temp {str} --- Folder for local temporary storage.
-        overwrite {bool} --- Overwrites the created files if they exist.
-        export_roms {bool} --- Exports range of motion data from OpenSim model into a convenient CSV meta file.
-            If this flag is provided, meta_dof is not created.
-        preset {dict} --- Preset dictionary.
+    Args:
+        current_preset (dict): the preset to use
+        temp (path): a temporary directory for logging usually C:\tmp
+        overwrite (bool): whether to overwrite existing files
+        export_roms (bool): whether to export range of motion data
+        sessions (list, optional): the session names to process. Defaults to [] (i.e. all sessions)
     """
-    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
-    if not os.path.exists(server):
-        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+    # Step 1: process experiment sessions
+    apply_to_sessions_helper(
+        current_preset['default_server'],
+        current_preset['processed_server'],
+        current_preset,
+        temp,
+        create_session_meta,
+        args=(overwrite, export_roms),
+        sessions=sessions,
+    )
 
-    if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+    # Step 2: process training sessions
+    if not current_preset['default_training_server']:
+        ws('No raw training server specified in preset. Skipping...')
+        return
 
+    if not current_preset['processed_training_server']:
+        ws('No processed training server specified in preset. Skipping...')
+        return
 
-    # sort
-    sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
-
-    failed_sessions = []
-    failed_sessions_errors = []
-    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
-        print()
-        rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
-
-        if not os.path.exists(server_session):
-            ws('Session {} does not exist on the server.'.format(session))
-            continue
-
-        try:
-            create_session_meta(session, server_session, overwrite, export_roms, preset)
-        except Exception as e:
-            print()
-            ws('Meta creation for session {} failed.'.format(session))
-            _, exc_value, exc_traceback = sys.exc_info()
-            error_str = ''.join(traceback.format_exception(None, exc_value, exc_traceback))
-            ws(error_str)
-            failed_sessions.append(session)
-            failed_sessions_errors.append(error_str)
-
-    if len(failed_sessions) > 0:
-        print()
-        ws('Failed creating meta files for sessions:')
-        for fs, fse in zip(failed_sessions, failed_sessions_errors):
-            ws('\t{}: {}'.format(fs, fse))
+    # Step 2: Process training sessions
+    apply_to_sessions_helper(
+        current_preset['default_training_server'],
+        current_preset['processed_training_server'],
+        current_preset,
+        temp,
+        create_session_meta,
+        args=(overwrite, export_roms),
+        sessions=sessions,
+    )
