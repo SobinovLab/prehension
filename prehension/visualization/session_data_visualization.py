@@ -364,14 +364,12 @@ class SessionWrapper:
     - conditional success matrix for session
     """
 
-    EXPECTED_PLOT_NAMES = [
-        "AvgCondSuccessMatrix.png",
-        "CondSuccessMatrix.png",
-        "ForceTrace_from_success_grasp_start.png",
-        "ForceTrace_from_ttl_to_reward.png",
-        "Performance.png",
-        "PerformanceLast10Days.png",
-    ]
+    EXPECTED_PLOT_NAMES = ["AvgCondSuccessMatrix.png",
+                            "CondSuccessMatrix.png",
+                            "ForceTrace_from_success_grasp_start.png",
+                            "ForceTrace_from_ttl_to_reward.png",
+                            "Performance.png",
+                            "PerformanceLast10Days.png",]
 
     def __init__(self, raw_ss, proc_ss):
         self.raw_ss = raw_ss
