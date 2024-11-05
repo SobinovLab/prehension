@@ -40,16 +40,15 @@ def transform_trial(trial, make_plots):
     for ps_name in trial.transformed_ps_filenames.keys():
         if not os.path.exists(trial.transformed_ps_filenames[ps_name]):
             # will break if the CSV does not exist - then run a MATLAB fsx->tsm program
-            times, matrices = io.import_csv_matrix_low(
-                trial.transformed_ps_csv_filenames[ps_name])
-            io.export_tsm_matrix(
-                trial.transformed_ps_filenames[ps_name], times, matrices, type='stamps')
+            times, matrices = io.import_csv_matrix_low(trial.transformed_ps_csv_filenames[ps_name])
+            io.export_tsm_matrix(trial.transformed_ps_filenames[ps_name], times, matrices,
+                                 type='stamps')
 
     # remove the CSV if it exists
     for ps_name in trial.transformed_ps_filenames.keys():
         # double check to be safe
-        if (os.path.exists(trial.transformed_ps_csv_filenames[ps_name]) and
-                os.path.exists(trial.transformed_ps_filenames[ps_name])):
+        if os.path.exists(trial.transformed_ps_csv_filenames[ps_name]) and os.path.exists(
+            trial.transformed_ps_filenames[ps_name]):
             os.remove(trial.transformed_ps_csv_filenames[ps_name])
 
     # filter the pressure sensor data
@@ -70,17 +69,16 @@ def transform_trial(trial, make_plots):
             thrs = np.quantile(matrices[nap_mask, :, :], 0.9, axis=0)
             # for r in thrs:
             #     print(' '.join(str(e) for e in r))
-            matrices[matrices <= thrs] = 0.
+            matrices[matrices <= thrs] = 0.0
 
         # median filter
         for irow in range(len(matrices[0])):
             for icol in range(len(matrices[0][irow])):
-                matrices[:, irow, icol] = scipy.ndimage.median_filter(
-                    matrices[:, irow, icol], size=3, mode='constant', cval=0.)
-
+                matrices[:, irow, icol] = scipy.ndimage.median_filter(matrices[:, irow, icol],
+                                                                      size=3, mode='constant',
+                                                                      cval=0.0)
         # export
-        io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices,
-                                   type='stamps')
+        io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices, type='stamps')
 
     # testing plot
     if make_plots:
@@ -103,8 +101,10 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed
+            trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} --- Number of parallel processes in the pool.
         overwrite {bool} --- Overwrites the created files if they exist.
@@ -114,8 +114,7 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
     logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
-        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(server)
@@ -142,7 +141,8 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
         # load session meta
         try:
             mstruct, _, _, msession = meta_session.load_meta_information(
-                server_session, processed_session)
+                server_session, processed_session
+            )
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
@@ -155,35 +155,39 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
                 continue
 
             # at least one of the files should exist
-            if any([not os.path.exists(trial.transformed_ps_filenames[ps_name]) and
-                    not os.path.exists(trial.transformed_ps_csv_filenames[ps_name])
+            if any([not os.path.exists(trial.transformed_ps_filenames[ps_name])
+                    and not os.path.exists(trial.transformed_ps_csv_filenames[ps_name])
                     for ps_name in trial.transformed_ps_filenames.keys()]):
                 continue
 
-            if not overwrite and all([os.path.exists(fpf)
-                                      for fpf in trial.filtered_ps_filenames.values()]):
+            if not overwrite and all([os.path.exists(fpf) for fpf in
+                                      trial.filtered_ps_filenames.values()]):
                 continue
             trials.append(trial)
 
-        rs('Found {} trials: {}'.format(
-            len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
-        if len(trials) == 0:
+        # Just continue if no trials
+        if not trials:
             continue
+
+        rs('Found {} trials: {}'.format(len(trials), ', '.join([str(t.trial_number)
+                                                                for t in trials])))
+
 
         os.makedirs(mstruct['pre_ps_dir'], exist_ok=True)
 
-        p_args = list(zip(*[
-            trials,
-            [make_plots]*len(trials)
-        ]))
+        p_args = list(zip(*[trials, [make_plots] * len(trials)]))
 
         # transform_trial(*(p_args[0]))
         # sys.exit()
 
         if len(p_args) > 0:
-            pool = ReportingPool(transform_trial, p_args, processes=processes,
-                                 report_on_change=True, track_failures=True)
+            pool = ReportingPool(
+                transform_trial,
+                p_args,
+                processes=processes,
+                report_on_change=True,
+                track_failures=True,
+            )
             pool.start()
 
             if len(pool.failed_i_jobs) > 0:
@@ -192,7 +196,7 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
                 for v in pool.failed_i_jobs:
                     ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append('session {} trial {} error: {}'.format(
-                        session, trials[v].trial_number, pool.error_reports[v]))
+                            session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

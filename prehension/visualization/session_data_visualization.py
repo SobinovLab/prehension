@@ -44,9 +44,8 @@ from prehension.tools.forces import get_summed_force_data
 from tqdm import tqdm
 
 
-def create_heatmap_from_trials_list(
-    tr_list, cmap, max_discrete_conds=9, bin_width_N=1, savename=None
-):
+def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_width_N=1,
+                                    savename=None):
     """create performance heatmap from a list of trials
 
     Args:
@@ -102,9 +101,7 @@ def create_heatmap_from_trials_list(
     if num_rows * num_cols > 1:
         axs = axs.flatten()
     else:
-        axs = [
-            axs,
-        ]
+        axs = [axs,]
 
     def _make_subplot(ax, sub_trial_list, use_force_bins, force_target):
         # Sub trial list contains only trials with the same force target
@@ -118,10 +115,8 @@ def create_heatmap_from_trials_list(
         for i, rot in enumerate(unique_rots):
             row = []
             for j, ap in enumerate(unique_aps):
-
-                trials_rot_ap_match = [
-                    tr for tr in sub_trial_list if tr.aperture == ap and tr.rotation == rot
-                ]
+                trials_rot_ap_match = [tr for tr in sub_trial_list if tr.aperture == ap
+                                        and tr.rotation == rot]
                 if trials_rot_ap_match:
                     pct = sum([tr.success for tr in trials_rot_ap_match]) / len(trials_rot_ap_match)
                     row.append(pct)
@@ -140,26 +135,21 @@ def create_heatmap_from_trials_list(
         ax.set_xticklabels(unique_aps)
         ax.set_yticks(np.arange(len(unique_rots)))
         ax.set_yticklabels(unique_rots)
-        title = (
-            f"Force Range: {force_target[0]}-{force_target[1]} N"
-            if use_force_bins
-            else f"Force: {force_target} N"
-        )
+        title = (f"Force Range: {force_target[0]}-{force_target[1]} N"
+                if use_force_bins
+                else f"Force: {force_target} N")
         ax.set_title(title)
         ax.set_ylabel("Aperture (mm)")
         ax.set_xlabel("Rotation (deg)")
 
     # Loop th over force bins
     for plot_idx, target_force in enumerate(force_bins):
-
         # Get the trials that either fall in the force range or are the exact target force
         if use_force_bins:
             force_range = (target_force[0], target_force[1])
-            cond_trials = [
-                tr
-                for tr in tr_list
-                if tr.target_force >= force_range[0] and tr.target_force <= force_range[1]
-            ]
+            cond_trials = [tr for tr in tr_list
+                            if (tr.target_force >= force_range[0]
+                                and tr.target_force <= force_range[1])]
         else:
             cond_trials = [tr for tr in tr_list if tr.target_force == target_force]
 
@@ -188,7 +178,6 @@ class SessionGroup:
     """
 
     def __init__(self, l_session_wrappers, group_label=""):
-
         # Filter out sessions with no meta
         self.session_wrappers = [sw for sw in l_session_wrappers if sw.has_meta]
 
@@ -222,7 +211,6 @@ class SessionGroup:
         self._plot_performance()
 
     def _plot_avg_cond_success_matricies(self, sessions=[]):
-
         # First sort all of the session wrappers by ascending datetime
         all_trials = []
 
@@ -231,27 +219,17 @@ class SessionGroup:
 
             if sessions:
                 if sw.sess_name in sessions:
-                    create_heatmap_from_trials_list(
-                        all_trials,
-                        "Greens",
-                        savename=os.path.join(sw.results_dir, "AvgCondSuccessMatrix.png"),
-                    )
+                    create_heatmap_from_trials_list(all_trials, "Greens",
+                                                    savename=os.path.join(sw.results_dir,
+                                                     "AvgCondSuccessMatrix.png"))
             else:
-                create_heatmap_from_trials_list(
-                    all_trials,
-                    "Greens",
-                    savename=os.path.join(sw.results_dir, "AvgCondSuccessMatrix.png"),
-                )
+                create_heatmap_from_trials_list(all_trials, "Greens",
+                                                savename=os.path.join(sw.results_dir,
+                                                "AvgCondSuccessMatrix.png"))
 
     @staticmethod
-    def plot_performace_fig(
-        date_success_dict,
-        last_n_days_label=None,
-        include_last_tick=False,
-        annotate_dates=False,
-        savename=None,
-    ):
-
+    def plot_performace_fig(date_success_dict, last_n_days_label=None, include_last_tick=False,
+                            annotate_dates=False, savename=None):
         fig, axs = plt.subplots(1, 2, figsize=(15, 7))
         suptitle = (
             f"Training Progress (last {last_n_days_label} days)"
@@ -288,24 +266,20 @@ class SessionGroup:
         # -- DATE TICKS -- #
         desired_ticks = 5
         dt_range = max(dates) - min(dates)
-        interval_options = [
-            timedelta(days=1),
-            timedelta(weeks=1),
-            timedelta(weeks=2),
-            timedelta(weeks=4),
-            timedelta(weeks=8),
-            timedelta(weeks=12),
-            timedelta(weeks=26),
-            timedelta(weeks=52),
-        ]
+        interval_options = [timedelta(days=1),
+                            timedelta(weeks=1),
+                            timedelta(weeks=2),
+                            timedelta(weeks=4),
+                            timedelta(weeks=8),
+                            timedelta(weeks=12),
+                            timedelta(weeks=26),
+                            timedelta(weeks=52)]
 
         interval_counts = [abs(desired_ticks - (dt_range / inter)) for inter in interval_options]
         i = np.argmin(np.array(interval_counts))
         interval = interval_options[i]
 
-        date_ticks = [
-            min(dates),
-        ]
+        date_ticks = [min(dates), ]
         while date_ticks[-1] < max(dates):
             date_ticks.append(date_ticks[-1] + interval)
         if not include_last_tick:
@@ -323,23 +297,17 @@ class SessionGroup:
                 # Label each point on both subplots with the date (excluding time)
                 label = date.strftime("%m/%d")
 
-                axs[0].annotate(
-                    label,
-                    (dates[i], pct_correct[i]),
-                    textcoords="offset points",
-                    xytext=(0, 10),
-                    ha="center",
-                    rotation="vertical",
-                )
+                axs[0].annotate(label, (dates[i], pct_correct[i]),
+                                textcoords="offset points",
+                                xytext=(0, 10),
+                                ha="center",
+                                rotation="vertical",)
 
-                axs[1].annotate(
-                    label,
-                    (dates[i], total_trials[i]),
-                    textcoords="offset points",
-                    xytext=(0, 10),
-                    ha="center",
-                    rotation="vertical",
-                )
+                axs[1].annotate(label, (dates[i], total_trials[i]),
+                                textcoords="offset points",
+                                xytext=(0, 10),
+                                ha="center",
+                                rotation="vertical")
 
         if savename is not None:
             fig.savefig(savename)
@@ -350,7 +318,6 @@ class SessionGroup:
         plt.close(fig)
 
     def _plot_performance(self):
-
         # dictionary of form -> datetime: list[SessionWrapper]
         session_wrappers_by_date = {}
         for sw in self.session_wrappers:
@@ -381,16 +348,12 @@ class SessionGroup:
             date_success_dict_total = {dt: date_l_trial_success_dict[dt] for dt in dates_total}
             date_success_dict_10_day = {dt: date_l_trial_success_dict[dt] for dt in dates_10_day}
 
-            SessionGroup.plot_performace_fig(
-                date_success_dict_total, savename=os.path.join(sw.results_dir, "Performance.png")
-            )
-            SessionGroup.plot_performace_fig(
-                date_success_dict_10_day,
-                last_n_days_label="10",
-                include_last_tick=True,
-                annotate_dates=True,
-                savename=os.path.join(sw.results_dir, "PerformanceLast10Days.png"),
-            )
+            SessionGroup.plot_performace_fig(date_success_dict_total, savename=os.path.join(
+                                             sw.results_dir, "Performance.png"))
+            SessionGroup.plot_performace_fig(date_success_dict_10_day, last_n_days_label="10",
+                                             include_last_tick=True, annotate_dates=True,
+                                             savename=os.path.join(sw.results_dir,
+                                             "PerformanceLast10Days.png"))
 
 
 class SessionWrapper:
@@ -411,7 +374,6 @@ class SessionWrapper:
     ]
 
     def __init__(self, raw_ss, proc_ss):
-
         self.raw_ss = raw_ss
         self.proc_ss = proc_ss
 
@@ -433,14 +395,14 @@ class SessionWrapper:
 
         # Load meta
         try:
-            self.mstruct, self.mdof, self.mobject, self.msession = (
-                meta_session.load_meta_information(self.raw_ss, self.proc_ss)
-            )
+            mres = (meta_session.load_meta_information(self.raw_ss, self.proc_ss))
+            self.mstruct, self.mdof, self.mobject, self.msession = mres
             self.has_meta = True
             if len(self.mstruct["auto_log"]) > 0:
                 self.log_full = self.mstruct["auto_log"][0]
         except meta_session.IncompleteMetaError as _:
-            # ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)}, skipping')
+            # ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)},
+            # skipping')
             return
         # Other errors should stop the program -- this is intentional right now for testing
 
@@ -454,10 +416,8 @@ class SessionWrapper:
                 return False
         return True
 
-    def ensure_transfer_to_training_server(
-        self, raw_training_server, proc_training_server, overwrite=False
-    ):
-
+    def ensure_transfer_to_training_server(self, raw_training_server, proc_training_server,
+                                           overwrite=False):
         if not self.is_training_session:
             return
 
@@ -476,14 +436,15 @@ class SessionWrapper:
             return contents_rel_1, contents_rel_2
 
         def _move_helper(src_session_dir, dst_parent_dir):
-
             # inputs:
             # [src_session_dir] - raw_(experimental)_server_session: the directory to be transferred
-            # [dst_parent_dir] - training server destination directory (not a session dir but a dir containing sessions)
+            # [dst_parent_dir] - training server destination directory (not a session dir but a dir
+            # containing sessions)
             # [overwrite] - bool to determine if we are overwriting
 
             # defined vars:
-            # [dst_session_dir] - raw_(training)_server_session: the expected directory name after transfer
+            # [dst_session_dir] - raw_(training)_server_session: the expected directory name after
+            # transfer
             dst_session_dir = os.path.join(dst_parent_dir, os.path.basename(src_session_dir))
 
             # logic:
@@ -524,9 +485,7 @@ class SessionWrapper:
 
             # now remove src locally because we should have already transferred
             if os.path.exists(src_session_dir):
-                assert os.path.exists(
-                    dst_session_dir
-                ), "Expected tranferred dir {} not found".format(dst_session_dir)
+                assert os.path.exists(dst_session_dir), "dir not found: {dst_session_dir}"
                 try:
                     shutil.rmtree(src_session_dir, ignore_errors=False)
                 except:
@@ -541,13 +500,10 @@ class SessionWrapper:
         if not self.has_meta:
             return False
         # Check if it is an experiment or not
-        experiment_expected_dirnames = [
-            os.path.join(self.raw_ss, self.mstruct["videos_dir"]),
-            os.path.join(self.raw_ss, self.mstruct["raw_ps_dir"]),
-        ]
-        is_training_session = not all(
-            [os.path.exists(dname) for dname in experiment_expected_dirnames]
-        )
+        experiment_expected_dirnames = [os.path.join(self.raw_ss, self.mstruct["videos_dir"]),
+                                        os.path.join(self.raw_ss, self.mstruct["raw_ps_dir"])]
+        is_training_session = not all([os.path.exists(dname) for dname
+                                       in experiment_expected_dirnames])
         return is_training_session
 
     def attach_fields_to_trials(self):
@@ -568,9 +524,8 @@ class SessionWrapper:
             trial.target_range = None
             if all([k in stub.keys() for k in bound_keys]):
                 trial.range_delta = tuple([float(stub[bk]) for bk in bound_keys])
-                trial.target_range = tuple(
-                    [trial.target_force + delta for delta in trial.range_delta]
-                )
+                trial.target_range = tuple([trial.target_force + delta for
+                                            delta in trial.range_delta])
 
             # Add aperture and rotation information
             trial.rotation = float(stub["pos_aperture(mm)"])
@@ -601,22 +556,18 @@ class SessionWrapper:
 
         else:
             tp_df = pd.read_csv(tp_path)
-            self.plot_force_traces(
-                tp_df, self.results_dir, ref_events=["success_grasp_start", "ttl_to_reward"]
-            )
+            self.plot_force_traces(tp_df, self.results_dir, ref_events=["success_grasp_start",
+                                                                        "ttl_to_reward"])
 
     @staticmethod
     def get_trial_force(trial_info):
-
         # 1. Get tsm data
         latTsmFile = trial_info.filtered_ps_filenames["lateral_sensor"]
         medTsmFile = trial_info.filtered_ps_filenames["medial_sensor"]
 
         if not os.path.isfile(latTsmFile) or not os.path.isfile(medTsmFile):
-            print(
-                f"Skipping trial {trial_info.trial_number} | missing at least one"
-                f" ps file:\n{latTsmFile}\n{medTsmFile}"
-            )
+            print(f"Skipping trial {trial_info.trial_number} | missing at least one"
+                  f" ps file:\n{latTsmFile}\n{medTsmFile}")
             return ([], [])
 
         times, forces_summed = get_summed_force_data(latTsmFile, medTsmFile)
@@ -634,21 +585,14 @@ class SessionWrapper:
         pre_event_pad=1,
         post_event_pad=1,
         processes=os.cpu_count() - 1,
-        only_successful_trials=True,
-    ):
-
+        only_successful_trials=True):
         # 1. get raw tsm data (times and forces) for each trial
         # feed trials from self.msession
         trials_flattened = self.msession[:]
         print(f"Plotting force traces for {len(trials_flattened)} trials")
         p_args = list(zip(*[trials_flattened]))
-        results = ReportingPool(
-            SessionWrapper.get_trial_force,
-            p_args,
-            processes=processes,
-            report_on_change=True,
-            track_failures=True,
-        ).start()
+        results = ReportingPool(SessionWrapper.get_trial_force, p_args, processes=processes,
+                                report_on_change=True, track_failures=True).start()
 
         # Get min and max force targets (needed for normalizing cmap)
         force_conditions = [tr.target_force for tr in trials_flattened]
@@ -668,15 +612,11 @@ class SessionWrapper:
             tr.forces_summed = res[1]
 
         # Only include trials that have tsm data
-        trials_flattened = [
-            tr
-            for tr in trials_flattened
-            if hasattr(tr, "tsm_times") and hasattr(tr, "forces_summed")
-        ]
+        trials_flattened = [tr for tr in trials_flattened
+                            if hasattr(tr, "tsm_times") and hasattr(tr, "forces_summed")]
 
-        trials_flattened = [
-            tr for tr in trials_flattened if len(tr.tsm_times) > 0 and len(tr.forces_summed) > 0
-        ]
+        trials_flattened = [tr for tr in trials_flattened
+                            if len(tr.tsm_times) > 0 and len(tr.forces_summed) > 0]
 
         # Create times to interp over since this will stay constant
         interp_times = np.arange(-pre_event_pad, post_event_pad + time_bin_width, time_bin_width)
@@ -685,9 +625,8 @@ class SessionWrapper:
         cmap = plt.cm.Oranges
 
         # Create a subset of the oranges colormap
-        cmap = LinearSegmentedColormap.from_list(
-            "subset_oranges", cmap(np.linspace(10 / 25.5, 1, 255 - 100 + 1))
-        )
+        cmap = LinearSegmentedColormap.from_list("subset_oranges",
+                                                 cmap(np.linspace(10 / 25.5, 1, 255 - 100 + 1)))
 
         norm = mcolors.Normalize(vmin=min_cond, vmax=max_cond)
         sm = ScalarMappable(norm=norm, cmap=cmap)
@@ -698,17 +637,14 @@ class SessionWrapper:
 
         # Make a plot for each reference event
         for ref_event in ref_events:
-
             # Bind interpolated forces to each trial (this depends on reference event)
             for trial in trials_flattened:
-
                 if only_successful_trials and not trial.success:
                     continue  # skip failed trial
 
                 # trial.tsm_times = np.array(trial.tsm_times)
-                assert isinstance(
-                    trial.tsm_times, np.ndarray
-                ), f"trial.tsm times is type ({type(trial.tsm_times)})"
+                assert isinstance(trial.tsm_times, np.ndarray), ("trial.tsm times is type"
+                                                                 f"({type(trial.tsm_times)})")
 
                 # Set default value
                 trial.force_interped = None
@@ -812,27 +748,20 @@ class SessionWrapper:
                     force_sum /= len(interped_list)
 
                     # Plot the force sum
-                    ax.plot(
-                        interp_times,
-                        force_sum,
-                        linewidth=2,
-                        color=get_color(tf),
-                        alpha=1,
-                        label=f"Force Target: {tf} N",
-                    )
+                    ax.plot(interp_times,
+                            force_sum,
+                            linewidth=2,
+                            color=get_color(tf),
+                            alpha=1,
+                            label=f"Force Target: {tf} N")
 
             # 2. Continuous mode (residual force)
             else:
                 # Residual (difference from target force) mode
                 for tr in filtered_trials:
                     # Plot residual force
-                    ax.plot(
-                        interp_times,
-                        (tr.force_interped - tr.target_force),
-                        linewidth=0.75,
-                        color=get_color(tr.target_force),
-                        alpha=0.2,
-                    )
+                    ax.plot(interp_times, (tr.force_interped - tr.target_force),
+                            linewidth=0.75, color=get_color(tr.target_force), alpha=0.2)
 
                     # TODO: Make avg force vs target force plot here
                     total_trials += 1

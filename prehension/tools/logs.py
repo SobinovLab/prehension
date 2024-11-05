@@ -53,7 +53,7 @@ def setup_logging(temp, sessions_dir=None):
     start_time = datetime.datetime.now()
     timestamp_long = start_time.strftime('%Y.%m.%d-%H:%M:%S')
     logging_filename = os.path.join(temp, f'{timestamp}_{exec_fname}_{random_hash}.log')
-    logging.basicConfig(filename=logging_filename, level=logging.INFO)
+    logging.basicConfig(filename=logging_filename, level=logging.INFO, force=True)
     logging.info('')
 
     # Define the cleanup action as upload to sessions_log dir

@@ -106,7 +106,8 @@ def main(preset, sessions, temp, overwrite, transfer=True):
             rs("\n" * 3 + "=" * 200)
         else:
             rs(
-                f"No training servers defined for preset {preset['names'][0]}, skipping transfer step."
+                f"No training servers defined for preset {preset['names'][0]}, skipping transfer"
+                " step."
             )
 
     # Get raw/processed session dirs for preset
@@ -126,7 +127,6 @@ def main(preset, sessions, temp, overwrite, transfer=True):
 
 # Entry
 if __name__ == "__main__":
-
     preset_name = sys.argv[1]
     if preset_name not in PRESETS.keys():
         raise ValueError(f"preset_name {preset_name} not found in presets {list(PRESETS.keys())}")
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     mpl.rcParams["axes.spines.top"] = False
 
     # Add arguments
-    parser = argparse.ArgumentParser(description=("Create plots for a given monkey"))
+    parser = argparse.ArgumentParser(description="Create plots for a given monkey")
 
     cmd_args.add_default_arguments(parser, ("sessions", "temp", "overwrite"))
 

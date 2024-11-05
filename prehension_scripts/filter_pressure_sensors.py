@@ -32,12 +32,9 @@ from prehension.pressure_sensors import filter_pressure_sensors as fps
 if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
-    parser = argparse.ArgumentParser(
-        description=('Creates meta information for a session.'))
-    cmd_args.add_default_kwarguments(
-        parser, {'server': current_preset['default_server']})
-    cmd_args.add_default_arguments(
-        parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
+    parser = argparse.ArgumentParser(description='Creates meta information for a session.')
+    cmd_args.add_default_kwarguments(parser, {'server': current_preset['default_server']})
+    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
 
     # custom
     parser.add_argument('--make_plots', action='store_true')
@@ -45,8 +42,8 @@ if __name__ == '__main__':
         '--dont_export_roms',
         dest='export_roms',
         action='store_false',
-        help='Exports range of motion data from OpenSim model into a convenient CSV meta file.'
-        ' If this flag is provided, meta_dof is not created.')
+        help=('Exports range of motion data from OpenSim model into a convenient CSV meta file.'
+              ' If this flag is provided, meta_dof is not created.'))
 
     args = parser.parse_args(args=argv)
     start_time = time.time()
@@ -59,8 +56,7 @@ if __name__ == '__main__':
         args.processes,
         args.overwrite,
         args.make_plots,
-        current_preset
+        current_preset,
     )
 
-    print('Program took {}.'.format(
-        datetime.timedelta(seconds=time.time() - start_time)))
+    print('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))

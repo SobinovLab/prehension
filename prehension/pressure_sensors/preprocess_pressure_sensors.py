@@ -37,8 +37,7 @@ from ..tools import logs
 from ..tools.logs import rs, ws
 from ..tools.session_management import apply_to_sessions_helper
 
-currentdir = os.path.dirname(os.path.abspath(
-    inspect.getfile(inspect.currentframe())))
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 dll_dir = os.path.join(currentdir, 'TekDLL')
 sys.path.append(dll_dir)
@@ -65,10 +64,14 @@ def loadTrialLog(trial_log_filename, trials):
     trial_timestamps = []
     for trial in trials:
         row = f[f['trial_num'] == trial].iloc[0]
-        trial_timestamps.append([row['startedRecording(ms)'],
-                                 row['syncTrialStartTime(ms)'],
-                                 row['syncTrialEndTime(ms)'],
-                                 row['finishedRecording(ms)']])
+        trial_timestamps.append(
+            [
+                row['startedRecording(ms)'],
+                row['syncTrialStartTime(ms)'],
+                row['syncTrialEndTime(ms)'],
+                row['finishedRecording(ms)'],
+            ]
+        )
     return np.array(trial_timestamps)
 
 
@@ -93,12 +96,10 @@ def loadFsxFile(filename):
     forces = np.zeros((N, rows, cols), dtype=np.float64)
 
     for iFrame in range(N):
-        times[iFrame] = handle.TekGetFrameTimestamp(
-            float(-1), iFrame)[1]
+        times[iFrame] = handle.TekGetFrameTimestamp(float(-1), iFrame)[1]
 
         placeholder = (ctypes.c_float * (rows * cols))()
-        retcode, data = handle.TekGetCalibratedFrameData(
-            placeholder, iFrame)
+        retcode, data = handle.TekGetCalibratedFrameData(placeholder, iFrame)
         assert retcode == 0, f'TekGetCalibratedFrameData[0] = {retcode}'
 
         data = np.ctypeslib.as_array(data).reshape((rows, cols))
@@ -125,8 +126,11 @@ def fsxToTsm(filename, o_filename, trial_timestamps):
 
 def process_trial(trial, trial_timestamp):
     for ps_name in trial.raw_ps_filenames.keys():
-        fsxToTsm(trial.raw_ps_filenames[ps_name],
-                 trial.transformed_ps_filenames[ps_name], trial_timestamp)
+        fsxToTsm(
+            trial.raw_ps_filenames[ps_name],
+            trial.transformed_ps_filenames[ps_name],
+            trial_timestamp,
+        )
 
 
 def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
@@ -144,8 +148,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     """
 
     try:
-        mstruct, _, _, msession = meta_session.load_meta_information(
-            raw_ss, proc_ss)
+        mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
     except Exception as e:
         ws('Could not load meta data from session {}, skipping.'.format(session))
         ws('Error message: {}'.format(e))
@@ -165,12 +168,17 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         if len(trials_sel) != 0 and trial.trial_number not in trials_sel:
             continue
         # Skip if missing input fsx files
-        if any([not os.path.exists(trial.raw_ps_filenames[ps_name])
-                for ps_name in trial.raw_ps_filenames.keys()]):
+        if any(
+            [
+                not os.path.exists(trial.raw_ps_filenames[ps_name])
+                for ps_name in trial.raw_ps_filenames.keys()
+            ]
+        ):
             continue
         # Skip if output files exist and overwrite==False
-        if not overwrite and all([os.path.exists(fpf)
-                                  for fpf in trial.transformed_ps_filenames.values()]):
+        if not overwrite and all(
+            [os.path.exists(fpf) for fpf in trial.transformed_ps_filenames.values()]
+        ):
             continue
         trials.append(trial)
 
@@ -178,11 +186,9 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     if not trials:
         return
 
-    rs('Found {} trials: {}'.format(
-        len(trials), ', '.join([str(t.trial_number) for t in trials])))
+    rs('Found {} trials: {}'.format(len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
-    trial_timestamps = loadTrialLog(
-        trial_log_filename, [t.trial_number for t in trials])
+    trial_timestamps = loadTrialLog(trial_log_filename, [t.trial_number for t in trials])
 
     p_args = list(zip(trials, trial_timestamps))
 
@@ -197,10 +203,9 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             print()
             ws('Failed to transform trials:')
             for v in pool.failed_i_jobs:
-                ws('\t{}: {}'.format(
-                    trials[v].trial_number, pool.error_reports[v]))
+                ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                 failed_trial_reports.append('session {} trial {} error: {}'.format(
-                    session, trials[v].trial_number, pool.error_reports[v]))
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()
@@ -209,7 +214,9 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             ws('\t{}'.format(failed_trial_report))
 
 
-def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]):
+def preprocess_pressure_sensors(
+    current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]
+):
     """Creates meta information for a session.
 
     Arguments:
@@ -232,14 +239,19 @@ def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, pro
         temp,
         ppps_helper,
         args=(trials_sel, overwrite, processes),
-        sessions=sessions_sel)
+        sessions=sessions_sel,
+    )
+
+    import pdb
+
+    pdb.set_trace()
 
     # Step 2: process training sessions
-    if current_preset['default_training_server']:
+    if not current_preset['default_training_server']:
         ws('No raw training server specified in preset. Skipping...')
         return
 
-    if current_preset['processed_training_server']:
+    if not current_preset['processed_training_server']:
         ws('No processed training server specified in preset. Skipping...')
         return
 
@@ -250,4 +262,6 @@ def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, pro
         current_preset,
         temp,
         ppps_helper,
-        args=(trials_sel, overwrite, processes))
+        args=(trials_sel, overwrite, processes),
+        sessions=sessions_sel,
+    )

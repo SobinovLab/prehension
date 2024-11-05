@@ -34,12 +34,11 @@ EXPECTED_PLOT_NAMES = [
     'ForceTrace_from_success_grasp_start.png',
     'ForceTrace_from_ttl_to_reward.png',
     'Performance.png',
-    'PerformanceLast10Days.png'
+    'PerformanceLast10Days.png',
 ]
 
 
 def display_session_info(experimental_server_wrappers, training_server_wrappers, clean, last_n):
-
     # Function to format and color the session status
     def format_status(session_path):
         if session_path and os.path.exists(session_path):
@@ -69,7 +68,8 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
     def check_proc_folders(proc_path):
         filtered_sensors = os.path.exists(os.path.join(proc_path, "filtered_sensors"))
         prehension_plots_exist_bool = [
-            os.path.exists(os.path.join(proc_path, "prehension_plots", fname)) for fname in EXPECTED_PLOT_NAMES
+            os.path.exists(os.path.join(proc_path, "prehension_plots", fname))
+            for fname in EXPECTED_PLOT_NAMES
         ]
         transformed_sensors = os.path.exists(os.path.join(proc_path, "transformed_sensors"))
 
@@ -80,11 +80,17 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         )
 
         if all(prehension_plots_exist_bool):
-            prehension_symbol = f" {Fore.GREEN}{sum(prehension_plots_exist_bool)}/{len(EXPECTED_PLOT_NAMES)}{Style.RESET_ALL} "
+            prehension_symbol = (
+                f" {Fore.GREEN}{sum(prehension_plots_exist_bool)}/{len(EXPECTED_PLOT_NAMES)}{Style.RESET_ALL} "
+            )
         elif any(prehension_plots_exist_bool):
-            prehension_symbol = f" {Fore.YELLOW}{sum(prehension_plots_exist_bool)}/{len(EXPECTED_PLOT_NAMES)}{Style.RESET_ALL} "
+            prehension_symbol = (
+                f" {Fore.YELLOW}{sum(prehension_plots_exist_bool)}/{len(EXPECTED_PLOT_NAMES)}{Style.RESET_ALL} "
+            )
         else:
-            prehension_symbol = f" {Fore.RED}{sum(prehension_plots_exist_bool)}/{len(EXPECTED_PLOT_NAMES)}{Style.RESET_ALL} "
+            prehension_symbol = (
+                f" {Fore.RED}{sum(prehension_plots_exist_bool)}/{len(EXPECTED_PLOT_NAMES)}{Style.RESET_ALL} "
+            )
 
         transformed_symbol = (
             f" {Fore.GREEN}✔{Style.RESET_ALL} "
@@ -110,7 +116,6 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         )
 
     def can_delete(sw, delete=False):
-
         if not sw.log_full:
             return "no log found"
         logname_full = sw.log_full
