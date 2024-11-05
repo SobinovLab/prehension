@@ -431,7 +431,6 @@ class SessionWrapper:
             if len(self.mstruct['auto_log']) > 0:
                 self.log_full = self.mstruct['auto_log'][0]
         except meta_session.IncompleteMetaError as _:
-            #ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)}, skipping')
             return
         ## Other errors should stop the program -- this is intentional right now for testing
 

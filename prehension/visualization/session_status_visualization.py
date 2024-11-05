@@ -119,9 +119,10 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
 
     # Helper function to format the table rows
-    def format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status, meta_status, can_delete):
-        return (f"{raw_status:<25} {folder_status_raw:<40} {proc_status:<25} {folder_status_proc:<25} "
-                f"{timepoints_status:<7} {meta_status:<7} {can_delete:<7}")
+    def format_row(raw_status, folder_status_raw, proc_status,
+                   folder_status_proc, timepoints_status, meta_status, can_delete):
+        return (f"{raw_status:<25} {folder_status_raw:<40} {proc_status:<25} "
+                f"{folder_status_proc:<25} {timepoints_status:<7} {meta_status:<7} {can_delete:<7}")
 
     # Print a nicely formatted table for experimental sessions
     def print_header(header_text):
@@ -132,7 +133,8 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         print('-' * 135)
 
     print_header('EXPERIMENTAL SESSIONS')
-    sorted_exp_sessions = sorted(experimental_server_wrappers, key=lambda x: (x.datetime, x.set_number))
+    sorted_exp_sessions = sorted(experimental_server_wrappers,
+                                 key=lambda x: (x.datetime, x.set_number))
     if last_n > 0:
         sorted_exp_sessions = sorted_exp_sessions[-last_n:]
     for sw in sorted_exp_sessions:
@@ -146,12 +148,14 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
             can_delete_status = can_delete(sw, delete=True)
         else:
             can_delete_status = "----"
-        print(format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status, meta_status, can_delete_status))
+        print(format_row(raw_status, folder_status_raw, proc_status, folder_status_proc,
+                         timepoints_status, meta_status, can_delete_status))
 
     print()  # Line break between sections
 
     print_header('TRAINING SESSIONS')
-    sorted_training_sessions = sorted(training_server_wrappers, key=lambda x: (x.datetime, x.set_number))
+    sorted_training_sessions = sorted(training_server_wrappers,
+                                      key=lambda x: (x.datetime, x.set_number))
     if last_n > 0:
         sorted_training_sessions = sorted_training_sessions[-last_n:]
     for sw in sorted_training_sessions:
