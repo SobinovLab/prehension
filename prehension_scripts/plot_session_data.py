@@ -68,18 +68,10 @@ def main(preset, sessions, temp, overwrite, transfer=True):
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset["default_server"]):
-        raise ValueError(
-            "Default server directory {} does not exist or is inaccessible.".format(
-                preset["default_server"]
-            )
-        )
+        raise ValueError(f"Can\'t find default server: {preset["default_server"]}")
 
     if not os.path.exists(preset["processed_server"]):
-        raise ValueError(
-            "Default server directory {} does not exist or is inaccessible.".format(
-                preset["default_server"]
-            )
-        )
+        raise ValueError(f"Can\'t find processed server: {preset["processed_server"]}")
 
     # Setup logging
     setup_logging(temp, sessions_dir=preset["processed_server"])
@@ -93,22 +85,17 @@ def main(preset, sessions, temp, overwrite, transfer=True):
         if has_training_server:
             rs("Moving training sessions")
             experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(
-                preset, sessions, filter=False
-            )
-            for sw in tqdm(
-                [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs_pre_move]
-            ):
+                preset, sessions, filter=False)
+            for sw in tqdm([SessionWrapper(*exp_pair) for exp_pair in
+                            experimental_ss_pairs_pre_move]):
                 sw.ensure_transfer_to_training_server(
                     preset["default_training_server"],
                     preset["processed_training_server"],
-                    overwrite,
-                )
+                    overwrite)
             rs("\n" * 3 + "=" * 200)
         else:
-            rs(
-                f"No training servers defined for preset {preset['names'][0]}, skipping transfer"
-                " step."
-            )
+            rs(f"No training servers defined for preset {preset['names'][0]}, skipping transfer"
+                " step.")
 
     # Get raw/processed session dirs for preset
     # Note: we want to fetch all sessions here for performance analysis
@@ -145,11 +132,6 @@ if __name__ == "__main__":
     args = parser.parse_args(sys.argv[2:])
     start_time = time.time()
 
-    main(
-        current_preset,
-        args.sessions,
-        args.temp,
-        args.overwrite,
-    )
+    main(current_preset, args.sessions, args.temp, args.overwrite)
 
     rs("Program took {}.".format(timedelta(seconds=time.time() - start_time)))
