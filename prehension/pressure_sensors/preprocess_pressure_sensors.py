@@ -19,7 +19,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 import ctypes
 import inspect
 import os
@@ -93,12 +92,10 @@ def loadFsxFile(filename):
     forces = np.zeros((N, rows, cols), dtype=np.float64)
 
     for iFrame in range(N):
-        times[iFrame] = handle.TekGetFrameTimestamp(
-            float(-1), iFrame)[1]
+        times[iFrame] = handle.TekGetFrameTimestamp(float(-1), iFrame)[1]
 
         placeholder = (ctypes.c_float * (rows * cols))()
-        retcode, data = handle.TekGetCalibratedFrameData(
-            placeholder, iFrame)
+        retcode, data = handle.TekGetCalibratedFrameData(placeholder, iFrame)
         assert retcode == 0, f'TekGetCalibratedFrameData[0] = {retcode}'
 
         data = np.ctypeslib.as_array(data).reshape((rows, cols))
@@ -144,8 +141,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     """
 
     try:
-        mstruct, _, _, msession = meta_session.load_meta_information(
-            raw_ss, proc_ss)
+        mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
     except Exception as e:
         ws('Could not load meta data from session {}, skipping.'.format(session))
         ws('Error message: {}'.format(e))
@@ -170,7 +166,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             continue
         # Skip if output files exist and overwrite==False
         if not overwrite and all([os.path.exists(fpf)
-                                  for fpf in trial.transformed_ps_filenames.values()]):
+                                    for fpf in trial.transformed_ps_filenames.values()]):
             continue
         trials.append(trial)
 
@@ -181,8 +177,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
     rs('Found {} trials: {}'.format(
         len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
-    trial_timestamps = loadTrialLog(
-        trial_log_filename, [t.trial_number for t in trials])
+    trial_timestamps = loadTrialLog(trial_log_filename, [t.trial_number for t in trials])
 
     p_args = list(zip(trials, trial_timestamps))
 
@@ -197,8 +192,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             print()
             ws('Failed to transform trials:')
             for v in pool.failed_i_jobs:
-                ws('\t{}: {}'.format(
-                    trials[v].trial_number, pool.error_reports[v]))
+                ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                 failed_trial_reports.append('session {} trial {} error: {}'.format(
                     session, trials[v].trial_number, pool.error_reports[v]))
 
@@ -207,7 +201,6 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         ws('Failed trials across sessions:')
         for failed_trial_report in failed_trial_reports:
             ws('\t{}'.format(failed_trial_report))
-
 
 def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]):
     """Creates meta information for a session.
@@ -251,3 +244,6 @@ def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, pro
         temp,
         ppps_helper,
         args=(trials_sel, overwrite, processes))
+
+
+

@@ -54,8 +54,7 @@ if __name__ == '__main__':
         args.sessions = [current_preset['scaling']['session']]
 
     start_time = time.time()
-    mark_base(args.server, args.sessions, args.temp,
-              args.overwrite, args.skip_gui)
+    mark_base(args.server, args.sessions, args.temp, args.overwrite, args.skip_gui)
     rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))
 

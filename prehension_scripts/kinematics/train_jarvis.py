@@ -44,8 +44,7 @@ def tuple_list(s):
         for pair in s.split(','):
             values = pair.split(':')
             if len(values) != 2:
-                raise argparse.ArgumentTypeError(
-                    "Tuples must be in the format (x:y)")
+                raise argparse.ArgumentTypeError("Tuples must be in the format (x:y)")
             tuples.append((str(values[0]), str(values[1])))
         return tuples
     except ValueError:
@@ -56,8 +55,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=("Trains Jarvis (pronounced \'Yar-vuh-s\' in BULK."))
 
-    parser.add_argument('--combos', type=tuple_list,
-                        help='List of project:model tuples to train')
+    parser.add_argument('--combos', type=tuple_list, help='List of project:model tuples to train')
     parser.add_argument('--epochs', default=50, type=int, required=False,
                         help="Num epochs for training")
     parser.add_argument('--verbose', action='store_true')

@@ -48,12 +48,10 @@ class PSDisplayer:
     def setup_ps_ax(self):
         self.ax.set_xticks([])
         self.ax.set_yticks([])
-        # default is upside down
-        self.ax.set_ylim([-0.5, self.nsenselsr - 0.5])
+        self.ax.set_ylim([-0.5, self.nsenselsr - 0.5])  # default is upside down
 
     def generate_internal_data(self):
-        # number of sensels one direction
-        self.nsenselsr = np.shape(self.ps_matrices)[1]
+        self.nsenselsr = np.shape(self.ps_matrices)[1]  # number of sensels one direction
         self.sensor_total = np.sum(self.ps_matrices, axis=(1, 2))
         self.st_max = np.max(self.sensor_total)
         self.ps_vmax = np.max(self.ps_matrices)
@@ -97,8 +95,7 @@ def animate_ps(mstruct, trial):
     ax_fi = fig.add_axes([0.5, 0.3, 0.5, 0.6])
     ax_to = fig.add_axes([0.05, 0.05, 0.9, 0.2])
 
-    psd_tr = PSDisplayer(ax_tr, times_transformed,
-                         matrices_transformed)
+    psd_tr = PSDisplayer(ax_tr, times_transformed, matrices_transformed)
     psd_fi = PSDisplayer(ax_fi, times_filtered, matrices_filtered)
     ps_vmax = psd_fi.ps_vmax
     psd_tr.ps_vmax = psd_fi.ps_vmax = ps_vmax
@@ -144,15 +141,13 @@ def animate_pressure_sensors(server, session, trial_number):
         session = meta_session.find_session_dirs(server)[0]
 
     server_session = os.path.join(server, session)
-    mstruct, _, _, msession = meta_session.load_meta_information(
-        server_session)
+    mstruct, _, _, msession = meta_session.load_meta_information(server_session)
 
     trial = meta_session.find_trial(msession, trial_number)
 
     if trial is None:
         raise ValueError('Could not find the trial.')
     if not trial.do_matched_contacts_files_exist():
-        raise ValueError(
-            'Associated matched contacts files do not exist.')
+        raise ValueError('Associated matched contacts files do not exist.')
 
     animate_ps(mstruct, trial)

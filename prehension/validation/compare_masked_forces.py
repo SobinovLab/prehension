@@ -44,15 +44,13 @@ def load_forces(mstruct, trial):
     dts = np.diff(ps_times)
     trial.dt = np.median(dts)
     # for varied dts, for each time point:
-    trial.dts = (np.concatenate(
-        ([0], dts)) + np.concatenate((dts, [0]))) / 2
+    trial.dts = (np.concatenate(([0], dts)) + np.concatenate((dts, [0]))) / 2
     trial.total_force = (np.sum(ps_matrices['medial_sensor'], axis=(1, 2)) +
                          np.sum(ps_matrices['lateral_sensor'], axis=(1, 2)))
     trial.max_total_force = np.max(trial.total_force)
     trial.summed_force = np.sum(trial.total_force)
     trial.summed_impulse = np.sum(trial.total_force * trial.dts)
-    trial.active_period_flag = trial.total_force >= (
-        0.05 * trial.max_total_force)
+    trial.active_period_flag = trial.total_force >= (0.05 * trial.max_total_force)
 
     # export
     trial.ps_times = ps_times
@@ -82,8 +80,7 @@ def load_forces(mstruct, trial):
         unclaimed_force[ps_name] = []
         for i_frame in range(len(ps_times)):
             # build auto mask
-            auto_mask = (len(DIGITS) - 1) * \
-                np.ones(np.shape(manual_digit_map))
+            auto_mask = (len(DIGITS) - 1) * np.ones(np.shape(manual_digit_map))
             for i_digit, d in enumerate(DIGITS.values()):
                 if i_digit == len(DIGITS) - 1:
                     break
@@ -95,16 +92,13 @@ def load_forces(mstruct, trial):
             # diff mask
             diff_mask = np.not_equal(auto_mask, manual_digit_map)
             ps_matrix_frame = ps_matrices[ps_name][i_frame]
-            mask_based_diff_per_sensor[ps_name].append(
-                np.sum(np.abs(ps_matrix_frame[diff_mask])))
+            mask_based_diff_per_sensor[ps_name].append(np.sum(np.abs(ps_matrix_frame[diff_mask])))
 
             # manual unclaimed mask
             unclaimed_mask = manual_digit_map == (len(DIGITS) - 1)
-            unclaimed_force[ps_name].append(
-                np.sum(np.abs(ps_matrix_frame[unclaimed_mask])))
+            unclaimed_force[ps_name].append(np.sum(np.abs(ps_matrix_frame[unclaimed_mask])))
 
-        mask_based_diff_per_sensor[ps_name] = np.array(
-            mask_based_diff_per_sensor[ps_name])
+        mask_based_diff_per_sensor[ps_name] = np.array(mask_based_diff_per_sensor[ps_name])
         unclaimed_force[ps_name] = np.array(unclaimed_force[ps_name])
     # sum across sensors
     trial.mask_based_diff = (mask_based_diff_per_sensor['medial_sensor'] +
@@ -185,8 +179,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(
-        len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     trials_by_session = {}
     difference_metrics = list(DIFF_F.keys())
@@ -206,8 +199,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
             mstruct, _, _, msession = meta_session.load_meta_information(
                 server_session, check_manual_log=True)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(
-                session))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -258,10 +250,8 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
         lbls = ['trial number', 'object id'] + difference_metrics
         rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
         for trial in trials:
-            v = ['{}'.format(lbl) for lbl in [
-                trial.trial_number, trial.object_id]]
-            values = [trial.differences[dm]
-                      for dm in difference_metrics]
+            v = ['{}'.format(lbl) for lbl in [trial.trial_number, trial.object_id]]
+            values = [trial.differences[dm] for dm in difference_metrics]
             v += ['{:.4f}'.format(value) for value in values]
             rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
 
@@ -272,18 +262,14 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
         return
 
     # report together for all sessions
-    rs('Total {} trials.'.format(
-        sum([len(trials) for trials in trials_by_session.values()])))
+    rs('Total {} trials.'.format(sum([len(trials) for trials in trials_by_session.values()])))
     rs('Individual trial reports')
-    lbls = ['session', 'trial number',
-            'object id'] + difference_metrics
+    lbls = ['session', 'trial number', 'object id'] + difference_metrics
     rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
     for session, trials in trials_by_session.items():
         for trial in trials:
-            v = ['{}'.format(lbl) for lbl in [
-                session, trial.trial_number, trial.object_id]]
-            values = [trial.differences[dm]
-                      for dm in difference_metrics]
+            v = ['{}'.format(lbl) for lbl in [session, trial.trial_number, trial.object_id]]
+            values = [trial.differences[dm] for dm in difference_metrics]
             v += ['{:.4f}'.format(value) for value in values]
             rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
     # general metrics for all trials together
@@ -307,8 +293,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
                     for trials in trials_by_session.values()], [])
         ax.hist(data, color='k', bins=30)
         tools.actual_vline(ax, np.median(data), color='r')
-        rs('{} median {} {}.'.format(
-            dm, np.median(data), dmv['unit']))
+        rs('{} median {} {}.'.format(dm, np.median(data), dmv['unit']))
         ax.set_xlim(left=0)
         ax.set_xlabel('{}, {}'.format(dm, dmv['unit']))
         ax.set_ylabel('Number of trials')
@@ -316,8 +301,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
     # make a figure by pooling all time varying points
     fig = plt.figure(figsize=figsize)
     yn_subplots = int(np.ceil(np.sqrt(len(tv_difference_metrics))))
-    xn_subplots = int(
-        np.ceil(len(tv_difference_metrics) / yn_subplots))
+    xn_subplots = int(np.ceil(len(tv_difference_metrics) / yn_subplots))
     for idm, (dm, dmv) in enumerate(TV_DIFF_F.items()):
         ax = plt.subplot(xn_subplots, yn_subplots, idm + 1)
         data = []
@@ -326,8 +310,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
                 data += sum(trial.tv_differences[dm], [])
         ax.hist(data, color='k', bins=100)
         tools.actual_vline(ax, np.median(data), color='r')
-        rs('{} median {} {}.'.format(
-            dm, np.median(data), dmv['unit']))
+        rs('{} median {} {}.'.format(dm, np.median(data), dmv['unit']))
         ax.set_xlim(left=0)
         ax.set_xlabel('{}, {}'.format(dm, dmv['unit']))
         ax.set_ylabel('Data points')

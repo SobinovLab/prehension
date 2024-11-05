@@ -41,8 +41,7 @@ def make_session_mask(mstruct, msession, trials_sel, mask_filenames, overwrite):
     for trial in tqdm.tqdm(trials, ncols=100, desc='Trials'):
         for ps_name in mstruct['ps_dic']:
             try:
-                ps_mask = make_trial_mask(
-                    trial.get_post_ps_filenames()[ps_name])
+                ps_mask = make_trial_mask(trial.get_post_ps_filenames()[ps_name])
             except Exception as e:
                 ws('File {} corrupted for import: {}'.format(
                     trial.get_post_ps_filenames()[ps_name], e))
@@ -50,20 +49,16 @@ def make_session_mask(mstruct, msession, trials_sel, mask_filenames, overwrite):
             if ps_masks[ps_name] is None:
                 ps_masks[ps_name] = ps_mask
             else:
-                ps_masks[ps_name] = np.logical_or(
-                    ps_masks[ps_name], ps_mask)
+                ps_masks[ps_name] = np.logical_or(ps_masks[ps_name], ps_mask)
 
     print()
     for ps_name, ps_mask in ps_masks.items():
-        rs('Pressure sensor {} has {} active sensels.'.format(
-            ps_name, np.sum(ps_mask)))
+        rs('Pressure sensor {} has {} active sensels.'.format(ps_name, np.sum(ps_mask)))
         o_filename = mask_filenames[ps_name]
         if overwrite or not os.path.exists(o_filename):
-            io_tools.export_one_csv_matrix(
-                o_filename, ps_mask.astype(int))
+            io_tools.export_one_csv_matrix(o_filename, ps_mask.astype(int))
         else:
-            ws('Pressure sensor {} mask file {} already exists.'.format(
-                ps_name, o_filename))
+            ws('Pressure sensor {} mask file {} already exists.'.format(ps_name, o_filename))
 
 
 def make_segment(name, pos, size, rgba, ntab, joints=None, geomname=None):
@@ -131,8 +126,7 @@ def add_pair_contacts(geom, geom_list, margin=0.03, gap=0.03, tail='\n' + ' '*2*
     '''
     contacts = []
     for g in geom_list:
-        contacts.append(make_contact_pair(
-            geom, g, tail, margin=margin, gap=gap))
+        contacts.append(make_contact_pair(geom, g, tail, margin=margin, gap=gap))
 
     return contacts
 
@@ -143,8 +137,7 @@ def tessellate_sensor(wb, name, hand_geomnames, sense_distance,
                       switch_xy=False):
     att = wb.find(".//body[@name='{}']".format(name))
     if att is None:
-        raise ValueError(
-            'Did not find the pressure sensor {}.'.format(name))
+        raise ValueError('Did not find the pressure sensor {}.'.format(name))
 
     # remove the attached geom
     att_geom = att.find("./geom")
@@ -225,8 +218,7 @@ def tessellate_sensors(mjc_model, out_model, sense_distance,
     if option is None:
         option = ET.Element('option')
         root.append(option)
-    # previously known as 'pair'
-    option.set('collision', 'predefined')
+    option.set('collision', 'predefined')  # previously known as 'pair'
 
     # increase simulation buffers
     size = root.find('size')
@@ -242,26 +234,22 @@ def tessellate_sensors(mjc_model, out_model, sense_distance,
         raise ValueError('Could not find worldbody.')
 
     # find hand geoms
-    hand_parent = wb.find(
-        ".//body[@name='{}']".format(hand_parent_bname))
+    hand_parent = wb.find(".//body[@name='{}']".format(hand_parent_bname))
     if hand_parent is None:
-        raise ValueError(
-            'Could not find hand parent body {}.'.format(hand_parent_bname))
+        raise ValueError('Could not find hand parent body {}.'.format(hand_parent_bname))
     hand_geoms = hand_parent.findall('.//geom')
     hand_geomnames = []
     for hand_geom in hand_geoms:
         hand_geomname = hand_geom.get('name')
         if hand_geomname is not None:
             hand_geomnames.append(hand_geomname)
-    rs('Found {} hand geometries: {}.'.format(
-        len(hand_geomnames), ', '.join(hand_geomnames)))
+    rs('Found {} hand geometries: {}.'.format(len(hand_geomnames), ', '.join(hand_geomnames)))
 
     # load masks of sensels
     if left_ps_mask_filename is None:
         left_ps_mask = None
     else:
-        left_ps_mask = np.array(io_tools.import_one_csv_matrix(
-            left_ps_mask_filename)).astype(bool)
+        left_ps_mask = np.array(io_tools.import_one_csv_matrix(left_ps_mask_filename)).astype(bool)
 
     if right_ps_mask_filename is None:
         right_ps_mask = None
@@ -281,8 +269,7 @@ def tessellate_sensors(mjc_model, out_model, sense_distance,
     if wb.find("geom[@name='floor']") is not None:
         for geomname in geoms_contact_floor:
             if wb.find(".//geom[@name='{}']".format(geomname)) is not None:
-                contacts += add_pair_contacts(geomname,
-                                              ['floor'], gap=None, margin=None)
+                contacts += add_pair_contacts(geomname, ['floor'], gap=None, margin=None)
     else:
         warnings.warn('Could not find floor geom.')
 
@@ -338,8 +325,7 @@ def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite,
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(
-        len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
@@ -352,11 +338,9 @@ def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite,
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(
-                server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(server_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(
-                session))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -365,8 +349,7 @@ def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite,
                           for ps_name in mstruct['ps_dic'].keys()}
 
         if make_mask:
-            make_session_mask(mstruct, msession,
-                              trials_sel, mask_filenames, overwrite)
+            make_session_mask(mstruct, msession, trials_sel, mask_filenames, overwrite)
 
         if tessellate:
             left_ps_mask_filename = mask_filenames['medial_sensor']

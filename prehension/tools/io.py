@@ -51,8 +51,7 @@ def import_matrices(filename, equalize_period=-np.inf,
         matrices -- [itime][irow][icol]
     '''
     if os.path.splitext(filename)[1] == '.csv':
-        times, matrices = import_csv_matrix_low(
-            filename, rowscols=rowscols)
+        times, matrices = import_csv_matrix_low(filename, rowscols=rowscols)
     elif os.path.splitext(filename)[1] == '.tsm':
         times, matrices = import_tsm_matrix(filename)
     else:
@@ -66,14 +65,12 @@ def import_matrices(filename, equalize_period=-np.inf,
     if equalize_period >= times[0]:
         rows = len(matrices[0])
         cols = len(matrices[0][0])
-        equalizer_range = range(
-            next(x for x, val in enumerate(times) if val > equalize_period))
+        equalizer_range = range(next(x for x, val in enumerate(times) if val > equalize_period))
         equalizer = []
         for irow in range(rows):
             equalizer.append([])
             for icol in range(cols):
-                equalizer[irow].append(
-                    np.max([matrices[i][irow][icol] for i in equalizer_range]))
+                equalizer[irow].append(np.max([matrices[i][irow][icol] for i in equalizer_range]))
 
         for itime in range(len(times)):
             for irow in range(rows):
@@ -135,6 +132,7 @@ def import_csv(filename, cast=float):
     if not os.path.isfile(filename):
         raise ValueError('File not found: {filename}')
 
+
     with open(filename, 'r') as f:
         rdr = csv.reader(f)
 
@@ -188,8 +186,7 @@ def import_csv_matrix_low(filename, rowscols=None):
 
         if rowscols is None:
             # extract number of rows and columns from the last element of the first line
-            rows, cols = [int(i)
-                          for i in re.findall('[0-9]+', li[-1])]
+            rows, cols = [int(i) for i in re.findall('[0-9]+', li[-1])]
         else:
             if isinstance(rowscols, (list, tuple)):
                 rows = rowscols[0]
@@ -208,8 +205,7 @@ def import_csv_matrix_low(filename, rowscols=None):
             matrices.append(np.zeros((rows, cols)))
             for irow in range(rows):
                 for icol in range(cols):
-                    matrices[-1][irow][icol] = float(
-                        li[1+irow+rows*icol])
+                    matrices[-1][irow][icol] = float(li[1+irow+rows*icol])
     times = np.array(times)
     matrices = np.array(matrices)
 
@@ -226,8 +222,7 @@ def export_csv_matrix(filename, times, matrices):
 
     matrices = m_new.reshape((len(times), rows*cols)).transpose()
 
-    values = np.concatenate(
-        (times.reshape((1, len(times))), matrices), axis=0)
+    values = np.concatenate((times.reshape((1, len(times))), matrices), axis=0)
     column_names = ['times'] + ['r{}c{}'.format(r+1, c+1)
                                 for c in range(cols)
                                 for r in range(rows)]
@@ -267,8 +262,7 @@ def import_matched_contacts(filename):
                 r, c = indices.split('.')
                 if hand_segment not in matched_contacts[-1].keys():
                     matched_contacts[-1][hand_segment] = []
-                matched_contacts[-1][hand_segment].append(
-                    (int(r), int(c), float(dist)))
+                matched_contacts[-1][hand_segment].append((int(r), int(c), float(dist)))
     return matched_contacts
 
 
@@ -321,8 +315,7 @@ def load_roms(filename, dof_names=None):
         i_rot = -1
 
     if dof_names is None:
-        ranges = [[rmin, rmax]
-                  for rmin, rmax in zip(values[i_rmin], values[i_rmax])]
+        ranges = [[rmin, rmax] for rmin, rmax in zip(values[i_rmin], values[i_rmax])]
         if i_rot >= 0:
             return values[i_dofname], ranges, values[i_rot]
         else:
@@ -358,8 +351,7 @@ def import_triangulated_csv(filename):
         for li in rdr:
             frame_numbers.append(int(li[0]))
             for i, el in enumerate(li[1:]):
-                data_raw[i].append(
-                    float(el) if el != '' else math.nan)
+                data_raw[i].append(float(el) if el != '' else math.nan)
 
     # transform into a dictionary
     for i, (i1, i2) in enumerate(zip(li1[1:], li2[1:])):

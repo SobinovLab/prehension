@@ -61,7 +61,9 @@ def main(args):
             *train_pair) for train_pair in training_ss_pairs]
 
         session_status_visualization.display_session_info(exp_session_wrappers,
-                                                   train_session_wrappers, args.clean, args.last)
+                                                          train_session_wrappers,
+                                                          args.clean,
+                                                          args.last)
         print()
         print()
 

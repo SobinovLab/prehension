@@ -62,7 +62,7 @@ class ForceLabellingInterface:
 
         # sizes designed for a 16x9 format
         padding = 0.01
-        # LEFT PANEL
+        ## LEFT PANEL
         lpl = 0  # left panel left
         lpw = 9/16  # left panel width
         lphw = lpw / 2  # left panel halfwidth
@@ -75,34 +75,28 @@ class ForceLabellingInterface:
             lpeh = 0.5  # left panel element height
 
         # left PS video reference
-        self.ax_lps_vid = self.fig.add_axes(
-            apply_padding((lpl, 1. - lpeh, lphw, lpeh), padding))
+        self.ax_lps_vid = self.fig.add_axes(apply_padding((lpl, 1. - lpeh, lphw, lpeh), padding))
 
         # right PS video reference
-        self.ax_rps_vid = self.fig.add_axes(
-            apply_padding((lpm, 1. - lpeh, lphw, lpeh), padding))
+        self.ax_rps_vid = self.fig.add_axes(apply_padding((lpm, 1. - lpeh, lphw, lpeh), padding))
 
         # left pressure sensor
-        self.ax_lps = self.fig.add_axes(apply_padding(
-            (lpl, 1. - 2*lpeh, lphw, lpeh), padding))
+        self.ax_lps = self.fig.add_axes(apply_padding((lpl, 1. - 2*lpeh, lphw, lpeh), padding))
         # right pressure sensor
-        self.ax_rps = self.fig.add_axes(apply_padding(
-            (lpm, 1. - 2*lpeh, lphw, lpeh), padding))
+        self.ax_rps = self.fig.add_axes(apply_padding((lpm, 1. - 2*lpeh, lphw, lpeh), padding))
         # monkey sits here
         self.add_monkey_location(lpm, 1. - 1.5*lpeh)
 
         # underneath the manually labeled show auto labelled
         if show_automatic:
             # automatic left pressure sensor
-            self.ax_lps_auto = self.fig.add_axes(
-                apply_padding((lpl, 0, lphw, lpeh), padding))
+            self.ax_lps_auto = self.fig.add_axes(apply_padding((lpl, 0, lphw, lpeh), padding))
             # automatic right pressure sensor
-            self.ax_rps_auto = self.fig.add_axes(
-                apply_padding((lpm, 0, lphw, lpeh), padding))
+            self.ax_rps_auto = self.fig.add_axes(apply_padding((lpm, 0, lphw, lpeh), padding))
             # also monkey sits here
             self.add_monkey_location(lpm, 1. - 2.5*lpeh)
 
-        # RIGHT PANEL
+        ## RIGHT PANEL
         rpl = lpl + lpw  # right panel left
         rpw = 1. - rpl  # right panel width
         rphw = rpw / 2  # right panel halfwidth
@@ -116,20 +110,16 @@ class ForceLabellingInterface:
         rptseh = rpteh * 0.5  # right panel top subelement height
 
         # Average left pressure sensor
-        self.ax_lps_avg = self.fig.add_axes(
-            (rpl + 1/32, 1. - rptseh, rphw, rptseh))
+        self.ax_lps_avg = self.fig.add_axes((rpl + 1/32, 1. - rptseh, rphw, rptseh))
 
         # Average right pressure sensor
-        self.ax_rps_avg = self.fig.add_axes(
-            (rpm, 1. - rptseh, rphw - 1/16, rptseh))
+        self.ax_rps_avg = self.fig.add_axes((rpm, 1. - rptseh, rphw - 1/16, rptseh))
 
         # digit selector
-        self.ax_digit_selector = self.fig.add_axes(
-            (rpl + 1/16, 1 - rpteh, rphw - 1/16, rptseh))
+        self.ax_digit_selector = self.fig.add_axes((rpl + 1/16, 1 - rpteh, rphw - 1/16, rptseh))
 
         # save load
-        self.ax_saveload = self.fig.add_axes(
-            (rpm, 1 - rpteh, rphw - 1/16, rptseh))
+        self.ax_saveload = self.fig.add_axes((rpm, 1 - rpteh, rphw - 1/16, rptseh))
         self.make_saveload_btns()
 
         # Bottom of the panel
@@ -205,20 +195,14 @@ class ForceLabellingInterface:
         self.lps_avg_pressevent = None
         self.rps_avg_pressevent = None
         self.shift = False
-        self.fig.canvas.mpl_connect(
-            'button_press_event', self.on_press)
-        self.fig.canvas.mpl_connect(
-            'button_release_event', self.on_release)
-        self.fig.canvas.mpl_connect(
-            'motion_notify_event', self.on_move)
-        self.fig.canvas.mpl_connect(
-            'key_press_event', self.on_key_press)
-        self.fig.canvas.mpl_connect(
-            'key_release_event', self.on_key_release)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_press)
+        self.fig.canvas.mpl_connect('button_release_event', self.on_release)
+        self.fig.canvas.mpl_connect('motion_notify_event', self.on_move)
+        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.fig.canvas.mpl_connect('key_release_event', self.on_key_release)
 
     def add_monkey_location(self, x, y):
-        fontlocation = os.path.join(
-            '../../../stereo_inverse_kinematics', 'common', 'NotoEmoji-Regular.ttf')
+        fontlocation = os.path.join('../../../stereo_inverse_kinematics', 'common', 'NotoEmoji-Regular.ttf')
         if os.path.exists(fontlocation):
             prop = font_manager.FontProperties()
             prop.set_file(fontlocation)
@@ -236,12 +220,9 @@ class ForceLabellingInterface:
         _, self.ps_matrices[RPS_NAME] = io_tools.import_matrices(
             self.trial.get_post_ps_filenames()[RPS_NAME])
 
-        self.nsenselsr = np.shape(self.ps_matrices[LPS_NAME])[
-            1]  # number of sensels one direction
-        self.left_sensor_total = np.sum(
-            self.ps_matrices[LPS_NAME], axis=(1, 2))
-        self.right_sensor_total = np.sum(
-            self.ps_matrices[RPS_NAME], axis=(1, 2))
+        self.nsenselsr = np.shape(self.ps_matrices[LPS_NAME])[1]  # number of sensels one direction
+        self.left_sensor_total = np.sum(self.ps_matrices[LPS_NAME], axis=(1, 2))
+        self.right_sensor_total = np.sum(self.ps_matrices[RPS_NAME], axis=(1, 2))
         self.dt = np.median(np.diff(self.ps_times))
         self.dt_visualize = self.dt * 5
         self.dt_offset_times = self.ps_times - self.dt_visualize
@@ -249,8 +230,7 @@ class ForceLabellingInterface:
             LPS_NAME: np.max(self.ps_matrices[LPS_NAME]),
             RPS_NAME: np.max(self.ps_matrices[RPS_NAME]),
         }
-        self.ps_vmax = max(
-            self.ps_vmax_d[LPS_NAME], self.ps_vmax_d[RPS_NAME])
+        self.ps_vmax = max(self.ps_vmax_d[LPS_NAME], self.ps_vmax_d[RPS_NAME])
         self.sensor_total = np.sum(np.vstack((self.left_sensor_total, self.right_sensor_total)),
                                    axis=0)
         self.max_sensor_total = np.amax(self.sensor_total)
@@ -288,6 +268,7 @@ class ForceLabellingInterface:
                             (self.nsenselsr, self.nsenselsr)))
                         for i_frame in range(len(self.ps_times))]
 
+
     def plot_total_force(self):
         self.ax_tf.plot(self.ps_times, self.left_sensor_total, label='Left',
                         color=micolors['orange'][600])
@@ -312,8 +293,7 @@ class ForceLabellingInterface:
             return
 
         # automatically matched forces
-        self.ax_mf_auto.set_xlim(
-            [self.ps_times[0], self.ps_times[-1]])
+        self.ax_mf_auto.set_xlim([self.ps_times[0], self.ps_times[-1]])
         self.ax_mf_auto.set_ylim([0, self.max_sensor_total])
         self.ax_mf_auto.set_ylabel('Automatically\nmatched forces, N')
         self.ax_mf_auto.set_xticklabels([])
@@ -326,23 +306,21 @@ class ForceLabellingInterface:
                                  label=ds['name'], color=ds['c'][600])
 
         # Difference in matched forces
-        self.ax_mf_diff.set_xlim(
-            [self.ps_times[0], self.ps_times[-1]])
+        self.ax_mf_diff.set_xlim([self.ps_times[0], self.ps_times[-1]])
         self.ax_mf_diff.set_ylim([0, self.max_sensor_total])
         self.ax_mf_diff.set_xlabel('Time, s')
         self.ax_mf_diff.set_ylabel('Difference in\nmatched forces, N')
 
+
     def setup_ps_axes(self):
         self.ax_lps.set_xticks([])
         self.ax_lps.set_yticks([])
-        # default is upside down
-        self.ax_lps.set_ylim([-0.5, self.nsenselsr - 0.5])
+        self.ax_lps.set_ylim([-0.5, self.nsenselsr - 0.5])  # default is upside down
 
         self.ax_rps.set_xticks([])
         self.ax_rps.set_yticks([])
         self.ax_rps.set_ylim([-0.5, self.nsenselsr - 0.5])
-        # monkey in the middle
-        self.ax_rps.set_xlim([self.nsenselsr - 0.5, -0.5])
+        self.ax_rps.set_xlim([self.nsenselsr - 0.5, -0.5])  # monkey in the middle
 
         self.ax_lps_avg.set_xticks([])
         self.ax_lps_avg.set_yticks([])
@@ -356,14 +334,12 @@ class ForceLabellingInterface:
         if self.show_automatic:
             self.ax_lps_auto.set_xticks([])
             self.ax_lps_auto.set_yticks([])
-            # default is upside down
-            self.ax_lps_auto.set_ylim([-0.5, self.nsenselsr - 0.5])
+            self.ax_lps_auto.set_ylim([-0.5, self.nsenselsr - 0.5])  # default is upside down
 
             self.ax_rps_auto.set_xticks([])
             self.ax_rps_auto.set_yticks([])
             self.ax_rps_auto.set_ylim([-0.5, self.nsenselsr - 0.5])
-            self.ax_rps_auto.set_xlim(
-                [self.nsenselsr - 0.5, -0.5])  # monkey in the middle
+            self.ax_rps_auto.set_xlim([self.nsenselsr - 0.5, -0.5])  # monkey in the middle
 
     def setup_vid_axes(self):
         self.ax_lps_vid.set_xticks([])
@@ -373,26 +349,22 @@ class ForceLabellingInterface:
         self.ax_rps_vid.set_yticks([])
 
     def find_starting_index(self):
-        self.i_frame = np.where(
-            self.sensor_total == self.max_sensor_total)[0][0]
+        self.i_frame = np.where(self.sensor_total == self.max_sensor_total)[0][0]
 
     def force_map_transform(self, matrix):
         # return np.sqrt(matrix)
         return np.power(matrix, FORCE_POWER_TRANSFORM_FOR_MAP)
 
     def plot_force_map(self, ax, ps_matrix):
-        ps_avg = np.mean(self.force_map_transform(
-            ps_matrix), where=ps_matrix > 0, axis=0)
+        ps_avg = np.mean(self.force_map_transform(ps_matrix), where=ps_matrix > 0, axis=0)
         ps_avg /= np.nanmax(ps_avg)
         ax.imshow(ps_avg, vmin=0, vmax=1, cmap='Greys')
         ax.text(0.5 * self.nsenselsr, 0.95 * self.nsenselsr, 'OVERVIEW',
                 color=micolors['red'][400], ha='center', va='center')
 
     def plot_average_force_map(self):
-        self.plot_force_map(
-            self.ax_lps_avg, self.ps_matrices[LPS_NAME])
-        self.plot_force_map(
-            self.ax_rps_avg, self.ps_matrices[RPS_NAME])
+        self.plot_force_map(self.ax_lps_avg, self.ps_matrices[LPS_NAME])
+        self.plot_force_map(self.ax_rps_avg, self.ps_matrices[RPS_NAME])
 
     def setup_digit_selector(self):
         self.ax_digit_selector.set_xlim([0, 1])
@@ -406,10 +378,8 @@ class ForceLabellingInterface:
         self.press_selected_digit = None
         self.lps_highlight_pressevent = None
         self.rps_highlight_pressevent = None
-        self.lps_digit_mask = UNCLAIMED_INDEX * \
-            np.ones((self.nsenselsr, self.nsenselsr), dtype=int)
-        self.rps_digit_mask = UNCLAIMED_INDEX * \
-            np.ones((self.nsenselsr, self.nsenselsr), dtype=int)
+        self.lps_digit_mask = UNCLAIMED_INDEX * np.ones((self.nsenselsr, self.nsenselsr), dtype=int)
+        self.rps_digit_mask = UNCLAIMED_INDEX * np.ones((self.nsenselsr, self.nsenselsr), dtype=int)
         self.isensels_offset_x = [v for v in range(self.nsenselsr)]
         self.isensels_offset_y = [v for v in range(self.nsenselsr)]
         padding = 0.01
@@ -431,13 +401,11 @@ class ForceLabellingInterface:
 
     def make_iframe_highlights(self):
         self.tf_highlight = patches.Rectangle(
-            (self.dt_offset_times[0],
-             0), self.dt_visualize, self.max_sensor_total,
+            (self.dt_offset_times[0], 0), self.dt_visualize, self.max_sensor_total,
             color=micolors['green'][600], alpha=0.4, zorder=np.inf)
         self.ax_tf.add_patch(self.tf_highlight)
         self.mf_highlight = patches.Rectangle(
-            (self.dt_offset_times[0],
-             0), self.dt_visualize, self.max_sensor_total,
+            (self.dt_offset_times[0], 0), self.dt_visualize, self.max_sensor_total,
             color=micolors['green'][600], alpha=0.4, zorder=np.inf)
         self.ax_mf.add_patch(self.mf_highlight)
 
@@ -472,8 +440,7 @@ class ForceLabellingInterface:
             self.lps_image.remove()
         if self.rps_image is not None:
             self.rps_image.remove()
-        matrix = self.ps_matrices[LPS_NAME][i_frame] / \
-            self.ps_vmax_d[LPS_NAME]
+        matrix = self.ps_matrices[LPS_NAME][i_frame] / self.ps_vmax_d[LPS_NAME]
         self.lps_image = self.ax_lps.imshow(self.force_map_transform(matrix),
                                             vmin=0, vmax=1, cmap='Greys')
         if self.show_automatic:
@@ -481,8 +448,7 @@ class ForceLabellingInterface:
                 self.lps_auto_image.remove()
             self.lps_auto_image = self.ax_lps_auto.imshow(self.force_map_transform(matrix),
                                                           vmin=0, vmax=1, cmap='Greys')
-        matrix = self.ps_matrices[RPS_NAME][i_frame] / \
-            self.ps_vmax_d[RPS_NAME]
+        matrix = self.ps_matrices[RPS_NAME][i_frame] / self.ps_vmax_d[RPS_NAME]
         self.rps_image = self.ax_rps.imshow(self.force_map_transform(matrix),
                                             vmin=0, vmax=1, cmap='Greys')
         if self.show_automatic:
@@ -508,8 +474,7 @@ class ForceLabellingInterface:
         if i_frame is None:
             i_frame = self.i_frame
         # the frame difference
-        cameraframe = int(round(
-            (self.ps_times[i_frame] + self.camera_pstime_diff) * self.fps)) - 1
+        cameraframe = int(round((self.ps_times[i_frame] + self.camera_pstime_diff) * self.fps)) - 1
         cameraframe = max(0, cameraframe)
         cameraframe = min(cameraframe, self.num_frames-1)
 
@@ -518,10 +483,8 @@ class ForceLabellingInterface:
         if self.rps_videoframe is not None:
             self.rps_videoframe.remove()
 
-        self.lps_videoframe = self.display_videoframe(
-            self.lps_video, self.ax_lps_vid, cameraframe)
-        self.rps_videoframe = self.display_videoframe(
-            self.rps_video, self.ax_rps_vid, cameraframe)
+        self.lps_videoframe = self.display_videoframe(self.lps_video, self.ax_lps_vid, cameraframe)
+        self.rps_videoframe = self.display_videoframe(self.rps_video, self.ax_rps_vid, cameraframe)
         self.fig.canvas.draw()
 
     def display_digit_areas(self):
@@ -533,10 +496,8 @@ class ForceLabellingInterface:
             self.avg_lps_colormask.remove()
         if self.avg_rps_colormask is not None:
             self.avg_rps_colormask.remove()
-        lps_digit_color_mask = np.ones(
-            (self.nsenselsr, self.nsenselsr, 3))
-        rps_digit_color_mask = np.ones(
-            (self.nsenselsr, self.nsenselsr, 3))
+        lps_digit_color_mask = np.ones((self.nsenselsr, self.nsenselsr, 3))
+        rps_digit_color_mask = np.ones((self.nsenselsr, self.nsenselsr, 3))
         for idigit, ds in enumerate(self.digit_selectors):
             if idigit == UNCLAIMED_INDEX:
                 color = (1, 1, 1)  # white
@@ -550,15 +511,11 @@ class ForceLabellingInterface:
             rps_digit_color_mask[rpsdmask, 0] = color[0]
             rps_digit_color_mask[rpsdmask, 1] = color[1]
             rps_digit_color_mask[rpsdmask, 2] = color[2]
-        self.lps_colormask = self.ax_lps.imshow(
-            lps_digit_color_mask, alpha=0.2)
-        self.rps_colormask = self.ax_rps.imshow(
-            rps_digit_color_mask, alpha=0.2)
+        self.lps_colormask = self.ax_lps.imshow(lps_digit_color_mask, alpha=0.2)
+        self.rps_colormask = self.ax_rps.imshow(rps_digit_color_mask, alpha=0.2)
         # add the same to average plot
-        self.avg_lps_colormask = self.ax_lps_avg.imshow(
-            lps_digit_color_mask, alpha=0.2)
-        self.avg_rps_colormask = self.ax_rps_avg.imshow(
-            rps_digit_color_mask, alpha=0.2)
+        self.avg_lps_colormask = self.ax_lps_avg.imshow(lps_digit_color_mask, alpha=0.2)
+        self.avg_rps_colormask = self.ax_rps_avg.imshow(rps_digit_color_mask, alpha=0.2)
 
         if self.show_automatic:
             if self.lps_auto_colormask is not None:
@@ -566,10 +523,8 @@ class ForceLabellingInterface:
             if self.rps_auto_colormask is not None:
                 self.rps_auto_colormask.remove()
             # show auto stuff
-            lps_digit_color_mask = np.ones(
-                (self.nsenselsr, self.nsenselsr, 3))
-            rps_digit_color_mask = np.ones(
-                (self.nsenselsr, self.nsenselsr, 3))
+            lps_digit_color_mask = np.ones((self.nsenselsr, self.nsenselsr, 3))
+            rps_digit_color_mask = np.ones((self.nsenselsr, self.nsenselsr, 3))
 
             for idigit, ds in enumerate(self.digit_selectors):
                 if idigit == UNCLAIMED_INDEX:
@@ -589,10 +544,8 @@ class ForceLabellingInterface:
                 rps_digit_color_mask[rpsdmask, 0] = color[0]
                 rps_digit_color_mask[rpsdmask, 1] = color[1]
                 rps_digit_color_mask[rpsdmask, 2] = color[2]
-            self.lps_auto_colormask = self.ax_lps_auto.imshow(
-                lps_digit_color_mask, alpha=0.6)
-            self.rps_auto_colormask = self.ax_rps_auto.imshow(
-                rps_digit_color_mask, alpha=0.6)
+            self.lps_auto_colormask = self.ax_lps_auto.imshow(lps_digit_color_mask, alpha=0.6)
+            self.rps_auto_colormask = self.ax_rps_auto.imshow(rps_digit_color_mask, alpha=0.6)
 
         self.fig.canvas.draw()
 
@@ -630,12 +583,10 @@ class ForceLabellingInterface:
         for _ in range(len(self.ax_mf.lines)):
             self.ax_mf.lines.pop(0)
         for tft, ds in zip(self.total_force_traces, self.digit_selectors):
-            self.ax_mf.plot(self.ps_times, tft,
-                            label=ds['name'], color=ds['c'][600])
+            self.ax_mf.plot(self.ps_times, tft, label=ds['name'], color=ds['c'][600])
 
         # display info about portion unset
-        portion_unset = np.sum(
-            self.total_force_traces[UNCLAIMED_INDEX]) / self.sum_sensor_total
+        portion_unset = np.sum(self.total_force_traces[UNCLAIMED_INDEX]) / self.sum_sensor_total
         self.digit_selectors[UNCLAIMED_INDEX]['patch_text'].set_text('{} ({:.2%})'.format(
             UNCLAIMED_NAME, portion_unset))
 
@@ -646,8 +597,7 @@ class ForceLabellingInterface:
                 if ds['name'] == UNCLAIMED_NAME:
                     continue
                 self.ax_mf_diff.plot(
-                    self.ps_times, abs(
-                        tft - self.total_auto_force_traces[ds['name']]),
+                    self.ps_times, abs(tft - self.total_auto_force_traces[ds['name']]),
                     label=ds['name'], color=ds['c'][600])
 
         self.fig.canvas.draw()
@@ -668,18 +618,13 @@ class ForceLabellingInterface:
         self.fig.canvas.draw()
 
     def export_matched_data(self):
-        column_names = ['time'] + [ds['name']
-                                   for ds in self.digit_selectors]
+        column_names = ['time'] + [ds['name'] for ds in self.digit_selectors]
         values = [self.ps_times] + self.total_force_traces
-        io_tools.export_csv(
-            self.trial.manually_labelled_filename, column_names, values)
-        print('Exported matched profiles to {}.'.format(
-            self.trial.manually_labelled_filename))
+        io_tools.export_csv(self.trial.manually_labelled_filename, column_names, values)
+        print('Exported matched profiles to {}.'.format(self.trial.manually_labelled_filename))
 
-        io_tools.export_one_csv_matrix(
-            self.trial.lps_map_filename, self.lps_digit_mask)
-        io_tools.export_one_csv_matrix(
-            self.trial.rps_map_filename, self.rps_digit_mask)
+        io_tools.export_one_csv_matrix(self.trial.lps_map_filename, self.lps_digit_mask)
+        io_tools.export_one_csv_matrix(self.trial.rps_map_filename, self.rps_digit_mask)
         print('Exported left and right pressure sensor masks into {} and {}, respectively.'.format(
             self.trial.lps_map_filename, self.trial.rps_map_filename))
 
@@ -687,13 +632,11 @@ class ForceLabellingInterface:
         if os.path.exists(self.trial.lps_map_filename):
             self.lps_digit_mask = np.array(
                 io_tools.import_one_csv_matrix(self.trial.lps_map_filename, dtype=int))
-            print('Loaded left pressure sensor map from {}.'.format(
-                self.trial.lps_map_filename))
+            print('Loaded left pressure sensor map from {}.'.format(self.trial.lps_map_filename))
         if os.path.exists(self.trial.rps_map_filename):
             self.rps_digit_mask = np.array(
                 io_tools.import_one_csv_matrix(self.trial.rps_map_filename, dtype=int))
-            print('Loaded right pressure sensor map from {}.'.format(
-                self.trial.rps_map_filename))
+            print('Loaded right pressure sensor map from {}.'.format(self.trial.rps_map_filename))
 
     def find_square_from_events(self, event1, event2):
         for i_iso, iso in enumerate(self.isensels_offset_x):
@@ -763,8 +706,7 @@ class ForceLabellingInterface:
                     self.lps_highlight_pressevent, event)
                 for isen_x, isen_y in product(range(isen_st_x, isen_en_x+1),
                                               range(isen_st_y, isen_en_y+1)):
-                    self.lps_digit_mask[isen_y,
-                                        isen_x] = self.selected_digit
+                    self.lps_digit_mask[isen_y, isen_x] = self.selected_digit
                 self.display_digit_areas()
                 self.calculate_digit_portions()
                 self.plot_digit_portions()
@@ -776,8 +718,7 @@ class ForceLabellingInterface:
                     self.rps_highlight_pressevent, event)
                 for isen_x, isen_y in product(range(isen_st_x, isen_en_x+1),
                                               range(isen_st_y, isen_en_y+1)):
-                    self.rps_digit_mask[isen_y,
-                                        isen_x] = self.selected_digit
+                    self.rps_digit_mask[isen_y, isen_x] = self.selected_digit
                 self.display_digit_areas()
                 self.calculate_digit_portions()
                 self.plot_digit_portions()
@@ -801,8 +742,7 @@ class ForceLabellingInterface:
                 sensel = self.ps_matrices[LPS_NAME][:, y, x]
                 senselmax = np.max(sensel)
                 if senselmax > 0:
-                    i_frame = tools.find_first(
-                        sensel >= np.max(sensel))
+                    i_frame = tools.find_first(sensel >= np.max(sensel))
                     self.i_frame = i_frame
                     self.update_on_frame_change()
             self.lps_avg_pressevent = None
@@ -814,8 +754,7 @@ class ForceLabellingInterface:
                 sensel = self.ps_matrices[RPS_NAME][:, y, x]
                 senselmax = np.max(sensel)
                 if senselmax > 0:
-                    i_frame = tools.find_first(
-                        sensel >= np.max(sensel))
+                    i_frame = tools.find_first(sensel >= np.max(sensel))
                     self.i_frame = i_frame
                     self.update_on_frame_change()
             self.rps_avg_pressevent = None
@@ -825,8 +764,7 @@ class ForceLabellingInterface:
                 event.inaxes == self.highlight_pressevent.inaxes):
             dx = event.xdata - self.highlight_pressevent.xdata
             new_x = self.dt_offset_times[self.i_frame] + dx
-            self.moving_i_frame = tools.find_first(
-                new_x <= self.dt_offset_times)
+            self.moving_i_frame = tools.find_first(new_x <= self.dt_offset_times)
             self.update_vertical_lines(self.moving_i_frame)
 
     def on_key_press(self, event):
@@ -873,10 +811,8 @@ def manual_force_labeling(trial, lps_ref_video_filename, rps_ref_video_filename,
     if fps != int(rps_video.get(cv2.CAP_PROP_FPS)):
         raise ValueError('Videos FPS do not match.')
     if num_frames != int(rps_video.get(cv2.CAP_PROP_FRAME_COUNT)):
-        warnings.warn(
-            'Total number of frames do not match. Truncating to shortest.')
-        num_frames = min(num_frames, int(
-            rps_video.get(cv2.CAP_PROP_FRAME_COUNT)))
+        warnings.warn('Total number of frames do not match. Truncating to shortest.')
+        num_frames = min(num_frames, int(rps_video.get(cv2.CAP_PROP_FRAME_COUNT)))
 
     figsize = (16, 9)
 
@@ -912,12 +848,10 @@ def manually_label_forces(server, session, trial_number, temp,
     server_session = os.path.join(server, session)
 
     if not os.path.exists(server_session):
-        ValueError(
-            'Session {} does not exist on the server.'.format(session))
+        ValueError('Session {} does not exist on the server.'.format(session))
 
     # load session meta
-    mstruct, _, _, msession = meta_session.load_meta_information(
-        server_session)
+    mstruct, _, _, msession = meta_session.load_meta_information(server_session)
 
     # find trial
     trial = None
@@ -928,22 +862,17 @@ def manually_label_forces(server, session, trial_number, temp,
     if trial is None:
         ValueError('Could not find trial #{}.'.format(trial_number))
     if not trial.do_post_ps_files_exist():
-        raise ValueError(
-            'Associated processed pressure files do not exist.')
+        raise ValueError('Associated processed pressure files do not exist.')
 
-    os.makedirs(
-        mstruct['manually_labelled_forces_dir'], exist_ok=True)
+    os.makedirs(mstruct['manually_labelled_forces_dir'], exist_ok=True)
 
     lps_ref_video_filename = os.path.join(
         mstruct['videos_dir'],
-        mstruct['kin_trialname_template'].format(
-            trial_number=trial_number),
+        mstruct['kin_trialname_template'].format(trial_number=trial_number),
         lps_ref_camera_name + '.mp4')
     rps_ref_video_filename = os.path.join(
         mstruct['videos_dir'],
-        mstruct['kin_trialname_template'].format(
-            trial_number=trial_number),
+        mstruct['kin_trialname_template'].format(trial_number=trial_number),
         rps_ref_camera_name + '.mp4')
 
-    manual_force_labeling(
-        trial, lps_ref_video_filename, rps_ref_video_filename, show_automatic)
+    manual_force_labeling(trial, lps_ref_video_filename, rps_ref_video_filename, show_automatic)

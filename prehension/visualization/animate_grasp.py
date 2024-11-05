@@ -57,8 +57,7 @@ def get_matched_contacts(mstruct, trial):
             trial.matched_contacts_filenames[ps_name])
         for mc in matched_contacts[ps_name]:
             segments_set = segments_set.union(list(mc.keys()))
-    segments_set = sorted(list(segments_set),
-                          key=lambda v: int(v[4])*10+int(v[2]))
+    segments_set = sorted(list(segments_set), key=lambda v: int(v[4])*10+int(v[2]))
 
     print('Found {} segments making contacts with pressure plates: {}'.format(
         len(segments_set), ', '.join(segments_set)))
@@ -84,11 +83,9 @@ def get_matched_contacts(mstruct, trial):
                     nss[iseg].append(0)
                     avd[iseg].append(np.nan)
                 else:
-                    dat[iseg].append(
-                        sum(psm[contact[0]][contact[1]] for contact in mc[segment]))
+                    dat[iseg].append(sum(psm[contact[0]][contact[1]] for contact in mc[segment]))
                     nss[iseg].append(len(mc[segment]))
-                    avd[iseg].append(np.mean([contact[2]
-                                     for contact in mc[segment]]))
+                    avd[iseg].append(np.mean([contact[2] for contact in mc[segment]]))
                     for contact in mc[segment]:
                         ms[contact[0], contact[1]] = True
 
@@ -116,8 +113,7 @@ def get_matched_contacts(mstruct, trial):
     # Group the data
     data_digits = {}
     for ps_name in mstruct['ps_dic'].keys():
-        data_digits[ps_name] = [
-            np.zeros(np.shape(ps_times)) for _ in SEGMENT_DIGIT_GROUPS]
+        data_digits[ps_name] = [np.zeros(np.shape(ps_times)) for _ in SEGMENT_DIGIT_GROUPS]
         for i_sdg, d in zip(segment_digit_groups, data[ps_name]):
             data_digits[ps_name][i_sdg] = data_digits[ps_name][i_sdg] + d
         # adding residual to None
@@ -129,6 +125,7 @@ def get_matched_contacts(mstruct, trial):
     for i_sdg, _ in enumerate(SEGMENT_DIGIT_GROUPS):
         data_digits_aps.append(data_digits['medial_sensor'][i_sdg] +
                                data_digits['lateral_sensor'][i_sdg])
+
 
     return data_digits_aps, ps_times, ps_matrices
 
@@ -177,17 +174,16 @@ class GraspAnimation:
                 self.trial.matched_contacts_filenames[RPS_NAME])
         }
 
+
     def setup_ps_axes(self):
         self.ax_lps.set_xticks([])
         self.ax_lps.set_yticks([])
-        # default is upside down
-        self.ax_lps.set_ylim([-0.5, self.nsenselsr - 0.5])
+        self.ax_lps.set_ylim([-0.5, self.nsenselsr - 0.5])  # default is upside down
 
         self.ax_rps.set_xticks([])
         self.ax_rps.set_yticks([])
         self.ax_rps.set_ylim([-0.5, self.nsenselsr - 0.5])
-        # monkey in the middle
-        self.ax_rps.set_xlim([self.nsenselsr - 0.5, -0.5])
+        self.ax_rps.set_xlim([self.nsenselsr - 0.5, -0.5])  # monkey in the middle
 
     def setup_vid_axes(self):
         self.ax_lps_video.set_xticks([])
@@ -206,24 +202,19 @@ class GraspAnimation:
         self.ax_fingers.set_xticks([])
         self.ax_fingers.set_yticks([])
 
-        self.ax_fingers.set_xlim(
-            [self.ps_times[0], self.ps_times[-1]])
+        self.ax_fingers.set_xlim([self.ps_times[0], self.ps_times[-1]])
         self.ax_fingers.set_ylim([0, self.max_finger_force * 1.05])
         self.ax_fingers.spines[['right', 'top']].set_visible(False)
 
     def generate_internal_data(self):
-        self.nsenselsr = np.shape(self.ps_matrices[LPS_NAME])[
-            1]  # number of sensels one direction
-        self.left_sensor_total = np.sum(
-            self.ps_matrices[LPS_NAME], axis=(1, 2))
-        self.right_sensor_total = np.sum(
-            self.ps_matrices[RPS_NAME], axis=(1, 2))
+        self.nsenselsr = np.shape(self.ps_matrices[LPS_NAME])[1]  # number of sensels one direction
+        self.left_sensor_total = np.sum(self.ps_matrices[LPS_NAME], axis=(1, 2))
+        self.right_sensor_total = np.sum(self.ps_matrices[RPS_NAME], axis=(1, 2))
         self.ps_vmax_d = {
             LPS_NAME: np.max(self.ps_matrices[LPS_NAME]),
             RPS_NAME: np.max(self.ps_matrices[RPS_NAME]),
         }
-        self.ps_vmax = max(
-            self.ps_vmax_d[LPS_NAME], self.ps_vmax_d[RPS_NAME])
+        self.ps_vmax = max(self.ps_vmax_d[LPS_NAME], self.ps_vmax_d[RPS_NAME])
         # self.camera_pstime_diff = self.trial.ttl_to_grasp - self.trial.ttl_to_ja_start
         self.camera_pstime_diff = - self.trial.ttl_to_ja_start
 
@@ -246,12 +237,10 @@ class GraspAnimation:
             self.lps_image.remove()
         if self.rps_image is not None:
             self.rps_image.remove()
-        matrix = self.ps_matrices[LPS_NAME][i_frame] / \
-            self.ps_vmax_d[LPS_NAME]
+        matrix = self.ps_matrices[LPS_NAME][i_frame] / self.ps_vmax_d[LPS_NAME]
         self.lps_image = self.ax_lps.imshow(self.force_map_transform(matrix),
                                             vmin=0, vmax=1, cmap='Greys')
-        matrix = self.ps_matrices[RPS_NAME][i_frame] / \
-            self.ps_vmax_d[RPS_NAME]
+        matrix = self.ps_matrices[RPS_NAME][i_frame] / self.ps_vmax_d[RPS_NAME]
         self.rps_image = self.ax_rps.imshow(self.force_map_transform(matrix),
                                             vmin=0, vmax=1, cmap='Greys')
 
@@ -260,10 +249,8 @@ class GraspAnimation:
         if self.rps_auto_colormask is not None:
             self.rps_auto_colormask.remove()
         # show auto stuff
-        lps_digit_color_mask = np.ones(
-            (self.nsenselsr, self.nsenselsr, 3))
-        rps_digit_color_mask = np.ones(
-            (self.nsenselsr, self.nsenselsr, 3))
+        lps_digit_color_mask = np.ones((self.nsenselsr, self.nsenselsr, 3))
+        rps_digit_color_mask = np.ones((self.nsenselsr, self.nsenselsr, 3))
 
         for idigit, ds in enumerate(DIGITS.values()):
             if idigit == UNCLAIMED_INDEX:
@@ -284,10 +271,8 @@ class GraspAnimation:
             rps_digit_color_mask[rpsdmask, 0] = color[0]
             rps_digit_color_mask[rpsdmask, 1] = color[1]
             rps_digit_color_mask[rpsdmask, 2] = color[2]
-        self.lps_auto_colormask = self.ax_lps.imshow(
-            lps_digit_color_mask, alpha=0.6)
-        self.rps_auto_colormask = self.ax_rps.imshow(
-            rps_digit_color_mask, alpha=0.6)
+        self.lps_auto_colormask = self.ax_lps.imshow(lps_digit_color_mask, alpha=0.6)
+        self.rps_auto_colormask = self.ax_rps.imshow(rps_digit_color_mask, alpha=0.6)
 
         # self.clear_ps_msg()
         print(' Loaded.')
@@ -305,8 +290,7 @@ class GraspAnimation:
         if i_frame is None:
             i_frame = self.i_frame
         # the frame difference
-        cameraframe = int(round(
-            (self.ps_times[i_frame] + self.camera_pstime_diff) * self.fps)) - 1
+        cameraframe = int(round((self.ps_times[i_frame] + self.camera_pstime_diff) * self.fps)) - 1
         cameraframe = max(0, cameraframe)
         cameraframe = min(cameraframe, self.num_frames-1)
 
@@ -315,10 +299,8 @@ class GraspAnimation:
         if self.rps_videoframe is not None:
             self.rps_videoframe.remove()
 
-        self.lps_videoframe = self.display_videoframe(
-            self.lps_video, self.ax_lps_video, cameraframe)
-        self.rps_videoframe = self.display_videoframe(
-            self.rps_video, self.ax_rps_video, cameraframe)
+        self.lps_videoframe = self.display_videoframe(self.lps_video, self.ax_lps_video, cameraframe)
+        self.rps_videoframe = self.display_videoframe(self.rps_video, self.ax_rps_video, cameraframe)
         self.fig.canvas.draw()
 
     def display_force_trace(self, time):
@@ -328,6 +310,8 @@ class GraspAnimation:
         for i_sdg, sdg_color in enumerate(self.sdg_colors):
             vals = self.data_digits_aps[i_sdg][sbs]
             self.ax_fingers.plot(times, vals, color=sdg_color)
+
+
 
     def display_mujoco_video(self, i_frame=None):
         pass
@@ -347,8 +331,7 @@ def animate_grasp_all(mstruct, trial):
     lps_ref_camera_name = '19194005'
     rps_ref_camera_name = '19340396'
     # load data
-    data_digits_aps, ps_times, ps_matrices = get_matched_contacts(
-        mstruct, trial)
+    data_digits_aps, ps_times, ps_matrices = get_matched_contacts(mstruct, trial)
     video = cv2.VideoCapture(trial.videos[lps_ref_camera_name])
     video_rps = cv2.VideoCapture(trial.videos[rps_ref_camera_name])
     fps = int(video.get(cv2.CAP_PROP_FPS))
@@ -377,15 +360,13 @@ def animate_grasp(server, session, trial_number):
         session = meta_session.find_session_dirs(server)[0]
 
     server_session = os.path.join(server, session)
-    mstruct, _, _, msession = meta_session.load_meta_information(
-        server_session)
+    mstruct, _, _, msession = meta_session.load_meta_information(server_session)
 
     trial = meta_session.find_trial(msession, trial_number)
 
     if trial is None:
         raise ValueError('Could not find the trial.')
     if not trial.do_matched_contacts_files_exist():
-        raise ValueError(
-            'Associated matched contacts files do not exist.')
+        raise ValueError('Associated matched contacts files do not exist.')
 
     animate_grasp_all(mstruct, trial)

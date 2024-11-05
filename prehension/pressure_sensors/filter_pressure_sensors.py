@@ -54,8 +54,7 @@ def transform_trial(trial, make_plots):
 
     # filter the pressure sensor data
     for ps_name in trial.transformed_ps_filenames.keys():
-        times, matrices = io.import_matrices(
-            trial.transformed_ps_filenames[ps_name])
+        times, matrices = io.import_matrices(trial.transformed_ps_filenames[ps_name])
 
         force_summed = np.sum(matrices, axis=(1, 2))
         force_summed_thr = np.max(force_summed) * 0.05
@@ -81,19 +80,16 @@ def transform_trial(trial, make_plots):
 
         # export
         io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices,
-                             type='stamps')
+                                   type='stamps')
 
     # testing plot
     if make_plots:
-        fig, axs = plt.subplots(
-            len(trial.transformed_ps_filenames.keys()), figsize=(16, 9))
+        fig, axs = plt.subplots(len(trial.transformed_ps_filenames.keys()), figsize=(16, 9))
         axs = axs.flatten()
         for ps_name, axs in zip(trial.transformed_ps_filenames.keys(), axs):
-            times, matrices = io.import_matrices(
-                trial.transformed_ps_filenames[ps_name])
+            times, matrices = io.import_matrices(trial.transformed_ps_filenames[ps_name])
             axs.plot(times, np.sum(matrices, axis=(1, 2)), 'k')
-            times, matrices = io.import_matrices(
-                trial.filtered_ps_filenames[ps_name])
+            times, matrices = io.import_matrices(trial.filtered_ps_filenames[ps_name])
             axs.plot(times, np.sum(matrices, axis=(1, 2)), 'r--')
             axs.set_xlabel('Time, s')
             axs.set_ylabel('Force, N')
@@ -130,16 +126,14 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(
-        len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     failed_trial_reports = []
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
         server_session = os.path.join(server, session)
-        processed_session = os.path.join(
-            preset['processed_server'], session)
+        processed_session = os.path.join(preset['processed_server'], session)
 
         if not os.path.exists(server_session):
             ws('Session {} does not exist on the server.'.format(session))
@@ -150,8 +144,7 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
             mstruct, _, _, msession = meta_session.load_meta_information(
                 server_session, processed_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(
-                session))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -163,8 +156,7 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
 
             # at least one of the files should exist
             if any([not os.path.exists(trial.transformed_ps_filenames[ps_name]) and
-                    not os.path.exists(
-                        trial.transformed_ps_csv_filenames[ps_name])
+                    not os.path.exists(trial.transformed_ps_csv_filenames[ps_name])
                     for ps_name in trial.transformed_ps_filenames.keys()]):
                 continue
 
@@ -199,8 +191,7 @@ def filter_pressure_sensors(server, sessions, trials_sel, temp, processes, overw
                 print()
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
-                    ws('\t{}: {}'.format(
-                        trials[v].trial_number, pool.error_reports[v]))
+                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                     failed_trial_reports.append('session {} trial {} error: {}'.format(
                         session, trials[v].trial_number, pool.error_reports[v]))
 

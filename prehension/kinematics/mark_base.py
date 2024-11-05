@@ -77,8 +77,7 @@ class VideoViewInterface:
 
         self.load_videos()
         self.i_frame = int(0.05 * self.num_frames)
-        # zoom onto the first camera by default
-        self.zoom_camera = self.cameras[0]
+        self.zoom_camera = self.cameras[0]  # zoom onto the first camera by default
 
         # create axes
         self.setup_video_axes()
@@ -102,10 +101,8 @@ class VideoViewInterface:
 
         # create callbacks
         self.selecting_camera = None
-        self.fig.canvas.mpl_connect(
-            'button_press_event', self.on_press)
-        self.fig.canvas.mpl_connect(
-            'button_release_event', self.on_release)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_press)
+        self.fig.canvas.mpl_connect('button_release_event', self.on_release)
         self.fig.canvas.mpl_connect('close_event', self.on_close)
 
         # call plot show
@@ -122,10 +119,8 @@ class VideoViewInterface:
         self.videos = {}
         self.num_frames = np.nan
         for camera in self.cameras:
-            self.videos[camera] = cv2.VideoCapture(
-                self.trial.videos[camera])
-            video_nframes = int(
-                self.videos[camera].get(cv2.CAP_PROP_FRAME_COUNT))
+            self.videos[camera] = cv2.VideoCapture(self.trial.videos[camera])
+            video_nframes = int(self.videos[camera].get(cv2.CAP_PROP_FRAME_COUNT))
             if np.isnan(self.num_frames):
                 self.num_frames = video_nframes
             elif self.num_frames != video_nframes:
@@ -240,8 +235,7 @@ class VideoViewInterface:
         self.display_videos_frame()
 
     def setup_frame_slider(self):
-        self.frame_slider_ax = self.fig.add_axes(
-            [0.65, 0.05, 0.3, 0.025])
+        self.frame_slider_ax = self.fig.add_axes([0.65, 0.05, 0.3, 0.025])
         self.frame_slider = mpl.widgets.Slider(
             ax=self.frame_slider_ax,
             label='Frame #',
@@ -371,8 +365,7 @@ class VideoViewInterface:
         self.make_default_btn = mpl.widgets.Button(
             self.make_default_btn_ax, 'Make default',
             color=color, hovercolor=color)
-        self.make_default_btn.on_clicked(
-            self.on_make_default_btn_press)
+        self.make_default_btn.on_clicked(self.on_make_default_btn_press)
 
     def select_marker(self, marker):
         # clicked the same one
@@ -383,8 +376,7 @@ class VideoViewInterface:
         if self.selected_marker is not None:
             color = list(self.marker_colors[self.selected_marker])
             color[3] = UNSELECTED_ALPHA
-            self.marker_patches[self.selected_marker].set_facecolor(
-                color)
+            self.marker_patches[self.selected_marker].set_facecolor(color)
 
         self.selected_marker = marker
         color = list(self.marker_colors[marker])
@@ -397,11 +389,9 @@ class VideoViewInterface:
         for marker in self.markers:
             n_success = sum([int(self.marker_data[camera][marker] is not None)
                              for camera in self.cameras])
-            self.marker_counters[marker].set_text(
-                '{}/{}'.format(n_success, len(self.cameras)))
+            self.marker_counters[marker].set_text('{}/{}'.format(n_success, len(self.cameras)))
             if n_success < 2:
-                self.marker_counters[marker].set_color(
-                    micolors['red'][500])
+                self.marker_counters[marker].set_color(micolors['red'][500])
             else:
                 self.marker_counters[marker].set_color('k')
         self.fig.canvas.draw_idle()
@@ -436,12 +426,10 @@ class VideoViewInterface:
             # make btn
             # note: widget buttons suck and are slow
             self.marker_area_ax.text(
-                axis_pos[0] + axis_pos[2] /
-                2, axis_pos[1] + axis_pos[3] / 2, marker,
+                axis_pos[0] + axis_pos[2] / 2, axis_pos[1] + axis_pos[3] / 2, marker,
                 color='k', ha='center', va='center', size='x-large')
             self.marker_counters[marker] = self.marker_area_ax.text(
-                axis_pos[0] + axis_pos[2] *
-                0.98, axis_pos[1] + axis_pos[3] * 0.8, '?/?',
+                axis_pos[0] + axis_pos[2] * 0.98, axis_pos[1] + axis_pos[3] * 0.8, '?/?',
                 color='k', ha='right', va='center', size='medium')
             self.marker_patches[marker] = mpl.patches.Rectangle(
                 axis_pos[0:2], axis_pos[2], axis_pos[3],
@@ -449,10 +437,8 @@ class VideoViewInterface:
             self.marker_area_ax.add_patch(self.marker_patches[marker])
 
     def create_marker_data(self):
-        self.marker_data = {
-            c: {m: None for m in self.markers} for c in self.cameras}
-        self.marker_points = {
-            c: {m: None for m in self.markers} for c in self.cameras}
+        self.marker_data = {c: {m: None for m in self.markers} for c in self.cameras}
+        self.marker_points = {c: {m: None for m in self.markers} for c in self.cameras}
         self.zoom_marker_points = {m: None for m in self.markers}
 
     def show_camera_markers(self, camera):
@@ -502,8 +488,7 @@ class VideoViewInterface:
             warnings.warn('Base marker filename is None')
             return
 
-        os.makedirs(os.path.split(
-            self.trial.calib_base_marker_filename)[0], exist_ok=True)
+        os.makedirs(os.path.split(self.trial.calib_base_marker_filename)[0], exist_ok=True)
 
         with open(self.trial.calib_base_marker_filename, 'w') as f:
             json.dump(self.marker_data, f, indent=4)
@@ -622,8 +607,7 @@ def label_images(default_base_spec_filename, calibration, sessions, msessions, m
             st = input('Choose trial number to use for marking (empty, "random" or "?"'
                        ' for random): ')
         if default and st in ('', 'default'):
-            trial = meta_session.find_trial(
-                msession, default['trial_number'])
+            trial = meta_session.find_trial(msession, default['trial_number'])
         else:
             # just to stay clean
             default = None
@@ -637,8 +621,7 @@ def label_images(default_base_spec_filename, calibration, sessions, msessions, m
     rs('Using trial {}.'.format(trial.trial_number))
 
     # Label position of the torso on a representative trial
-    vvi = VideoViewInterface(
-        (16, 9), trial, mstructs[session], default_base_spec_filename)
+    vvi = VideoViewInterface((16, 9), trial, mstructs[session], default_base_spec_filename)
 
     # make a default
     vvi.check_default_for_matching()
@@ -679,13 +662,10 @@ def triangulate(trial, calibration, mstruct):
     local_extrinsic_calibration_filename = os.path.join(
         mstruct['calibration'], 'extrinsic', 'extrinsic_calib.pickle')
     if os.path.exists(local_extrinsic_calibration_filename):
-        intrinsics_config = ncams.camera_io.import_intrinsics(
-            ncams_config)
-        extrinsics_config = ncams.camera_io.import_extrinsics(
-            local_extrinsic_calibration_filename)
+        intrinsics_config = ncams.camera_io.import_intrinsics(ncams_config)
+        extrinsics_config = ncams.camera_io.import_extrinsics(local_extrinsic_calibration_filename)
     else:
-        intrinsics_config, extrinsics_config = ncams.camera_io.load_calibrations(
-            ncams_config)
+        intrinsics_config, extrinsics_config = ncams.camera_io.load_calibrations(ncams_config)
     cameras = [str(v) for v in ncams_config['serials']]
 
     # transform into NCams format
@@ -702,19 +682,16 @@ def triangulate(trial, calibration, mstruct):
     reflect = mstruct['hand'] == 'left'
     if reflect:
         marker_name_dict = io.dic_from_csv(
-            os.path.join(os.path.split(mstruct['opensim_model'])[
-                         0], 'marker_meta_reflect.csv'),
+            os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta_reflect.csv'),
             'sDlcMarker', 'sOpenSimMarker')
     else:
         marker_name_dict = io.dic_from_csv(
-            os.path.join(os.path.split(mstruct['opensim_model'])[
-                         0], 'marker_meta.csv'),
+            os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta.csv'),
             'sDlcMarker', 'sOpenSimMarker')
     triangulated_points = np.swapaxes(triangulated_points, 1, 2)
     marker_names = []
     for ibp, bp in enumerate(bodyparts):
-        triangulated_points[:, ibp, :] = rotation_vector(
-            triangulated_points[:, ibp, :])
+        triangulated_points[:, ibp, :] = rotation_vector(triangulated_points[:, ibp, :])
         marker_names.append(marker_name_dict[bp])
     if reflect:
         triangulated_points[:, :, 0] = - triangulated_points[:, :, 0]
@@ -727,8 +704,7 @@ def triangulate(trial, calibration, mstruct):
     ik_xml_str = inverse_kinematics.IK_XML_STR.format(
         model_file=mstruct['opensim_model'])
     inverse_kinematics.make_ik_file(
-        trial.calib_base_ik_filename, ik_xml_str, {
-            k: 1 for k in marker_names},
+        trial.calib_base_ik_filename, ik_xml_str, {k: 1 for k in marker_names},
         trial.calib_base_markers_3D_filename_trc, trial.calib_base_kinematic_filename, [0, 0.02])
 
 
@@ -754,8 +730,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(
-        len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     calibrations = {}
     mstructs = {}
@@ -769,11 +744,9 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
 
         # load session meta
         try:
-            mstruct, mdof, _, msession = meta_session.load_meta_information(
-                server_session)
+            mstruct, mdof, _, msession = meta_session.load_meta_information(server_session)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(
-                session))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -781,8 +754,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
                 mstruct['calibration'], 'extrinsic', 'extrinsic_calib.pickle')):
             calibration_name = mstruct['calibration']
         else:
-            calibration_name = os.path.split(
-                mstruct['ncams_config'])[0]
+            calibration_name = os.path.split(mstruct['ncams_config'])[0]
         if calibration_name not in calibrations.keys():
             calibrations[calibration_name] = []
         calibrations[calibration_name].append(session)
@@ -809,8 +781,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
 
         # deal with 2d marker positions and default choices
         if not skip_gui:
-            label_images(default_base_spec_filename,
-                         calibration, sessions, msessions, mstructs)
+            label_images(default_base_spec_filename, calibration, sessions, msessions, mstructs)
 
         # load default marker data
         if os.path.exists(default_base_spec_filename):
@@ -825,8 +796,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
                ' skipping this calibration.')
             continue
         msession = msessions[default['session']]
-        trial = meta_session.find_trial(
-            msession, default['trial_number'])
+        trial = meta_session.find_trial(msession, default['trial_number'])
         if trial is None:
             ws('Default trial is not in the list of trials, skipping this calibration.')
             continue
@@ -840,8 +810,7 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
         rs('Triangulated.')
 
         # run inverse kinematics
-        eoik = os.path.join(os.path.dirname(
-            __file__), 'execute_opensim_ik.py')
+        eoik = os.path.join(os.path.dirname(__file__), 'execute_opensim_ik.py')
         # opensim needs to work in Python3.8
         command = 'py {} {} {}'.format(
             eoik, trial.calib_base_ik_filename, trial.calib_base_ik_log_filename)
@@ -868,5 +837,4 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
             inverse_kinematics.set_opensim_model_default_position(
                 mstruct['opensim_model'], mstruct['opensim_model_locked_base'], positions,
                 lock=True)
-            rs('Created locked model {}.'.format(
-                mstruct['opensim_model_locked_base']))
+            rs('Created locked model {}.'.format(mstruct['opensim_model_locked_base']))

@@ -36,8 +36,7 @@ def calculate_digit_forces(mstruct, trial):
             trial.matched_contacts_filenames[ps_name])
         for mc in matched_contacts[ps_name]:
             segments_set = segments_set.union(list(mc.keys()))
-    segments_set = sorted(list(segments_set),
-                          key=lambda v: int(v[4])*10+int(v[2]))
+    segments_set = sorted(list(segments_set), key=lambda v: int(v[4])*10+int(v[2]))
 
     # group up
     segment_digit_groups = []
@@ -62,8 +61,7 @@ def calculate_digit_forces(mstruct, trial):
                 if segment not in mc.keys():
                     dat[iseg].append(0)
                 else:
-                    dat[iseg].append(
-                        sum(psm[contact[0]][contact[1]] for contact in mc[segment]))
+                    dat[iseg].append(sum(psm[contact[0]][contact[1]] for contact in mc[segment]))
                     for contact in mc[segment]:
                         ms[contact[0], contact[1]] = True
 
@@ -75,8 +73,7 @@ def calculate_digit_forces(mstruct, trial):
     # Group the data
     data_digits = {}
     for ps_name in mstruct['ps_dic'].keys():
-        data_digits[ps_name] = [
-            np.zeros(np.shape(ps_times)) for _ in SEGMENT_DIGIT_GROUPS]
+        data_digits[ps_name] = [np.zeros(np.shape(ps_times)) for _ in SEGMENT_DIGIT_GROUPS]
         for i_sdg, d in zip(segment_digit_groups, data[ps_name]):
             data_digits[ps_name][i_sdg] = data_digits[ps_name][i_sdg] + d
         # adding residual to None
@@ -86,8 +83,7 @@ def calculate_digit_forces(mstruct, trial):
     data_digits_aps = {}
     # assuming there is two pressure sensors
     for i_sdg, k in enumerate(SEGMENT_DIGIT_GROUPS):
-        data_digits_aps[k] = data_digits['medial_sensor'][i_sdg] + \
-            data_digits['lateral_sensor'][i_sdg]
+        data_digits_aps[k] = data_digits['medial_sensor'][i_sdg] + data_digits['lateral_sensor'][i_sdg]
 
     # store the data
     trial.digit_forces_time = ps_times
@@ -95,8 +91,7 @@ def calculate_digit_forces(mstruct, trial):
 
     # assuming time is the same
     # load validation
-    v_segnames, v_vals = io_tools.import_csv(
-        trial.manually_labelled_filename)
+    v_segnames, v_vals = io_tools.import_csv(trial.manually_labelled_filename)
     timeindex = v_segnames.index('time')
     v_times = v_vals[timeindex]
     del v_vals[timeindex]
@@ -106,8 +101,7 @@ def calculate_digit_forces(mstruct, trial):
         v_segnames[v_segnames.index('UNCLAIMED')] = 'None'
 
     # store
-    trial.manual_digit_forces = {
-        k: v for k, v in zip(v_segnames, v_vals)}
+    trial.manual_digit_forces = {k: v for k, v in zip(v_segnames, v_vals)}
 
 
 def calculate_differences(trial):
@@ -125,8 +119,7 @@ def calculate_differences(trial):
 
     # integrated metric
     dt = np.median(np.diff(trial.digit_forces_time))
-    total_force_integral = np.sum(
-        dt * total_force[active_period_flag])
+    total_force_integral = np.sum(dt * total_force[active_period_flag])
 
     # deviation
     tv_differences['deviation'] = {}
@@ -156,23 +149,19 @@ def calculate_differences(trial):
         ap_a_df = a_digit_force[active_period_flag]
         ap_m_df = m_digit_force[active_period_flag]
 
-        tv_differences['deviation'][digit] = np.abs(
-            a_digit_force - m_digit_force)
-        differences['deviation'][digit] = np.mean(
-            np.abs(ap_a_df - ap_m_df))
+        tv_differences['deviation'][digit] = np.abs(a_digit_force - m_digit_force)
+        differences['deviation'][digit] = np.mean(np.abs(ap_a_df - ap_m_df))
 
         tv_differences['normalized deviation'][digit] = (
             tv_differences['deviation'][digit] / max_total_force) * 100.
         differences['normalized deviation'][digit] = (
             differences['deviation'][digit] / max_total_force) * 100.
 
-        differences['integrated deviation'][digit] = np.sum(
-            dt * np.abs(ap_a_df - ap_m_df))
+        differences['integrated deviation'][digit] = np.sum(dt * np.abs(ap_a_df - ap_m_df))
         differences['integrated normed deviation'][digit] = (
             differences['integrated deviation'][digit] / total_force_integral) * 100.
 
-        differences['rms'][digit] = np.sqrt(
-            np.sum(np.square(ap_a_df - ap_m_df)))
+        differences['rms'][digit] = np.sqrt(np.sum(np.square(ap_a_df - ap_m_df)))
         differences['normalized rms'][digit] = (
             differences['rms'][digit] / summed_force) * 100.
 
@@ -219,8 +208,7 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
 
     # sort
     sessions.sort()
-    rs('Found {} sessions: {}'.format(
-        len(sessions), ', '.join(sessions)))
+    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
 
     trials_by_session = {}
 
@@ -238,8 +226,7 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             mstruct, _, mobject, msession = meta_session.load_meta_information(
                 server_session, check_manual_log=True)
         except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(
-                session))
+            ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
             continue
 
@@ -297,10 +284,8 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
         lbls = ['trial number', 'object id'] + difference_metrics
         rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
         for trial in trials:
-            v = ['{}'.format(lbl) for lbl in [
-                trial.trial_number, trial.object_id]]
-            values = [np.mean(list(trial.differences[dm].values()))
-                      for dm in difference_metrics]
+            v = ['{}'.format(lbl) for lbl in [trial.trial_number, trial.object_id]]
+            values = [np.mean(list(trial.differences[dm].values())) for dm in difference_metrics]
             v += ['{:.4f}'.format(value) for value in values]
             rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
 
@@ -314,13 +299,11 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             for i_digit, digit in enumerate(digit_names):
                 if make_plots:
                     if i_digit:
-                        plt.subplot(xn_subplots, yn_subplots,
-                                    i_digit + 1, sharex=ax, sharey=ax)
+                        plt.subplot(xn_subplots, yn_subplots, i_digit + 1, sharex=ax, sharey=ax)
                     else:
                         ax = plt.subplot(xn_subplots, yn_subplots, 1)
 
-                tdd = [trial.differences[dm][digit]
-                       for trial in trials]
+                tdd = [trial.differences[dm][digit] for trial in trials]
 
                 # plot
                 if make_plots:
@@ -333,12 +316,10 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             tdd_total = sum([[trial.differences[dm][digit] for trial in trials]
                              for digit in digit_names], [])
             rs('\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
-                'TOTAL', np.mean(tdd_total), np.median(
-                    tdd_total), np.min(tdd_total),
+                'TOTAL', np.mean(tdd_total), np.median(tdd_total), np.min(tdd_total),
                 np.max(tdd_total), np.std(tdd_total)))
             if make_plots:
-                ax.set_xlabel('{}, {}'.format(
-                    dm, trials[0].difference_units[dm]))
+                ax.set_xlabel('{}, {}'.format(dm, trials[0].difference_units[dm]))
                 ax.set_ylabel('Number of trials')
                 fig.suptitle('{}, session {}'.format(dm, session))
 
@@ -349,8 +330,7 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                 used_object_ids = set()
                 for i_digit, digit in enumerate(digit_names):
                     if i_digit:
-                        plt.subplot(xn_subplots, yn_subplots,
-                                    i_digit + 1, sharex=ax, sharey=ax)
+                        plt.subplot(xn_subplots, yn_subplots, i_digit + 1, sharex=ax, sharey=ax)
                     else:
                         ax = plt.subplot(xn_subplots, yn_subplots, 1)
 
@@ -362,13 +342,11 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
 
                     plt.title(digit)
 
-                ax.set_ylabel('{}, {}'.format(
-                    dm, trials[0].difference_units[dm]))
+                ax.set_ylabel('{}, {}'.format(dm, trials[0].difference_units[dm]))
                 ax.set_xlabel('Time, s')
                 plt.sca(ax)
                 for uoi in used_object_ids:
-                    plt.plot(0, 0, color=ocmap(uoi),
-                             label='object type #{}'.format(uoi))
+                    plt.plot(0, 0, color=ocmap(uoi), label='object type #{}'.format(uoi))
                 plt.legend()
                 fig.suptitle('{}, session {}'.format(dm, session))
 
@@ -379,18 +357,14 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
         return
 
     # report together for all sessions
-    rs('Total {} trials.'.format(
-        sum([len(trials) for trials in trials_by_session.values()])))
+    rs('Total {} trials.'.format(sum([len(trials) for trials in trials_by_session.values()])))
     rs('Individual trial reports')
-    lbls = ['session', 'trial number',
-            'object id'] + difference_metrics
+    lbls = ['session', 'trial number', 'object id'] + difference_metrics
     rs('|'.join(['{:20s}'.format(lbl) for lbl in lbls]))
     for session, trials in trials_by_session.items():
         for trial in trials:
-            v = ['{}'.format(lbl) for lbl in [
-                session, trial.trial_number, trial.object_id]]
-            values = [np.mean(list(trial.differences[dm].values()))
-                      for dm in difference_metrics]
+            v = ['{}'.format(lbl) for lbl in [session, trial.trial_number, trial.object_id]]
+            values = [np.mean(list(trial.differences[dm].values())) for dm in difference_metrics]
             v += ['{:.4f}'.format(value) for value in values]
             rs('|'.join(['{:20s}'.format(lbl) for lbl in v]))
     # general metrics for all trials together
@@ -407,8 +381,7 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                               for trials in trials_by_session.values()], [])
                          for digit in digit_names], [])
         rs('\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
-            'TOTAL', np.mean(tdd_total), np.median(
-                tdd_total), np.min(tdd_total),
+            'TOTAL', np.mean(tdd_total), np.median(tdd_total), np.min(tdd_total),
             np.max(tdd_total), np.std(tdd_total)))
 
     # make a total figure
@@ -421,9 +394,7 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                     for trials in trials_by_session.values()], [])
         ax.hist(data, color='k', bins=30)
         tools.actual_vline(ax, np.median(data), color='r')
-        rs('{} median {} {}.'.format(dm, np.median(
-            data), trials[0].difference_units[dm]))
+        rs('{} median {} {}.'.format(dm, np.median(data), trials[0].difference_units[dm]))
         ax.set_xlim(left=0)
-        ax.set_xlabel('{}, {}'.format(
-            dm, trials[0].difference_units[dm]))
+        ax.set_xlabel('{}, {}'.format(dm, trials[0].difference_units[dm]))
         ax.set_ylabel('Number of trials')

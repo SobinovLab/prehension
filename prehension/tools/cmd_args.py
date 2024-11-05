@@ -117,8 +117,7 @@ def add_default_kwargument(parser, k, v):
             help='Folder where the processed data from sessions are located. Default: {}'.format(v))
         return
 
-    raise ValueError(
-        'Unknown keyword argument for parser: {}'.format(k))
+    raise ValueError('Unknown keyword argument for parser: {}'.format(k))
 
 
 def add_default_kwarguments(parser, kwarguments):
