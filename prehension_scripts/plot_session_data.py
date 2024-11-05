@@ -273,7 +273,10 @@ class SessionGroup:
                             annotate_dates=False, savename=None):
 
         fig, axs = plt.subplots(1, 2, figsize=(15, 7))
-        suptitle = f'Training Progress (last {last_n_days_label} days)' if last_n_days_label else 'Training Progress'
+        if last_n_days_label:
+            suptitle = f'Training Progress (last {last_n_days_label} days)'
+        else:
+            suptitle = 'Training Progress'
         fig.suptitle(suptitle)
 
         # Plot for Performance
@@ -379,12 +382,14 @@ class SessionGroup:
             date_success_dict_10_day = {dt: date_l_trial_success_dict[dt] for dt in dates_10_day}
 
             SessionGroup.plot_performace_fig(date_success_dict_total,
-                                             savename=os.path.join(sw.results_dir, 'Performance.png'))
+                                             savename=os.path.join(sw.results_dir,
+                                                                   'Performance.png'))
             SessionGroup.plot_performace_fig(date_success_dict_10_day,
                                              last_n_days_label='10',
                                              include_last_tick=True,
                                              annotate_dates=True,
-                                             savename=os.path.join(sw.results_dir, 'PerformanceLast10Days.png'))
+                                             savename=os.path.join(sw.results_dir,
+                                                                   'PerformanceLast10Days.png'))
 
 
 
@@ -420,7 +425,8 @@ class SessionWrapper:
 
         # Load meta
         try:
-            self.mstruct, self.mdof, self.mobject, self.msession = meta_session.load_meta_information(self.raw_ss, self.proc_ss)
+            mres = meta_session.load_meta_information(self.raw_ss, self.proc_ss)
+            self.mstruct, self.mdof, self.mobject, self.msession = mres
             self.has_meta = True
             if len(self.mstruct['auto_log']) > 0:
                 self.log_full = self.mstruct['auto_log'][0]
@@ -433,7 +439,8 @@ class SessionWrapper:
         self.attach_fields_to_trials()
 
 
-    def ensure_transfer_to_training_server(self, raw_training_server, proc_training_server, overwrite=False):
+    def ensure_transfer_to_training_server(self, raw_training_server,
+                                           proc_training_server, overwrite=False):
 
         if not self.is_training_session:
             return
@@ -458,11 +465,13 @@ class SessionWrapper:
 
             # inputs:
             # [src_session_dir] - raw_(experimental)_server_session: the directory to be transferred
-            # [dst_parent_dir] - training server destination directory (not a session dir but a dir containing sessions)
+            # [dst_parent_dir] - training server destination directory (not a session dir but a
+            # dir containing sessions)
             # [overwrite] - bool to determine if we are overwriting
 
             # defined vars:
-            # [dst_session_dir] - raw_(training)_server_session: the expected directory name after transfer
+            # [dst_session_dir] - raw_(training)_server_session: the expected directory
+            # name after transfer
             dst_session_dir = os.path.join(dst_parent_dir, os.path.basename(src_session_dir))
 
             # logic:
@@ -503,7 +512,8 @@ class SessionWrapper:
 
             # now remove src locally because we should have already transferred
             if os.path.exists(src_session_dir):
-                assert os.path.exists(dst_session_dir), 'Expected tranferred dir {} not found'.format(dst_session_dir)
+                msg = 'Expected tranferred dir {} not found'.format(dst_session_dir)
+                assert os.path.exists(dst_session_dir), msg
                 try:
                     shutil.rmtree(src_session_dir, ignore_errors=False)
                 except:
@@ -547,7 +557,8 @@ class SessionWrapper:
             trial.target_range = None
             if all([k in stub.keys() for k in bound_keys]):
                 trial.range_delta = tuple([float(stub[bk]) for bk in bound_keys])
-                trial.target_range = tuple([trial.target_force + delta for delta in trial.range_delta])
+                trial.target_range = tuple([trial.target_force + delta
+                                            for delta in trial.range_delta])
 
             # Add aperture and rotation information
             trial.rotation = float(stub['pos_aperture(mm)'])
@@ -592,8 +603,8 @@ class SessionWrapper:
         medTsmFile = trial_info.filtered_ps_filenames['medial_sensor']
 
         if not os.path.isfile(latTsmFile) or not os.path.isfile(medTsmFile):
-            print(f'Skipping trial {trial_info.trial_number} | missing at least one' \
-                f' ps file:\n{latTsmFile}\n{medTsmFile}')
+            print(f'Skipping trial {trial_info.trial_number} | missing at least one'
+                  f' ps file:\n{latTsmFile}\n{medTsmFile}')
             return ([], [])
 
         times, forces_summed = get_summed_force_data(latTsmFile, medTsmFile)
@@ -675,7 +686,8 @@ class SessionWrapper:
                     continue ## skip failed trial
 
                 #trial.tsm_times = np.array(trial.tsm_times)
-                assert isinstance(trial.tsm_times, np.ndarray), f'trial.tsm times is type ({type(trial.tsm_times)})'
+                msg = f'trial.tsm times is type ({type(trial.tsm_times)})'
+                assert isinstance(trial.tsm_times, np.ndarray), msg
 
                 # Set default value
                 trial.force_interped = None
@@ -700,9 +712,11 @@ class SessionWrapper:
                     continue
 
                 # 2. trim to pad region (in place)
-                assert isinstance(shifted_times, np.ndarray), f'shifted times check 1 is type ({type(trial.tsm_times)})'
+                msg = f'shifted times check 1 is type ({type(trial.tsm_times)})'
+                assert isinstance(shifted_times, np.ndarray), msg
                 valid_idx = (shifted_times >= -pre_event_pad) & (shifted_times <= post_event_pad)
-                assert isinstance(shifted_times, np.ndarray), f'shifted times check 2 is type ({type(trial.tsm_times)})'
+                msg = f'shifted times check 2 is type ({type(trial.tsm_times)})'
+                assert isinstance(shifted_times, np.ndarray), msg
                 shifted_times = shifted_times[valid_idx]
                 interp_forces = trial.forces_summed[valid_idx]
 
@@ -829,10 +843,11 @@ def main(preset, sessions, temp, overwrite, transfer=False):
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset['default_server']):
-        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(preset['default_server']))
+        raise ValueError(f"Default server directory {preset['default_server']} does not exist")
 
     if not os.path.exists(preset['processed_server']):
-        raise ValueError("Default server directory {} does not exist or is inaccessible.".format(preset['default_server']))
+        raise ValueError("Default processed server directory"
+                         f" {preset['default_server']} does not exist")
 
     # Setup logging
     setup_logging(temp, sessions_dir=preset['processed_server'])
@@ -854,7 +869,8 @@ def main(preset, sessions, temp, overwrite, transfer=False):
                                                       overwrite)
             rs('\n'*3 + '='*200)
         else:
-            rs(f"No training servers defined for preset {preset['names'][0]}, skipping transfer step.")
+            rs(f"No training servers defined for preset {preset['names'][0]},"
+               " skipping transfer step.")
 
     # Get raw/processed session dirs for preset
     # Note: we want to fetch all sessions here for performance analysis
