@@ -446,9 +446,8 @@ class SessionWrapper:
                 return False
         return True
 
-    def ensure_transfer_to_training_server(
-        self, raw_training_server, proc_training_server, overwrite=False
-    ):
+    def ensure_transfer_to_training_server(self, raw_training_server, proc_training_server,
+                                           overwrite=False):
 
         if not self.is_training_session:
             return
