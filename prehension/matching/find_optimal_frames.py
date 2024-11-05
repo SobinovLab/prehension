@@ -129,22 +129,15 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
         if not trials:
             continue
 
-        rs(
-            'Found {} trials: {}'.format(
-                len(trials), ', '.join([str(t.trial_number) for t in trials])
-            )
-        )
+        rs('Found {} trials: {}'.format(
+            len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
-        p_args = list(
-            zip(
-                *[
-                    trials,
-                    [copy.deepcopy(mdof) for _ in trials],
-                    [optimal_frames for _ in trials],
-                    list(range(len(trials))),
-                ]
-            )
-        )
+        p_args = list(zip(*[
+            trials,
+            [copy.deepcopy(mdof) for _ in trials],
+            [optimal_frames for _ in trials],
+            list(range(len(trials))),
+        ]))
 
         # run the pool
         if len(p_args) > 0:
@@ -162,16 +155,12 @@ def find_optimal_frames(server, sessions, trials_sel, temp, processes, overwrite
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
                     ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append(
-                        'session {} trial {} error: {}'.format(
-                            session, trials[v].trial_number, pool.error_reports[v]
-                        )
-                    )
+                    failed_trial_reports.append('session {} trial {} error: {}'.format(
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
         # unpack and save
         meta_session.export_optimal_frames(
-            optimal_frames_filename, [t.trial_number for t in trials], optimal_frames
-        )
+            optimal_frames_filename, [t.trial_number for t in trials], optimal_frames)
         rs('Exported optimal frames to {}.'.format(optimal_frames_filename))
 
     if len(failed_trial_reports) > 0:

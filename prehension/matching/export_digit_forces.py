@@ -276,11 +276,8 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
             ws('Failed to transform trials:')
             for v in pool.failed_i_jobs:
                 ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                failed_trial_reports.append(
-                    'session {} trial {} error: {}'.format(
-                        session, trials[v].trial_number, pool.error_reports[v]
-                    )
-                )
+                failed_trial_reports.append('session {} trial {} error: {}'.format(
+                    session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

@@ -57,9 +57,8 @@ if __name__ == "__main__":
     )
 
     parser.add_argument('--combos', type=tuple_list, help='List of project:model tuples to train')
-    parser.add_argument(
-        '--epochs', default=50, type=int, required=False, help="Num epochs for training"
-    )
+    parser.add_argument('--epochs', default=50, type=int, required=False,
+                        help="Num epochs for training")
     parser.add_argument('--verbose', action='store_true')
     # parser.add_argument(
     #     '--bodyparts',

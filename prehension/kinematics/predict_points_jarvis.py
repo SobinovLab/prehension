@@ -116,12 +116,9 @@ def my_predict3D(params, proj_cfg, trial, reproTool, processes):
         for frame_num in tqdm.tqdm(range(params.number_frames)):
             # load a batch of images from all cameras in parallel using joblib
             joblib.Parallel(n_jobs=processes, require='sharedmem')(
-                joblib.delayed(jp_predict3D.read_images)(cap, slc, imgs_orig)
-                for slc, cap in enumerate(caps)
-            )
-            imgs = (
-                torch.from_numpy(imgs_orig).cuda().float().permute(0, 3, 1, 2)[:, [2, 1, 0]] / 255.0
-            )
+                joblib.delayed(jp_predict3D.read_images)
+                (cap, slc, imgs_orig) for slc, cap in enumerate(caps))
+            imgs = torch.from_numpy(imgs_orig).cuda().float().permute(0, 3, 1, 2)[:, [2, 1, 0]]/255.
 
             points3D_net, confidences = jarvisPredictor(
                 imgs,
@@ -142,7 +139,7 @@ def my_predict3D(params, proj_cfg, trial, reproTool, processes):
                 writer.writerow(row)
 
             if params.progress_bar is not None:
-                params.progress_bar.progress((frame_num + 1) / params.number_frames)
+                params.progress_bar.progress((frame_num+1) / params.number_frames)
 
     # close the videos
     for cap in caps:
@@ -273,9 +270,8 @@ def my_create_videos3D(params, proj_cfg, trial, reproTool, processes):
 
     for frame_num in tqdm.tqdm(range(params.number_frames)):
         joblib.Parallel(n_jobs=processes, require='sharedmem')(
-            joblib.delayed(jp_predict3D.read_images)(cap, slc, imgs_orig)
-            for slc, cap in enumerate(caps)
-        )
+            joblib.delayed(jp_predict3D.read_images)
+            (cap, slc, imgs_orig) for slc, cap in enumerate(caps))
         points3D_net = torch.from_numpy(points3D[frame_num].reshape(-1, 3)).float()
         points3D_net = points3D_net.to('cuda:0')
         # confidence = confidences[frame_num]

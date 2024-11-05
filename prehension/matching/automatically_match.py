@@ -47,21 +47,16 @@ def match_trial(
             ),
             visualize='' if visualize else ' --no_visuals ',
             skip_export=' --skip_export ' if skip_export else '',
-            quality_threshold=(
-                ' --quality_threshold {} '.format(quality_threshold)
-                if quality_threshold is not None and trial.success
-                else ''
-            ),
+            quality_threshold=(' --quality_threshold {} '.format(quality_threshold)
+                               if quality_threshold is not None and trial.success else ''),
             video_arg=(f' --write_video {trial.mujoco_video} ' if write_video else ''),
-            verbose=' --verbose ' if verbose else '',
-        )
-    )
+            verbose=' --verbose ' if verbose else ''))
     if verbose:
         rs('Executing command:')
         rs(command)
     ret = os.system(command)
     # process output as error throw
-    if ret < 0:
+    if (ret < 0):
         raise ValueError('Command returned with {} error message.'.format(ret))
 
 
@@ -214,11 +209,8 @@ def automatically_match(
                     ws('Failed to transform trials:')
                     for v in pool.failed_i_jobs:
                         ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                        failed_trial_reports.append(
-                            'session {} trial {} error: {}'.format(
-                                session, trials[v].trial_number, pool.error_reports[v]
-                            )
-                        )
+                        failed_trial_reports.append('session {} trial {} error: {}'.format(
+                            session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

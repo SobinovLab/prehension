@@ -50,9 +50,9 @@ def _filter_pairs(raw_ss_list, proc_ss_list, verbose=False):
         proc_exists = os.path.exists(pair[1])
         warn_msg = ""
         if not raw_exists:
-            warn_msg += "Raw server session {} does not exist.\n".format(pair[0])
+            warn_msg += 'Raw server session {} does not exist.\n'.format(pair[0])
         if not proc_exists:
-            warn_msg += "Processed server session {} does not exist.\n".format(pair[1])
+            warn_msg += 'Processed server session {} does not exist.\n'.format(pair[1])
         if warn_msg and verbose:
             ws(warn_msg)
         if raw_exists and proc_exists:
@@ -76,21 +76,17 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
 
     # Decide if we are finding sessions or using the provided sessions
     if not sessions:
-        exp_session_names = meta_session.find_session_dirs(preset["default_server"])
-        train_session_names = meta_session.find_session_dirs(preset["default_training_server"])
+        exp_session_names = meta_session.find_session_dirs(preset['default_server'])
+        train_session_names = meta_session.find_session_dirs(preset['default_training_server'])
     else:
         exp_session_names = sessions
         train_session_names = sessions
 
     # Build initial list of raw and proc server session dirs
-    raw_server_sessions = [
-        os.path.normpath(os.path.join(preset["default_server"], os.path.basename(ss)))
-        for ss in exp_session_names
-    ]
-    proc_server_sessions = [
-        os.path.normpath(os.path.join(preset["processed_server"], os.path.basename(ss)))
-        for ss in exp_session_names
-    ]
+    raw_server_sessions = [os.path.normpath(os.path.join(preset['default_server'], os.path.basename(ss)))
+                            for ss in exp_session_names]
+    proc_server_sessions = [os.path.normpath(os.path.join(preset['processed_server'], os.path.basename(ss)))
+                                for ss in exp_session_names]
 
     # now raw and proc ss lists should be the same length, read through and filter out/warn
     # on any that do not exist
@@ -124,6 +120,7 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
     return experimental_raw_proc_pairs, training_raw_proc_pairs
 
 
+
 def does_trianing_servers_exist(preset, verbose=False):
     """Returns True if all training servers exist in preset
 
@@ -134,8 +131,8 @@ def does_trianing_servers_exist(preset, verbose=False):
     Returns:
         bool: True if all training servers exist in preset else False
     """
-    keys = ["default_training_server", "processed_training_server"]
-    assert all(k in preset for k in keys), "Missing keys in preset: {}".format(keys)
+    keys = ['default_training_server', 'processed_training_server']
+    assert all(k in preset for k in keys), 'Missing keys in preset: {}'.format(keys)
 
     training_servers_not_none = all(v is not None for v in (preset[k] for k in keys))
 
@@ -144,15 +141,16 @@ def does_trianing_servers_exist(preset, verbose=False):
         training_servers_exist = all(os.path.exists(v) for v in (preset[k] for k in keys))
 
     if not training_servers_not_none and verbose:
-        ws("one or more training servers are None in preset: {}".format(preset["names"][0]))
+        ws('one or more training servers are None in preset: {}'.format(preset['names'][0]))
 
     if not training_servers_exist and verbose:
-        ws("one or more training servers do not exist in preset: {}".format(preset["names"][0]))
+        ws('one or more training servers do not exist in preset: {}'.format(preset['names'][0]))
 
     return training_servers_not_none and training_servers_exist
 
 
 def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions=[]):
+
     """Apply a function to raw and processed session folders found in rserv and pserv. Will create
     the processed session folder if it does not exist.
 
@@ -185,7 +183,7 @@ def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions
         found_sessions = [s for s in sessions if os.path.exists(os.path.join(rserv, s))]
 
     found_sessions.sort(reverse=True)
-    rs("Found {} sessions: {}".format(len(found_sessions), ", ".join(found_sessions)))
+    rs('Found {} sessions: {}'.format(len(found_sessions), ', '.join(found_sessions)))
 
     failed_sessions = []
     failed_sessions_errors = []
@@ -197,11 +195,11 @@ def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions
         p_server_session = os.path.normpath(os.path.join(pserv, session))
 
         if not os.path.exists(r_server_session):
-            ws("Session {} does not exist on the server.".format(r_server_session))
+            ws('Session {} does not exist on the server.'.format(r_server_session))
             continue
 
         if not os.path.exists(p_server_session):
-            rs("Creating processed server session directory {}".format(p_server_session))
+            rs('Creating processed server session directory {}'.format(p_server_session))
             os.makedirs(p_server_session)
 
         try:
@@ -211,7 +209,7 @@ def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions
             print()
             ws("Function {} failed.".format(session))
             _, exc_value, exc_traceback = sys.exc_info()
-            error_str = "".join(traceback.format_exception(None, exc_value, exc_traceback))
+            error_str = ''.join(traceback.format_exception(None, exc_value, exc_traceback))
             ws(error_str)
             failed_sessions.append(session)
             failed_sessions_errors.append(error_str)
@@ -220,4 +218,7 @@ def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions
         print()
         ws("Failed running (func) for sessions:")
         for fs, fse in zip(failed_sessions, failed_sessions_errors):
-            ws("\t{}: {}".format(fs, fse))
+            ws('\t{}: {}'.format(fs, fse))
+
+
+

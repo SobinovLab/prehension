@@ -81,7 +81,8 @@ def transform_trial(trial, make_plots):
                 )
 
         # export
-        io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices, type='stamps')
+        io.export_tsm_matrix(trial.filtered_ps_filenames[ps_name], times, matrices,
+                                   type='stamps')
 
     # testing plot
     if make_plots:
@@ -157,13 +158,9 @@ def filter_pressure_sensors(
                 continue
 
             # at least one of the files should exist
-            if any(
-                [
-                    not os.path.exists(trial.transformed_ps_filenames[ps_name])
-                    and not os.path.exists(trial.transformed_ps_csv_filenames[ps_name])
-                    for ps_name in trial.transformed_ps_filenames.keys()
-                ]
-            ):
+            if any([not os.path.exists(trial.transformed_ps_filenames[ps_name]) and
+                    not os.path.exists(trial.transformed_ps_csv_filenames[ps_name])
+                    for ps_name in trial.transformed_ps_filenames.keys()]):
                 continue
 
             if not overwrite and all(
@@ -204,11 +201,8 @@ def filter_pressure_sensors(
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
                     ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append(
-                        'session {} trial {} error: {}'.format(
-                            session, trials[v].trial_number, pool.error_reports[v]
-                        )
-                    )
+                    failed_trial_reports.append('session {} trial {} error: {}'.format(
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

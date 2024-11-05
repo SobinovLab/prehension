@@ -48,12 +48,10 @@ class PSDisplayer:
     def setup_ps_ax(self):
         self.ax.set_xticks([])
         self.ax.set_yticks([])
-        # default is upside down
-        self.ax.set_ylim([-0.5, self.nsenselsr - 0.5])
+        self.ax.set_ylim([-0.5, self.nsenselsr - 0.5])  # default is upside down
 
     def generate_internal_data(self):
-        # number of sensels one direction
-        self.nsenselsr = np.shape(self.ps_matrices)[1]
+        self.nsenselsr = np.shape(self.ps_matrices)[1]  # number of sensels one direction
         self.sensor_total = np.sum(self.ps_matrices, axis=(1, 2))
         self.st_max = np.max(self.sensor_total)
         self.ps_vmax = np.max(self.ps_matrices)

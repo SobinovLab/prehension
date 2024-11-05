@@ -38,7 +38,7 @@ def calculate_digit_forces(mstruct, trial):
         )
         for mc in matched_contacts[ps_name]:
             segments_set = segments_set.union(list(mc.keys()))
-    segments_set = sorted(list(segments_set), key=lambda v: int(v[4]) * 10 + int(v[2]))
+    segments_set = sorted(list(segments_set), key=lambda v: int(v[4])*10+int(v[2]))
 
     # group up
     segment_digit_groups = []
@@ -86,9 +86,7 @@ def calculate_digit_forces(mstruct, trial):
     data_digits_aps = {}
     # assuming there is two pressure sensors
     for i_sdg, k in enumerate(SEGMENT_DIGIT_GROUPS):
-        data_digits_aps[k] = (
-            data_digits['medial_sensor'][i_sdg] + data_digits['lateral_sensor'][i_sdg]
-        )
+        data_digits_aps[k] = data_digits['medial_sensor'][i_sdg] + data_digits['lateral_sensor'][i_sdg]
 
     # store the data
     trial.digit_forces_time = ps_times
@@ -170,7 +168,8 @@ def calculate_differences(trial):
         ) * 100.0
 
         differences['rms'][digit] = np.sqrt(np.sum(np.square(ap_a_df - ap_m_df)))
-        differences['normalized rms'][digit] = (differences['rms'][digit] / summed_force) * 100.0
+        differences['normalized rms'][digit] = (
+            differences['rms'][digit] / summed_force) * 100.
 
         res = scipy.stats.linregress(ap_m_df, ap_a_df)
         differences['r'][digit] = res.rvalue
@@ -330,24 +329,13 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
                     plt.title(digit)
 
                 # report
-                rs(
-                    '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
-                        digit, np.mean(tdd), np.median(tdd), np.min(tdd), np.max(tdd), np.std(tdd)
-                    )
-                )
-            tdd_total = sum(
-                [[trial.differences[dm][digit] for trial in trials] for digit in digit_names], []
-            )
-            rs(
-                '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
-                    'TOTAL',
-                    np.mean(tdd_total),
-                    np.median(tdd_total),
-                    np.min(tdd_total),
-                    np.max(tdd_total),
-                    np.std(tdd_total),
-                )
-            )
+                rs('\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
+                    digit, np.mean(tdd), np.median(tdd), np.min(tdd), np.max(tdd), np.std(tdd)))
+            tdd_total = sum([[trial.differences[dm][digit] for trial in trials]
+                             for digit in digit_names], [])
+            rs('\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
+                'TOTAL', np.mean(tdd_total), np.median(tdd_total), np.min(tdd_total),
+                np.max(tdd_total), np.std(tdd_total)))
             if make_plots:
                 ax.set_xlabel('{}, {}'.format(dm, trials[0].difference_units[dm]))
                 ax.set_ylabel('Number of trials')
@@ -409,41 +397,16 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
             )
         )
         for i_digit, digit in enumerate(digit_names):
-            tdd = sum(
-                [
-                    [trial.differences[dm][digit] for trial in trials]
-                    for trials in trials_by_session.values()
-                ],
-                [],
-            )
-            rs(
-                '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
-                    digit, np.mean(tdd), np.median(tdd), np.min(tdd), np.max(tdd), np.std(tdd)
-                )
-            )
-        tdd_total = sum(
-            [
-                sum(
-                    [
-                        [trial.differences[dm][digit] for trial in trials]
-                        for trials in trials_by_session.values()
-                    ],
-                    [],
-                )
-                for digit in digit_names
-            ],
-            [],
-        )
-        rs(
-            '\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
-                'TOTAL',
-                np.mean(tdd_total),
-                np.median(tdd_total),
-                np.min(tdd_total),
-                np.max(tdd_total),
-                np.std(tdd_total),
-            )
-        )
+            tdd = sum([[trial.differences[dm][digit] for trial in trials]
+                       for trials in trials_by_session.values()], [])
+            rs('\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
+                digit, np.mean(tdd), np.median(tdd), np.min(tdd), np.max(tdd), np.std(tdd)))
+        tdd_total = sum([sum([[trial.differences[dm][digit] for trial in trials]
+                              for trials in trials_by_session.values()], [])
+                         for digit in digit_names], [])
+        rs('\t{:10s}: {:10.3f} {:10.3f} {:10.3f} {:10.3f} {:10.3f}'.format(
+            'TOTAL', np.mean(tdd_total), np.median(tdd_total), np.min(tdd_total),
+            np.max(tdd_total), np.std(tdd_total)))
 
     # make a total figure
     fig = plt.figure(figsize=figsize)

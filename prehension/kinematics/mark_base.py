@@ -80,8 +80,7 @@ class VideoViewInterface:
 
         self.load_videos()
         self.i_frame = int(0.05 * self.num_frames)
-        # zoom onto the first camera by default
-        self.zoom_camera = self.cameras[0]
+        self.zoom_camera = self.cameras[0]  # zoom onto the first camera by default
 
         # create axes
         self.setup_video_axes()
@@ -398,8 +397,8 @@ class VideoViewInterface:
 
         self.make_default_btn_ax = self.fig.add_axes(positions[3])
         self.make_default_btn = mpl.widgets.Button(
-            self.make_default_btn_ax, 'Make default', color=color, hovercolor=color
-        )
+            self.make_default_btn_ax, 'Make default',
+            color=color, hovercolor=color)
         self.make_default_btn.on_clicked(self.on_make_default_btn_press)
 
     def select_marker(self, marker):
@@ -422,9 +421,8 @@ class VideoViewInterface:
 
     def update_marker_counters(self):
         for marker in self.markers:
-            n_success = sum(
-                [int(self.marker_data[camera][marker] is not None) for camera in self.cameras]
-            )
+            n_success = sum([int(self.marker_data[camera][marker] is not None)
+                             for camera in self.cameras])
             self.marker_counters[marker].set_text('{}/{}'.format(n_success, len(self.cameras)))
             if n_success < 2:
                 self.marker_counters[marker].set_color(micolors['red'][500])
@@ -464,23 +462,11 @@ class VideoViewInterface:
             # make btn
             # note: widget buttons suck and are slow
             self.marker_area_ax.text(
-                axis_pos[0] + axis_pos[2] / 2,
-                axis_pos[1] + axis_pos[3] / 2,
-                marker,
-                color='k',
-                ha='center',
-                va='center',
-                size='x-large',
-            )
+                axis_pos[0] + axis_pos[2] / 2, axis_pos[1] + axis_pos[3] / 2, marker,
+                color='k', ha='center', va='center', size='x-large')
             self.marker_counters[marker] = self.marker_area_ax.text(
-                axis_pos[0] + axis_pos[2] * 0.98,
-                axis_pos[1] + axis_pos[3] * 0.8,
-                '?/?',
-                color='k',
-                ha='right',
-                va='center',
-                size='medium',
-            )
+                axis_pos[0] + axis_pos[2] * 0.98, axis_pos[1] + axis_pos[3] * 0.8, '?/?',
+                color='k', ha='right', va='center', size='medium')
             self.marker_patches[marker] = mpl.patches.Rectangle(
                 axis_pos[0:2], axis_pos[2], axis_pos[3], color=color
             )
@@ -763,15 +749,11 @@ def triangulate(trial, calibration, mstruct):
     if reflect:
         marker_name_dict = io.dic_from_csv(
             os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta_reflect.csv'),
-            'sDlcMarker',
-            'sOpenSimMarker',
-        )
+            'sDlcMarker', 'sOpenSimMarker')
     else:
         marker_name_dict = io.dic_from_csv(
             os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta.csv'),
-            'sDlcMarker',
-            'sOpenSimMarker',
-        )
+            'sDlcMarker', 'sOpenSimMarker')
     triangulated_points = np.swapaxes(triangulated_points, 1, 2)
     marker_names = []
     for ibp, bp in enumerate(bodyparts):
@@ -788,13 +770,8 @@ def triangulate(trial, calibration, mstruct):
     # and generate IK file
     ik_xml_str = inverse_kinematics.IK_XML_STR.format(model_file=mstruct['opensim_model'])
     inverse_kinematics.make_ik_file(
-        trial.calib_base_ik_filename,
-        ik_xml_str,
-        {k: 1 for k in marker_names},
-        trial.calib_base_markers_3D_filename_trc,
-        trial.calib_base_kinematic_filename,
-        [0, 0.02],
-    )
+        trial.calib_base_ik_filename, ik_xml_str, {k: 1 for k in marker_names},
+        trial.calib_base_markers_3D_filename_trc, trial.calib_base_kinematic_filename, [0, 0.02])
 
 
 def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
@@ -927,6 +904,6 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
         for session in sessions:
             mstruct = mstructs[session]
             inverse_kinematics.set_opensim_model_default_position(
-                mstruct['opensim_model'], mstruct['opensim_model_locked_base'], positions, lock=True
-            )
+                mstruct['opensim_model'], mstruct['opensim_model_locked_base'], positions,
+                lock=True)
             rs('Created locked model {}.'.format(mstruct['opensim_model_locked_base']))

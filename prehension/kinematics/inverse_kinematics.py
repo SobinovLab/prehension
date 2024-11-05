@@ -195,7 +195,7 @@ def make_ik_file(
     # add the IK task and objects (markers) if missing
     ikts = _add_xml_element(ikt, 'IKTaskSet')
     _add_xml_element(ikts, 'groups')
-    iktso = _add_xml_element(ikts, 'objects', text='\n' + ' ' * 16, tail='\n' + ' ' * 12)
+    iktso = _add_xml_element(ikts, 'objects', text='\n' + ' '*16, tail='\n' + ' '*12)
 
     # add each marker with weights
     for marker_name, marker_weight in marker_weights.items():
@@ -204,12 +204,12 @@ def make_ik_file(
         )
         mare.set('name', marker_name)
 
-        _add_xml_element(mare, 'weight', text=str(marker_weight), tail='\n' + ' ' * 20)
+        _add_xml_element(mare, 'weight', text=str(marker_weight), tail='\n' + ' '*20)
 
         if marker_weight < 1e-8:
-            _add_xml_element(mare, 'apply', text='false', tail='\n' + ' ' * 16)
+            _add_xml_element(mare, 'apply', text='false', tail='\n' + ' '*16)
         else:
-            _add_xml_element(mare, 'apply', text='true', tail='\n' + ' ' * 16)
+            _add_xml_element(mare, 'apply', text='true', tail='\n' + ' '*16)
 
     # other elements
     _add_xml_element(ikt, 'time_range', text='{} {}'.format(time_range[0], time_range[1]))
@@ -268,7 +268,7 @@ def make_sc_file(filename, tool_name, measurements, marker_file, time_range, ver
     ms = _add_xml_element(sct, 'ModelScaler')
     mset = _add_xml_element(ms, 'MeasurementSet')
     _add_xml_element(mset, 'groups')
-    mseto = _add_xml_element(mset, 'objects', text='\n' + ' ' * 20, tail='\n' + ' ' * 16)
+    mseto = _add_xml_element(mset, 'objects', text='\n' + ' '*20, tail='\n' + ' '*16)
 
     for measurement, body_scales in measurements.items():
         sc_meas = SC_EMPTY_MEASUREMENT.format(
@@ -385,7 +385,7 @@ def triangulated_to_trc(
     num_dats = {}
     for ibp, bp in enumerate(bodyparts):
         num_dats[bp] = n_frames - np.sum(np.isnan(points[:, ibp, 0]))
-    marker_weights = {marker_name_dict[bp]: num_dats[bp] / n_frames for bp in bodyparts}
+    marker_weights = {marker_name_dict[bp]: num_dats[bp]/n_frames for bp in bodyparts}
     if verbose > 0:
         print('Portion of the data being data and not NaNs:')
         print(
@@ -515,11 +515,8 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
                     ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append(
-                        'session {} trial {} error: {}'.format(
-                            session, trials[v].trial_number, pool.error_reports[v]
-                        )
-                    )
+                    failed_trial_reports.append('session {} trial {} error: {}'.format(
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

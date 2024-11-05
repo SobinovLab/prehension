@@ -171,7 +171,7 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
         run_extrinsic_calibration {bool} --- Runs local extrinsic calibration in the session
             directory.
     """
-
+    raise NotImplementedError('Must be refactored for new import meta structure call')
     logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
@@ -210,9 +210,8 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
 
                 # get the list of files
                 files = glob.glob(os.path.join(images_calibration_dir, '*'))
-                dest_files = [
-                    os.path.join(dest_extrinsic_calibration_dir, os.path.split(v)[1]) for v in files
-                ]
+                dest_files = [os.path.join(dest_extrinsic_calibration_dir, os.path.split(v)[1])
+                              for v in files]
                 for file, dest_file in zip(files, dest_files):
                     if overwrite or not os.path.exists(dest_file):
                         shutil.copy(file, dest_file)
@@ -519,11 +518,8 @@ def run_triangulate(
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
                     ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append(
-                        'session {} trial {} error: {}'.format(
-                            session, trials[v].trial_number, pool.error_reports[v]
-                        )
-                    )
+                    failed_trial_reports.append('session {} trial {} error: {}'.format(
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

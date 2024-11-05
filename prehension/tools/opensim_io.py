@@ -167,18 +167,8 @@ def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None
 
         # header
         wrr.writerow(['PathFileType', '4', '(X/Y/Z)', ntpath.basename(filename)])
-        wrr.writerow(
-            [
-                'DataRate',
-                'CameraRate',
-                'NumFrames',
-                'NumMarkers',
-                'Units',
-                'OrigDataRate',
-                'OrigDataStartFrame',
-                'OrigNumFrames',
-            ]
-        )
+        wrr.writerow(['DataRate', 'CameraRate', 'NumFrames', 'NumMarkers', 'Units', 'OrigDataRate',
+                      'OrigDataStartFrame', 'OrigNumFrames'])
         wrr.writerow([rate, rate, n_frames, n_bodyparts, units, rate, 1, 1])
 
         # bodyparts
@@ -190,7 +180,7 @@ def export_trc(filename, bodyparts, points, rate, frame_numbers=None, times=None
         # XYZ columns
         lo = ['', '']
         for ibp in range(n_bodyparts):
-            lo += ['X{}'.format(ibp + 1), 'Y{}'.format(ibp + 1), 'Z{}'.format(ibp + 1)]
+            lo += ['X{}'.format(ibp+1), 'Y{}'.format(ibp+1), 'Z{}'.format(ibp+1)]
         wrr.writerow(lo)
         wrr.writerow([])  # necessary
 

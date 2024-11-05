@@ -57,7 +57,7 @@ def get_matched_contacts(mstruct, trial):
         )
         for mc in matched_contacts[ps_name]:
             segments_set = segments_set.union(list(mc.keys()))
-    segments_set = sorted(list(segments_set), key=lambda v: int(v[4]) * 10 + int(v[2]))
+    segments_set = sorted(list(segments_set), key=lambda v: int(v[4])*10+int(v[2]))
 
     print(
         'Found {} segments making contacts with pressure plates: {}'.format(
@@ -138,6 +138,7 @@ def get_matched_contacts(mstruct, trial):
             data_digits['medial_sensor'][i_sdg] + data_digits['lateral_sensor'][i_sdg]
         )
 
+
     return data_digits_aps, ps_times, ps_matrices
 
 
@@ -184,17 +185,16 @@ class GraspAnimation:
             RPS_NAME: io.import_matched_contacts(self.trial.matched_contacts_filenames[RPS_NAME]),
         }
 
+
     def setup_ps_axes(self):
         self.ax_lps.set_xticks([])
         self.ax_lps.set_yticks([])
-        # default is upside down
-        self.ax_lps.set_ylim([-0.5, self.nsenselsr - 0.5])
+        self.ax_lps.set_ylim([-0.5, self.nsenselsr - 0.5])  # default is upside down
 
         self.ax_rps.set_xticks([])
         self.ax_rps.set_yticks([])
         self.ax_rps.set_ylim([-0.5, self.nsenselsr - 0.5])
-        # monkey in the middle
-        self.ax_rps.set_xlim([self.nsenselsr - 0.5, -0.5])
+        self.ax_rps.set_xlim([self.nsenselsr - 0.5, -0.5])  # monkey in the middle
 
     def setup_vid_axes(self):
         self.ax_lps_video.set_xticks([])
@@ -255,13 +255,11 @@ class GraspAnimation:
         if self.rps_image is not None:
             self.rps_image.remove()
         matrix = self.ps_matrices[LPS_NAME][i_frame] / self.ps_vmax_d[LPS_NAME]
-        self.lps_image = self.ax_lps.imshow(
-            self.force_map_transform(matrix), vmin=0, vmax=1, cmap='Greys'
-        )
+        self.lps_image = self.ax_lps.imshow(self.force_map_transform(matrix),
+                                            vmin=0, vmax=1, cmap='Greys')
         matrix = self.ps_matrices[RPS_NAME][i_frame] / self.ps_vmax_d[RPS_NAME]
-        self.rps_image = self.ax_rps.imshow(
-            self.force_map_transform(matrix), vmin=0, vmax=1, cmap='Greys'
-        )
+        self.rps_image = self.ax_rps.imshow(self.force_map_transform(matrix),
+                                            vmin=0, vmax=1, cmap='Greys')
 
         if self.lps_auto_colormask is not None:
             self.lps_auto_colormask.remove()
@@ -322,12 +320,8 @@ class GraspAnimation:
         if self.rps_videoframe is not None:
             self.rps_videoframe.remove()
 
-        self.lps_videoframe = self.display_videoframe(
-            self.lps_video, self.ax_lps_video, cameraframe
-        )
-        self.rps_videoframe = self.display_videoframe(
-            self.rps_video, self.ax_rps_video, cameraframe
-        )
+        self.lps_videoframe = self.display_videoframe(self.lps_video, self.ax_lps_video, cameraframe)
+        self.rps_videoframe = self.display_videoframe(self.rps_video, self.ax_rps_video, cameraframe)
         self.fig.canvas.draw()
 
     def display_force_trace(self, time):
@@ -337,6 +331,8 @@ class GraspAnimation:
         for i_sdg, sdg_color in enumerate(self.sdg_colors):
             vals = self.data_digits_aps[i_sdg][sbs]
             self.ax_fingers.plot(times, vals, color=sdg_color)
+
+
 
     def display_mujoco_video(self, i_frame=None):
         pass

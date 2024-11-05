@@ -62,9 +62,8 @@ def main(args):
         exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
         train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
 
-        session_status_visualization.display_session_info(
-            exp_session_wrappers, train_session_wrappers, args.clean, args.last
-        )
+        session_visualization.display_session_info(exp_session_wrappers,
+                             train_session_wrappers, args.clean, args.last)
         print()
         print()
 

@@ -244,8 +244,7 @@ def tessellate_sensors(
     if option is None:
         option = ET.Element('option')
         root.append(option)
-    # previously known as 'pair'
-    option.set('collision', 'predefined')
+    option.set('collision', 'predefined')  # previously known as 'pair'
 
     # increase simulation buffers
     size = root.find('size')

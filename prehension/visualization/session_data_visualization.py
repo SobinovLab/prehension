@@ -861,5 +861,11 @@ class SessionWrapper:
         cond_success_matrix_path = os.path.join(self.results_dir, "CondSuccessMatrix.png")
         self.__plot_single_cond_success_matrix(cmap="Purples", savename=cond_success_matrix_path)
 
-    def __plot_single_cond_success_matrix(self, cmap="Blues", savename=None):
-        create_heatmap_from_trials_list(self.msession, cmap, savename=savename)
+    def __plot_single_cond_success_matrix(self, cmap='Blues', savename=None):
+        create_heatmap_from_trials_list(
+            self.msession,
+            cmap,
+            savename=savename
+        )
+
+

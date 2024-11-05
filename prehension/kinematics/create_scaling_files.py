@@ -146,9 +146,7 @@ def prepare_scaling_files(trial, session, mstruct, period):
     # find ps markers, doesn't matter if left or right in this case
     marker_name_dict = io_tools.dic_from_csv(
         os.path.join(os.path.split(mstruct['opensim_model'])[0], 'marker_meta.csv'),
-        'sDlcMarker',
-        'sOpenSimMarker',
-    )
+        'sDlcMarker', 'sOpenSimMarker')
     ps_osim_markers = []
     for poms in mstruct['ps_markers'].values():
         for pom in poms:
@@ -170,8 +168,7 @@ def prepare_scaling_files(trial, session, mstruct, period):
 
     # combined
     bp_weights = copy.deepcopy(bp_velocities)
-    # normalize to 95% quantile
-    bp_weights /= np.nanquantile(bp_weights, 0.95, axis=0)
+    bp_weights /= np.nanquantile(bp_weights, 0.95, axis=0)  # normalize to 95% quantile
     bp_weights[np.logical_or(np.isnan(bp_weights), bp_weights > 1)] = 1
 
     # averaged
@@ -242,7 +239,7 @@ def prepare_scaling_files(trial, session, mstruct, period):
     start_frame = tools.find_first(times >= period[0])
     end_frame = tools.find_last(times <= period[1])
     rs('Found start frame {} and end frame {}.'.format(start_frame, end_frame))
-    points = points[start_frame : end_frame + 1]
+    points = points[start_frame:end_frame+1]
     # decided not to, since having a ps marker is a nice reference location
     # for pom in ps_osim_markers:
     #     ibp = bodyparts.index(pom)

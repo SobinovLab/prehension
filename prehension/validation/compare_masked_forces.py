@@ -45,9 +45,8 @@ def load_forces(mstruct, trial):
     trial.dt = np.median(dts)
     # for varied dts, for each time point:
     trial.dts = (np.concatenate(([0], dts)) + np.concatenate((dts, [0]))) / 2
-    trial.total_force = np.sum(ps_matrices['medial_sensor'], axis=(1, 2)) + np.sum(
-        ps_matrices['lateral_sensor'], axis=(1, 2)
-    )
+    trial.total_force = (np.sum(ps_matrices['medial_sensor'], axis=(1, 2)) +
+                         np.sum(ps_matrices['lateral_sensor'], axis=(1, 2)))
     trial.max_total_force = np.max(trial.total_force)
     trial.summed_force = np.sum(trial.total_force)
     trial.summed_impulse = np.sum(trial.total_force * trial.dts)

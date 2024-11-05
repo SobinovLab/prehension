@@ -83,17 +83,15 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     ap_mask = np.zeros(np.size(common_times)).astype(bool)
     ap_mask[ap_start:ap_end] = True
 
-    # redo the pressure sensor position from average center position and recorded desired
-    # rotation angle. Use minimum width between the sensor surfaces as minimum width measured with
-    # finger pads?
-    # width estimate:
+    ## redo the pressure sensor position from average center position and recorded desired
+    ## rotation angle. Use minimum width between the sensor surfaces as minimum width measured with
+    ## finger pads?
+    ## width estimate:
     estimated_width_offset = 0  # mm
-    estimated_object_width = estimated_width_offset + object_def['pos_aperture(mm)'] / 1000.0
-    # measuring from the data instead
-    object_width = (
-        np.median(dofs[[mdof['ps_halfwidth_tra']['index'], mdof['ps_halfwidth_tra_d']['index']]])
-        * 2
-    )
+    estimated_object_width = (estimated_width_offset + object_def['pos_aperture(mm)'] / 1000.)
+    ## measuring from the data instead
+    object_width = np.median(dofs[[mdof['ps_halfwidth_tra']['index'],
+                                  mdof['ps_halfwidth_tra_d']['index']]]) * 2
     if abs(object_width - estimated_object_width) > 0.05:
         ws(
             'Calculated object width ({} m) is different from what it should be ({} m).'.format(
@@ -107,7 +105,7 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
         )
     dofs[mdof['ps_halfwidth_tra']['index']] = object_width / 2
     dofs[mdof['ps_halfwidth_tra_d']['index']] = object_width / 2
-    # tra
+    ## tra
     ps_tra_i_1 = mdof['ps_tra1']['index']
     ps_tra_i_2 = mdof['ps_tra2']['index']
     ps_tra_i_3 = mdof['ps_tra3']['index']
@@ -115,7 +113,7 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     dofs[ps_tra_i_1, ap_mask] = np.median(dofs[ps_tra_i_1, ap_mask])
     dofs[ps_tra_i_2, ap_mask] = np.median(dofs[ps_tra_i_2, ap_mask])
     dofs[ps_tra_i_3, ap_mask] = np.median(dofs[ps_tra_i_3, ap_mask])
-    # rot
+    ## rot
     ps_rot_i_1 = mdof['ps_rot1']['index']
     ps_rot_i_2 = mdof['ps_rot2']['index']
     ps_rot_i_3 = mdof['ps_rot3']['index']
@@ -125,17 +123,15 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     dofs[ps_rot_i_3, ap_mask] = np.median(dofs[ps_rot_i_3, ap_mask])
 
     # Save processed ja data
-    io_tools.export_mot(trial.post_kinematic_filename_mot, list(mdof.keys()), common_times, dofs)
+    io_tools.export_mot(trial.post_kinematic_filename_mot,
+                              list(mdof.keys()), common_times, dofs)
 
     # export to CSV with rotational transformed to radians
     rots = np.array([dof_info['rot'] for dof_info in mdof.values()], dtype=bool)
     dofs[rots, :] = dofs[rots, :] / 180 * np.pi
     dofs_prefilter[rots, :] = dofs_prefilter[rots, :] / 180 * np.pi
-    io_tools.export_csv(
-        trial.post_kinematic_filename_csv,
-        ['time'] + list(mdof.keys()),
-        [common_times] + dofs.tolist(),
-    )
+    io_tools.export_csv(trial.post_kinematic_filename_csv,
+                              ['time'] + list(mdof.keys()), [common_times] + dofs.tolist())
 
     # save processed pressure sensor data
     for ps_filename, ps_matrices in zip(trial.post_ps_tsm_filenames.values(), ps_matrices_tot):
@@ -147,21 +143,11 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
         anat_dofs = [k for k in mdof.keys() if k not in ps_dofs and k not in dependent_dofs]
 
         plot_some_dofs(
-            'ps dofs trial {}'.format(trial.trial_number),
-            common_times,
-            dofs,
-            dofs_prefilter,
-            mdof,
-            ps_dofs,
-        )
+            'ps dofs trial {}'.format(trial.trial_number), common_times, dofs,
+            dofs_prefilter, mdof, ps_dofs)
         plot_some_dofs(
-            'anatomical dofs trial {}'.format(trial.trial_number),
-            common_times,
-            dofs,
-            dofs_prefilter,
-            mdof,
-            anat_dofs,
-        )
+            'anatomical dofs trial {}'.format(trial.trial_number), common_times, dofs,
+            dofs_prefilter, mdof, anat_dofs)
 
         plt.figure()
         ax = plt.subplot(2, 1, 1)
@@ -179,6 +165,8 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
             ax.plot(common_times, np.sum(ps_matrices, axis=(1, 2)), 'k')
         ax.set_ylabel('PS, N')
         ax.set_xlabel('Time to TTL, s')
+
+
 
 
 def plot_some_dofs(label, times, dofs, dofs_prefilter, mdof, dof_names, figsize=(16, 9)):
@@ -323,11 +311,8 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
                 ws('Failed to transform trials:')
                 for v in pool.failed_i_jobs:
                     ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append(
-                        'session {} trial {} error: {}'.format(
-                            session, trials[v].trial_number, pool.error_reports[v]
-                        )
-                    )
+                    failed_trial_reports.append('session {} trial {} error: {}'.format(
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

@@ -54,6 +54,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     mark_base(args.server, args.sessions, args.temp, args.overwrite, args.skip_gui)
-    rs('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))
+    rs('Program took {}.'.format(
+        datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

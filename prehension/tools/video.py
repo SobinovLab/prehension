@@ -72,11 +72,8 @@ def new_make_video(frame_filenames, filename_ou, rate):
             safe_in=0,
             r_in=rate,
             overwrite=True,  # y=None,  # overwrite
-            # show_log=False,  # printing to stdout
-            hide_banner=None,
-            loglevel='error',
-            an=None,
-            an_in=None,  # no sound for output or input
+            hide_banner=None, loglevel='error',  # show_log=False,  # printing to stdout
+            an=None, an_in=None,  # no sound for output or input
             **{
                 'r': rate,
                 'codec:v': 'h264_nvenc',
@@ -220,11 +217,8 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
                 ws('Failed trials:')
                 for v in pool.failed_i_jobs:
                     ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append(
-                        'session {} trial {} error: {}'.format(
-                            session, trials[v].trial_number, pool.error_reports[v]
-                        )
-                    )
+                    failed_trial_reports.append('session {} trial {} error: {}'.format(
+                        session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()
@@ -327,14 +321,10 @@ class VideoViewInterface:
 
         axes_pos = []
         for i_row, i_col in itertools.product(range(self.n_rows), range(self.n_cols)):
-            axes_pos.append(
-                [
-                    self.videoarea[0] + x_size * i_col + self.x_padding,
-                    self.videoarea[1] + y_size * (self.n_rows - i_row - 1) + self.y_padding,
-                    x_size_int,
-                    y_size_int,
-                ]
-            )
+            axes_pos.append([
+                self.videoarea[0] + x_size * i_col + self.x_padding,
+                self.videoarea[1] + y_size * (self.n_rows - i_row - 1) + self.y_padding,
+                x_size_int, y_size_int])
 
         return axes_pos
 
@@ -395,7 +385,6 @@ class VideoViewInterface:
 
 class VideoSlider:
     """docstring for VideoSlider"""
-
     def __init__(self, fig, sliderarea, num_frames, initial, onchange):
         self.fig = fig
         self.ax = self.fig.add_axes(sliderarea)
@@ -411,3 +400,4 @@ class VideoSlider:
         )
 
         self.slider.on_changed(onchange)
+

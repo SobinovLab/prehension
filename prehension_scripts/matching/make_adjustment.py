@@ -38,8 +38,6 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    make_adjustment(
-        args.server, args.session, args.trial, args.temp, args.overwrite, args.executable_filename
-    )
+    make_adjustment(args.server, args.session, args.trial, args.temp, args.overwrite, args.executable_filename)
 
     rs('Program took {} s.'.format(time.time() - start_time))

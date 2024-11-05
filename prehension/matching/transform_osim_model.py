@@ -11,8 +11,7 @@ def convert_osim_model(osim_model, geometry_folder, output_folder):
     converter4 = O2MConverter.Converter4()
 
     # custom scene parameters
-    # floor
-    converter4.mujoco_dic['worldbody']['geom']['@pos'] = '0 0 -0.5'
+    converter4.mujoco_dic['worldbody']['geom']['@pos'] = '0 0 -0.5'  # floor
     # nicer light
     converter4.mujoco_dic["worldbody"]['body']["light"] = {
         "@cutoff": "50",
@@ -92,7 +91,7 @@ def transform_osim_model(server, session, overwrite):
         session {str} --- Session directory to use.
         temp {str} --- Folder for local temporary storage.
     """
-
+    raise NotImplementedError('Must be refactored for new import meta structure call')
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(server))
 
@@ -115,5 +114,4 @@ def transform_osim_model(server, session, overwrite):
     convert_osim_model(
         mstruct['opensim_model'],
         os.path.join(os.path.split(mstruct['opensim_model'])[0], 'Geometry'),
-        os.path.split(mstruct['mujoco_model'])[0],
-    )
+        os.path.split(mstruct['mujoco_model'])[0])

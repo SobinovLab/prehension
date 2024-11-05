@@ -19,7 +19,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 import ctypes
 import inspect
 import os
@@ -176,9 +175,8 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         ):
             continue
         # Skip if output files exist and overwrite==False
-        if not overwrite and all(
-            [os.path.exists(fpf) for fpf in trial.transformed_ps_filenames.values()]
-        ):
+        if not overwrite and all([os.path.exists(fpf)
+                                    for fpf in trial.transformed_ps_filenames.values()]):
             continue
         trials.append(trial)
 
@@ -205,11 +203,8 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             ws('Failed to transform trials:')
             for v in pool.failed_i_jobs:
                 ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                failed_trial_reports.append(
-                    'session {} trial {} error: {}'.format(
-                        session, trials[v].trial_number, pool.error_reports[v]
-                    )
-                )
+                failed_trial_reports.append('session {} trial {} error: {}'.format(
+                    session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()
@@ -217,10 +212,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         for failed_trial_report in failed_trial_reports:
             ws('\t{}'.format(failed_trial_report))
 
-
-def preprocess_pressure_sensors(
-    current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]
-):
+def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]):
     """Creates meta information for a session.
 
     Arguments:
@@ -262,5 +254,7 @@ def preprocess_pressure_sensors(
         current_preset,
         temp,
         ppps_helper,
-        args=(trials_sel, overwrite, processes),
-    )
+        args=(trials_sel, overwrite, processes))
+
+
+

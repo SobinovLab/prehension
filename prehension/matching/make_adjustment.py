@@ -45,22 +45,19 @@ def make_adjustment(server, session, trial_number, temp, overwrite, executable_f
     )
     frame = optimal_frames[trial_number]
 
-    command = (
-        '{executable_filename} --manual --verbose -m "{model_filename}" '
-        '--ja_in "{ja_filename}" '
-        '--frame {frame} '
-        '--leps_in "{leps_in}" --rips_in "{reps_in}" '
-        '--adj "{adjustment_filename}"'.format(
-            executable_filename=executable_filename,
-            model_filename=mstruct['mujoco_model_sensorized'],
-            # model_filename=mstruct['mujoco_model'],  # can be used instead
-            ja_filename=trial.post_kinematic_filename_csv,
-            frame=frame,
-            leps_in=trial.get_post_ps_filenames()['medial_sensor'],
-            reps_in=trial.get_post_ps_filenames()['lateral_sensor'],
-            adjustment_filename=trial.adjustment_kinematic_filename,
-        )
-    )
+    command = ('{executable_filename} --manual --verbose -m "{model_filename}" '
+               '--ja_in "{ja_filename}" '
+               '--frame {frame} '
+               '--leps_in "{leps_in}" --rips_in "{reps_in}" '
+               '--adj "{adjustment_filename}"'.format(
+                   executable_filename=executable_filename,
+                   model_filename=mstruct['mujoco_model_sensorized'],
+                   # model_filename=mstruct['mujoco_model'],  # can be used instead
+                   ja_filename=trial.post_kinematic_filename_csv,
+                   frame=frame,
+                   leps_in=trial.get_post_ps_filenames()['medial_sensor'],
+                   reps_in=trial.get_post_ps_filenames()['lateral_sensor'],
+                   adjustment_filename=trial.adjustment_kinematic_filename))
     rs('Executing command:')
     rs(command)
     os.system(command)

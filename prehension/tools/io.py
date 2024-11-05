@@ -133,6 +133,7 @@ def import_csv(filename, cast=float):
     if not os.path.isfile(filename):
         raise ValueError('File not found: {filename}')
 
+
     with open(filename, 'r') as f:
         rdr = csv.reader(f)
 
@@ -210,7 +211,7 @@ def import_csv_matrix_low(filename, rowscols=None):
             matrices.append(np.zeros((rows, cols)))
             for irow in range(rows):
                 for icol in range(cols):
-                    matrices[-1][irow][icol] = float(li[1 + irow + rows * icol])
+                    matrices[-1][irow][icol] = float(li[1+irow+rows*icol])
     times = np.array(times)
     matrices = np.array(matrices)
 
@@ -228,9 +229,9 @@ def export_csv_matrix(filename, times, matrices):
     matrices = m_new.reshape((len(times), rows * cols)).transpose()
 
     values = np.concatenate((times.reshape((1, len(times))), matrices), axis=0)
-    column_names = ['times'] + [
-        'r{}c{}'.format(r + 1, c + 1) for c in range(cols) for r in range(rows)
-    ]
+    column_names = ['times'] + ['r{}c{}'.format(r+1, c+1)
+                                for c in range(cols)
+                                for r in range(rows)]
 
     export_csv(filename, column_names, values)
 
