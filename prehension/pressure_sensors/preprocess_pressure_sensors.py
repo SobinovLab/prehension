@@ -122,11 +122,9 @@ def fsxToTsm(filename, o_filename, trial_timestamps):
 
 def process_trial(trial, trial_timestamp):
     for ps_name in trial.raw_ps_filenames.keys():
-        fsxToTsm(
-            trial.raw_ps_filenames[ps_name],
-            trial.transformed_ps_filenames[ps_name],
-            trial_timestamp,
-        )
+        fsxToTsm(trial.raw_ps_filenames[ps_name],
+                 trial.transformed_ps_filenames[ps_name],
+                 trial_timestamp)
 
 
 def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
@@ -164,17 +162,12 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         if len(trials_sel) != 0 and trial.trial_number not in trials_sel:
             continue
         # Skip if missing input fsx files
-        if any(
-            [
-                not os.path.exists(trial.raw_ps_filenames[ps_name])
-                for ps_name in trial.raw_ps_filenames.keys()
-            ]
-        ):
+        if any([not os.path.exists(trial.raw_ps_filenames[ps_name])
+                for ps_name in trial.raw_ps_filenames.keys()]):
             continue
         # Skip if output files exist and overwrite==False
-        if not overwrite and all(
-            [os.path.exists(fpf) for fpf in trial.transformed_ps_filenames.values()]
-        ):
+        if not overwrite and all([os.path.exists(fpf)
+                                  for fpf in trial.transformed_ps_filenames.values()]):
             continue
         trials.append(trial)
 
@@ -210,33 +203,19 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             ws('\t{}'.format(failed_trial_report))
 
 
-def preprocess_pressure_sensors(
-    current_preset, trials_sel, temp, overwrite, processes, sessions_sel=[]
-):
-    """Creates meta information for a session.
-
-    Arguments:
-        server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all
-            unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all
-            unprocessed trials.
-        temp {str} --- Folder for local temporary storage.
-        overwrite {bool} --- Overwrites the created files if they exist.
-        processes {int} --- Number of parallel processes in the pool.
-        preset {dict} --- Preset dictionary.
+def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes,
+                                sessions_sel=[]):
+    """Preprocesses the pressure sensor data - outputs folder called transformed_sensors.
     """
 
     # Step 1: process experiment sessions
-    apply_to_sessions_helper(
-        current_preset['default_server'],
-        current_preset['processed_server'],
-        current_preset,
-        temp,
-        ppps_helper,
-        args=(trials_sel, overwrite, processes),
-        sessions=sessions_sel,
-    )
+    apply_to_sessions_helper(current_preset['default_server'],
+                             current_preset['processed_server'],
+                             current_preset,
+                             temp,
+                             ppps_helper,
+                             args=(trials_sel, overwrite, processes),
+                             sessions=sessions_sel)
 
     # Step 2: process training sessions
     if not current_preset['default_training_server']:
@@ -248,12 +227,10 @@ def preprocess_pressure_sensors(
         return
 
     # Step 2: Process training sessions
-    apply_to_sessions_helper(
-        current_preset['default_training_server'],
-        current_preset['processed_training_server'],
-        current_preset,
-        temp,
-        ppps_helper,
-        args=(trials_sel, overwrite, processes),
-        sessions=sessions_sel,
-    )
+    apply_to_sessions_helper(current_preset['default_training_server'],
+                             current_preset['processed_training_server'],
+                             current_preset,
+                             temp,
+                             ppps_helper,
+                             args=(trials_sel, overwrite, processes),
+                             sessions=sessions_sel)

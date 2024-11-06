@@ -68,16 +68,53 @@ if __name__ == "__main__":
     parser.add_argument('--make_trial_plots', action='store_true',
                         help='Makes more inspection figures.')
 
+    args = parser.parse_args(args=argv)
+
     # Plot logic note:
     # When running the first time if make_plots is not set
     # We only create the timepoints csv
     # If a future run specifies make_plots (timepoints.csv existing)
     # Then we want to create the timepoints folder and plots per row of csv
 
-    args = parser.parse_args(args=argv)
-
     start_time = time.time()
-    find_event_onsets(current_preset, args.sessions, args.trials, args.temp, args.overwrite,
-                      args.processes, args.make_plots, args.store_plots, args.make_trial_plots,
+
+    # Step 1: process experiment sessions
+    find_event_onsets(current_preset['default_server'],
+                      current_preset['processed_server'],
+                      args.sessions,
+                      args.trials,
+                      args.temp,
+                      args.overwrite,
+                      args.processes,
+                      args.make_plots,
+                      args.store_plots,
+                      args.make_trial_plots,
                       not args.dont_show_plots)
+
+    do_training = True
+
+    # Step 2: process training sessions
+    if not current_preset['default_training_server']:
+        ws('No raw training server specified in preset. Skipping...')
+        do_training = False
+
+    if not current_preset['processed_training_server']:
+        ws('No processed training server specified in preset. Skipping...')
+        do_training = False
+
+    if do_training:
+        # Step 2: Process training sessions
+        find_event_onsets(current_preset['default_training_server'],
+                          current_preset['processed_training_server'],
+                          args.sessions,
+                          args.trials,
+                          args.temp,
+                          args.overwrite,
+                          args.processes,
+                          args.make_plots,
+                          args.store_plots,
+                          args.make_trial_plots,
+                          not args.dont_show_plots)
+
+
     rs("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
