@@ -68,10 +68,10 @@ def main(preset, sessions, temp, overwrite, transfer=True):
 
     # Check both raw and processed servers exist
     if not os.path.exists(preset["default_server"]):
-        raise ValueError(f"Can\'t find default server: {preset["default_server"]}")
+        raise ValueError(f"Cannot find default server: {preset['default_server']}")
 
     if not os.path.exists(preset["processed_server"]):
-        raise ValueError(f"Can\'t find processed server: {preset["processed_server"]}")
+        raise ValueError(f"Cannot find processed server: {preset['processed_server']}")
 
     # Setup logging
     setup_logging(temp, sessions_dir=preset["processed_server"])
