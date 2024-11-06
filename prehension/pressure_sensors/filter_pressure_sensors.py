@@ -21,11 +21,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import scipy.ndimage
-import tqdm
 from reporting_pool import ReportingPool
 
 from ..tools import io
@@ -49,7 +47,7 @@ def transform_trial(trial):
     for ps_name in trial.transformed_ps_filenames.keys():
         # double check to be safe
         if os.path.exists(trial.transformed_ps_csv_filenames[ps_name]) and os.path.exists(
-            trial.transformed_ps_filenames[ps_name]):
+                trial.transformed_ps_filenames[ps_name]):
             os.remove(trial.transformed_ps_csv_filenames[ps_name])
 
     # filter the pressure sensor data
@@ -123,7 +121,7 @@ def fps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
 
     if len(p_args) > 0:
         pool = ReportingPool(transform_trial, p_args, processes=processes,
-                                report_on_change=True, track_failures=True)
+                             report_on_change=True, track_failures=True)
         pool.start()
 
         if len(pool.failed_i_jobs) > 0:
@@ -132,7 +130,7 @@ def fps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             for v in pool.failed_i_jobs:
                 ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                 failed_trial_reports.append('session {} trial {} error: {}'.format(
-                        session, trials[v].trial_number, pool.error_reports[v]))
+                    session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

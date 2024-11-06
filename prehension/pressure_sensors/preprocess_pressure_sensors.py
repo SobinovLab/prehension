@@ -194,7 +194,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
             for v in pool.failed_i_jobs:
                 ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
                 failed_trial_reports.append('session {} trial {} error: {}'.format(
-                        session, trials[v].trial_number, pool.error_reports[v]))
+                    session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()

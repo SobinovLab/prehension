@@ -48,12 +48,12 @@ def setup_logging(temp, sessions_dir=None):
     # Exectuting file name (for example: create_meta.py)
     arg_stump = ' '.join(sys.argv)
     exec_fname = os.path.splitext(os.path.split(sys.argv[0])[1])[0]
-    # exec_fname = os.path.splitext(os.path.split(sys.argv[0])[1])[0]
     timestamp = datetime.date.today().strftime('%Y.%m.%d')
     start_time = datetime.datetime.now()
     timestamp_long = start_time.strftime('%Y.%m.%d-%H:%M:%S')
     logging_filename = os.path.join(temp, f'{timestamp}_{exec_fname}_{random_hash}.log')
-    logging.basicConfig(filename=logging_filename, level=logging.INFO, force=True)
+
+    logging.basicConfig(filename=logging_filename, level=logging.DEBUG, force=True)
     logging.info('')
 
     # Define the cleanup action as upload to sessions_log dir
@@ -80,5 +80,38 @@ def rs(s):
 
 
 def ws(s):
-    warnings.warn(s, stacklevel=2)
+    warnings.warning(s, stacklevel=2)
     logging.warning(s)
+
+
+## alternative logging for the future switch:
+# will work with any print, warning, or Exception statements
+# @https://stackoverflow.com/a/39215961
+class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+    def __init__(self, logger, level):
+        self.logger = logger
+        self.level = level
+        self.linebuf = ''
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.level, line.rstrip())
+
+    def flush(self):
+        pass
+
+
+def everything_logger_start(filename):
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+        filename=filename,
+        filemode='a'
+    )
+    log = logging.getLogger('everything_logger')
+    sys.stdout = StreamToLogger(log, logging.INFO)
+    sys.stderr = StreamToLogger(log, logging.ERROR)
+    print('')

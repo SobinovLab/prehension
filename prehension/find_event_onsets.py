@@ -695,13 +695,9 @@ def find_return_to_init_position(pregrasp_movement_window_s,
 
 def find_finger_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
     finger_cols = [df[col_name].values[pre_grasp_idx] for col_name in FINGER_COLS]
-    finger_vel_cross_above, _ = find_velocity_threshold_crossing_time(times_pre,
-                                                                      finger_cols,
-                                                                      VELOCITY_THRESH_FINGER,
-                                                                      ax,
-                                                                      "finger onset",
-                                                                      FINGER_COLS,
-                                                                      from_minima=True)
+    finger_vel_cross_above, _ = find_velocity_threshold_crossing_time(
+        times_pre, finger_cols, VELOCITY_THRESH_FINGER, ax, "finger onset", FINGER_COLS,
+        from_minima=True)
 
     if len(finger_vel_cross_above) > 0:
         timepoints_d["finger_onset"] = finger_vel_cross_above[0][0]
@@ -713,13 +709,9 @@ def find_finger_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
 
 def find_wrist_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
     wrist_cols = [df[col_name].values[pre_grasp_idx] for col_name in WRIST_COLS]
-    wrist_vel_cross_above, _ = find_velocity_threshold_crossing_time(times_pre,
-                                                                     wrist_cols,
-                                                                     VELOCTIY_THRESH_WRIST,
-                                                                     ax,
-                                                                     "wrist onset",
-                                                                     WRIST_COLS,
-                                                                     from_minima=True)
+    wrist_vel_cross_above, _ = find_velocity_threshold_crossing_time(
+        times_pre, wrist_cols, VELOCTIY_THRESH_WRIST, ax, "wrist onset", WRIST_COLS,
+        from_minima=True)
 
     if len(wrist_vel_cross_above) > 0:
         timepoints_d["wrist_onset"] = wrist_vel_cross_above[0][0]
@@ -731,12 +723,9 @@ def find_wrist_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
 
 def find_elbow_onset(timepoints_d, df, pre_grasp_i, times_pre, ax=None):
     el_cols = [df[col_name].values[pre_grasp_i] for col_name in ELBOW_COLS]
-    elbow_vel_cross_above, _ = find_velocity_threshold_crossing_time(times_pre, el_cols,
-                                                                     VELOCITY_THRESH_ELBOW,
-                                                                     ax,
-                                                                     "elbow onset",
-                                                                     ELBOW_COLS,
-                                                                     from_minima=True)
+    elbow_vel_cross_above, _ = find_velocity_threshold_crossing_time(
+        times_pre, el_cols, VELOCITY_THRESH_ELBOW, ax, "elbow onset", ELBOW_COLS,
+            from_minima=True)
 
     if len(elbow_vel_cross_above) > 0:
         timepoints_d["elbow_onset"] = elbow_vel_cross_above[0][0]
@@ -752,13 +741,9 @@ def find_shoulder_onset(timepoints_d, df, pre_grasp_idx, times_pre, ax=None):
     if not np.all([len(col) == len(times_pre) for col in sh_cols]):
         raise ValueError("Length of joint angle data is not equal to the pre grasp time data")
 
-    shoulder_vel_cross_above, _ = find_velocity_threshold_crossing_time(times_pre,
-                                                                        sh_cols,
-                                                                        VELOCITY_THRESH_SHOULDER,
-                                                                        ax,
-                                                                        "shoulder onset",
-                                                                        SHOULDER_COLS,
-                                                                        from_minima=True)
+    shoulder_vel_cross_above, _ = find_velocity_threshold_crossing_time(
+        times_pre, sh_cols, VELOCITY_THRESH_SHOULDER, ax, "shoulder onset", SHOULDER_COLS,
+        from_minima=True)
 
     timepoints_d["shoulder_onset"] = (shoulder_vel_cross_above[0][0]
                                       if len(shoulder_vel_cross_above) > 0 else np.nan)
@@ -805,11 +790,9 @@ def find_trial_timepoints(trial, make_trial_plots, pregrasp_movement_window_s=1,
     plot_addons["normed_force_data"] = tsmSumsNormed
     plot_addons["time_ax"] = time_ax
 
-    grasp_onsets, grasp_durations, grasp_pairs = find_grasp_events(time_ax,
-                                                                   tsmSumsNormed,
-                                                                   ONSET_FORCE_THRESH,
-                                                                   OFFSET_FORCE_THRESH,
-                                                                   min_grasp_time_s=MIN_GRASP_TIME_S)
+    grasp_onsets, grasp_durations, grasp_pairs = find_grasp_events(
+        time_ax, tsmSumsNormed, ONSET_FORCE_THRESH, OFFSET_FORCE_THRESH,
+        min_grasp_time_s=MIN_GRASP_TIME_S)
 
     plot_addons["grasp_pairs"] = grasp_pairs
 
@@ -853,8 +836,9 @@ def find_trial_timepoints(trial, make_trial_plots, pregrasp_movement_window_s=1,
         debug_fig.suptitle(f"Trial {trial.trial_number} debug plot")
         axs[-1].set_xlabel("Seconds since TTL")
 
-    pre_grasp_idx = np.where((times < timepoints_d["first_grasp_start"])
-                             & (times > timepoints_d["first_grasp_start"] - pregrasp_movement_window_s))
+    pre_grasp_idx = np.where(
+        (times < timepoints_d["first_grasp_start"]) &
+        (times > timepoints_d["first_grasp_start"] - pregrasp_movement_window_s))
     times_pre = df["time"].values[pre_grasp_idx]
 
     if len(times_pre) < 1:
@@ -873,13 +857,9 @@ def find_trial_timepoints(trial, make_trial_plots, pregrasp_movement_window_s=1,
     find_finger_onset(timepoints_d, df, pre_grasp_idx, times_pre, axs[3])
 
     # Return to init position.
-    find_return_to_init_position(pregrasp_movement_window_s,
-                                 postgrasp_return_window_s,
-                                 timepoints_d,
-                                 last_grasp_end,
-                                 df,
-                                 times,
-                                 axs[4])
+    find_return_to_init_position(
+        pregrasp_movement_window_s, postgrasp_return_window_s, timepoints_d, last_grasp_end, df,
+        times, axs[4])
 
     # Max grasp aperture
     MGA_window = (timepoints_d["first_grasp_start"] - 0.5, timepoints_d["first_grasp_start"])
@@ -939,7 +919,7 @@ def create_plot_from_dictionary(timepoints_d,
         clr = cmap(i / len(sub_d))
         ax.axvline(x=v, linestyle="--", label=k, color=clr)
         ax.annotate(k, [v, 0.5 + 0.5 * (len(sub_d) - i) / len(sub_d)], color=clr,
-                     ha="left", va="top")
+                    ha="left", va="top")
 
     if normed_force_data is not None and time_ax is not None:
         ax.plot(time_ax, normed_force_data, label="Normalized force data", color="blue")
@@ -1195,16 +1175,15 @@ def find_event_onsets(raw_dir,
 
                 debug_fig = debug_figs[trial_number] if trial_number in plot_kwargs.keys() else None
 
-                fig = create_plot_from_dictionary(row_d,
-                                                  meta_session.find_trial(msession,
-                                                                        trial_number),
-                                                 on_off_thresholds=None,
-                                                 **plot_kwarg)
+                fig = create_plot_from_dictionary(
+                    row_d, meta_session.find_trial(msession, trial_number),
+                    on_off_thresholds=None,
+                    **plot_kwarg)
 
                 if store_plots:
                     fig.savefig(
                         os.path.join(mstruct["timepoint_plots_dir"],
-                                            f"EventsPlot_{trial_number}.png"))
+                                     f"EventsPlot_{trial_number}.png"))
                     if debug_fig is not None:
                         debug_fig.savefig(os.path.join(mstruct["timepoint_plots_dir"],
                                           f"DebugPlot_{trial_number}.png"))

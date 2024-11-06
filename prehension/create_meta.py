@@ -26,7 +26,6 @@ import math
 import os
 import re
 import sys
-import traceback
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -34,7 +33,6 @@ import tqdm
 
 from .tools.constants import ORIGINAL_OPENSIM_MODEL, CALIBRATIONS_DIR
 from .tools import io
-from .tools import logs
 from .tools.logs import rs, ws
 
 from .tools.session_management import apply_to_sessions_helper
@@ -100,9 +98,8 @@ def import_logs(dirname, mstruct):
     # check for duplication from logs
     trial_nums = sy_data[:, sy_column_names.index('trial_num')].astype(int)
     if len(set(trial_nums)) != len(trial_nums):
-        ws(
-            'Auto logs in {} have duplicating trials!'.format(dirname)
-        )  # NOT FATAL BECAUSE WE HANDLE LATER
+        ws('Auto logs in {} have duplicating trials!'.format(dirname))
+        # NOT FATAL BECAUSE WE HANDLE LATER
         # raise ValueError('Auto logs in {} have duplicating trials!'.format(dirname))
 
     # cameras data
@@ -142,7 +139,8 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
                 if trial in last_occurrence:
                     # Store the current index as a duplicate index for this trial number
                     duplicate_indices.setdefault(trial, []).append(index)
-                # Add entry to dict where key is the trial in question and value is the last valid index
+                # Add entry to dict where key is the trial in question and value is the last valid
+                # index
                 last_occurrence[trial] = index
 
             # Include if we want more verbosity at some point
@@ -150,7 +148,8 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
             #     ws(f"Excluding duplicate trials from {log_label}:
             # \n{trial}, Duplicate indices: {indices}")
 
-            # Use list comprehension to filter rows based on the last occurrence of each trial number
+            # Use list comprehension to filter rows based on the last occurrence of each trial
+            # number
             filtered_data_indices = [last_occurrence[trial] for trial in np.unique(trials)]
 
             if len(filtered_data_indices) != len(data):
@@ -388,57 +387,68 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
         raise ValueError('Session {} does not have an auto log.'.format(session))
 
     # generate meta session
-    if (overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_session.csv'))
-        or not os.path.exists(os.path.join(processed_ss, 'meta_object.csv'))):
+    if (overwrite or
+            not os.path.exists(os.path.join(processed_ss, 'meta_session.csv')) or
+            not os.path.exists(os.path.join(processed_ss, 'meta_object.csv'))):
         (sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
-        ) = import_logs(raw_ss, mstruct)
+         ) = import_logs(raw_ss, mstruct)
 
         # take subset of data that exists in all logs
         # now all data structure rows refer to the same trials in the same order
         # (nb) cannot merge them together because they have duplicate columns
         common_trials, sy_data, sy_ja_data, sy_ps_data = reorder_to_common_trials(
-            sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data)
+            sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names,
+            sy_ps_data)
 
         # find successful ones
         rewarded_trials = (sy_data[:, sy_column_names.index('reward')] > 0.0).astype(int)
 
         # synchronization period length
-        sync_period_length = (sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')] -
+        sync_period_length = (
+            sy_data[:, sy_column_names.index('log_sent_start_sync_messages(ms)')] -
             sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
 
         # NS Added:
         # NS: get the time offset to object in position time
-        ttl_to_obj_end_pos = (sy_data[:, sy_column_names.index('object_in_position_time(ms)')] -
+        ttl_to_obj_end_pos = (
+            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] -
             sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
-        ttl_to_obj_end_pos[sy_data[:, sy_column_names.index('object_in_position_time(ms)')] == 0
-                          ] = math.nan
+        ttl_to_obj_end_pos[
+            sy_data[:, sy_column_names.index('object_in_position_time(ms)')] == 0
+        ] = math.nan
 
         # NS: get the time offset to beep (go cue)
-        ttl_to_cue = (sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
-        ttl_to_cue[sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] == 0
-                          ] = math.nan
+        ttl_to_cue = (
+            sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] -
+            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+        ttl_to_cue[
+            sy_data[:, sy_column_names.index('log_started_monitoring_ps(ms)')] == 0
+        ] = math.nan
 
         # NS: get the time offset to reach
-        ttl_to_reach = (sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')]
-                        - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+        ttl_to_reach = (
+            sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')] -
+            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
         ttl_to_reach[sy_data[:, sy_column_names.index('arm_liftoff_time(ms)')] == 0] = math.nan
 
         # calculate time offsets (in seconds)
         # values on unsuccessful trials are undefined
         # get the time offset to grasp
-        ttl_to_success_grasp = (sy_data[:, sy_column_names.index('started_touching_time(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+        ttl_to_success_grasp = (
+            sy_data[:, sy_column_names.index('started_touching_time(ms)')] -
+            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
         ttl_to_success_grasp[np.logical_not(rewarded_trials.astype(bool))] = math.nan
 
         # NS: get the time offset to end trial/reward
-        ttl_to_reward = (sy_data[:, sy_column_names.index('trial_end_time(ms)')]
-            - sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+        ttl_to_reward = (
+            sy_data[:, sy_column_names.index('trial_end_time(ms)')] -
+            sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
 
         # get camera time offset from TTL to start
         if len(sy_ja_data) > 0:
-            ja_ttl_to_rec_start = (sy_ja_data[:, sy_ja_column_names.index('startedRecording(ms)')]
-                - sy_ja_data[:, sy_ja_column_names.index('syncTrialStartTime(ms)')]) / 1000
+            ja_ttl_to_rec_start = (
+                sy_ja_data[:, sy_ja_column_names.index('startedRecording(ms)')] -
+                sy_ja_data[:, sy_ja_column_names.index('syncTrialStartTime(ms)')]) / 1000
         else:
             ja_ttl_to_rec_start = [math.nan] * len(ttl_to_reward)
 
