@@ -28,7 +28,6 @@ from reporting_pool import ReportingPool
 
 from ..tools import io
 from .. import meta_session
-from ..tools import logs
 from ..tools.logs import rs, ws
 from ..tools.session_management import apply_to_sessions_helper
 

@@ -31,7 +31,6 @@ from scipy.signal import argrelmin
 
 from . import meta_session
 from .tools import logs
-from .tools import io
 from .tools.logs import rs, ws
 from .tools.forces import get_summed_force_data
 
@@ -327,10 +326,9 @@ def find_velocity_threshold_crossing_time(time_ax, ja_columns, thresh_dec, ax=No
                 break
 
         if should_plot:
-            ax.scatter(time_ax_vel[minima_indices],
-                        ja_abs_normed_vels_sum[minima_indices],
-                        label="Local mins",
-                        marker="x")
+            ax.scatter(
+                time_ax_vel[minima_indices], ja_abs_normed_vels_sum[minima_indices],
+                label="Local mins", marker="x")
             ax.axvline(x=time_ax_vel[ll_idx], linestyle="--")
 
         # Now shape time axis and joint angle velocities accordingly
@@ -553,7 +551,7 @@ def find_grasp_events(time_ax,
         raise ValueError("The on-off grasp events are of different lengths")
 
     grasp_pairs = [(grasp_cross_above[i], grasp_cross_below[i])
-                    for i in range(len(grasp_cross_above))]
+                   for i in range(len(grasp_cross_above))]
 
     # 'Merge' two grasp events if they are close together
     if merge_gaps_less_than:
@@ -725,7 +723,7 @@ def find_elbow_onset(timepoints_d, df, pre_grasp_i, times_pre, ax=None):
     el_cols = [df[col_name].values[pre_grasp_i] for col_name in ELBOW_COLS]
     elbow_vel_cross_above, _ = find_velocity_threshold_crossing_time(
         times_pre, el_cols, VELOCITY_THRESH_ELBOW, ax, "elbow onset", ELBOW_COLS,
-            from_minima=True)
+        from_minima=True)
 
     if len(elbow_vel_cross_above) > 0:
         timepoints_d["elbow_onset"] = elbow_vel_cross_above[0][0]
@@ -1081,8 +1079,8 @@ def find_event_onsets(raw_dir,
                     for v in pool.failed_i_jobs:
                         ws("\t{}: {}".format(trials[v].trial_number, pool.error_reports[v]))
 
-                        msg = "session {} trial {} error: {}".format(session, trials[v].trial_number,
-                                                                     pool.error_reports[v])
+                        msg = "session {} trial {} error: {}".format(
+                            session, trials[v].trial_number, pool.error_reports[v])
                         failed_trial_reports.append(msg)
 
                 # Extract plot kwargs

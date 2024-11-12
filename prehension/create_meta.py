@@ -29,7 +29,6 @@ import sys
 import xml.etree.ElementTree as ET
 
 import numpy as np
-import tqdm
 
 from .tools.constants import ORIGINAL_OPENSIM_MODEL, CALIBRATIONS_DIR
 from .tools import io

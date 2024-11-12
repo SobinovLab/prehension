@@ -47,7 +47,7 @@ if __name__ == '__main__':
         '--relocate',
         action='store_true',
         help=('Copies extrinsic calibration from "cameras" folder into "calibration/extrinsic"'
-            ' directory.'))
+              ' directory.'))
             
     parser.add_argument('--run_extrinsic_calibration',
                         action='store_true',

@@ -36,13 +36,6 @@ if __name__ == '__main__':
     cmd_args.add_default_kwarguments(parser, {'server': current_preset['default_server']})
     cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
 
-    # custom
-    parser.add_argument('--dont_export_roms',
-                        dest='export_roms',
-                        action='store_false',
-                        help=('Exports range of motion data from OpenSim model into a convenient '
-                              'CSV meta file. If this flag is provided, meta_dof is not created.'))
-
     args = parser.parse_args(args=argv)
     start_time = time.time()
 

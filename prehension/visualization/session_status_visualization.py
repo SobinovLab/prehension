@@ -29,11 +29,11 @@ import shutil
 
 
 EXPECTED_PLOT_NAMES = ['AvgCondSuccessMatrix.png',
-                        'CondSuccessMatrix.png',
-                        'ForceTrace_from_success_grasp_start.png',
-                        'ForceTrace_from_ttl_to_reward.png',
-                        'Performance.png',
-                        'PerformanceLast10Days.png']
+                       'CondSuccessMatrix.png',
+                       'ForceTrace_from_success_grasp_start.png',
+                       'ForceTrace_from_ttl_to_reward.png',
+                       'Performance.png',
+                       'PerformanceLast10Days.png']
 
 
 def display_session_info(experimental_server_wrappers, training_server_wrappers, clean, last_n):
@@ -58,7 +58,8 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
         return f"{behavior_symbol}{sensors_symbol}"
 
-    # Function to check if specific directories (filtered_sensors, prehension_plots, transformed_sensors) exist in sw.proc_ss
+    # Function to check if specific directories (filtered_sensors, prehension_plots,
+    # transformed_sensors) exist in sw.proc_ss
     def check_proc_folders(proc_path):
         filtered_sensors = os.path.exists(os.path.join(proc_path, "filtered_sensors"))
 
@@ -122,17 +123,18 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
     # Helper function to format the table rows
 
-    def format_row(raw_status, folder_status_raw, proc_status, folder_status_proc, timepoints_status,
-                   meta_status, can_delete):
+    def format_row(raw_status, folder_status_raw, proc_status, folder_status_proc,
+                   timepoints_status, meta_status, can_delete):
 
-        return (f"{raw_status:<25} {folder_status_raw:<40} {proc_status:<25} {folder_status_proc:<25}"
-            f"{timepoints_status:<7} {meta_status:<7} {can_delete:<7}")
+        return (f"{raw_status:<25} {folder_status_raw:<40} {proc_status:<25}"
+                f" {folder_status_proc:<25}"
+                f"{timepoints_status:<7} {meta_status:<7} {can_delete:<7}")
 
     # Print a nicely formatted table for experimental sessions
     def print_header(header_text):
         print(f"{Fore.CYAN}~~~~~~~~~~~ {header_text} ~~~~~~~~~~~{Style.RESET_ALL}")
         print(f"{'raw session':<16} {'(behavior/sensors)':<21} {'processed session':<22} "
-            f"{'(filtered/plots/transformed/timepoints/meta)':<20} {'cleanup status':<7}")
+              f"{'(filtered/plots/transformed/timepoints/meta)':<20} {'cleanup status':<7}")
         print("-" * 135)
 
     print_header("EXPERIMENTAL SESSIONS")

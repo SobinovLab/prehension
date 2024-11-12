@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-import datetime
 import re
 import math
 import shutil
@@ -115,8 +114,9 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
         for i, rot in enumerate(unique_rots):
             row = []
             for j, ap in enumerate(unique_aps):
-                trials_rot_ap_match = [tr for tr in sub_trial_list if tr.aperture == ap
-                                        and tr.rotation == rot]
+                trials_rot_ap_match = [
+                    tr for tr in sub_trial_list
+                    if tr.aperture == ap and tr.rotation == rot]
                 if trials_rot_ap_match:
                     pct = sum([tr.success for tr in trials_rot_ap_match]) / len(trials_rot_ap_match)
                     row.append(pct)
@@ -136,8 +136,8 @@ def create_heatmap_from_trials_list(tr_list, cmap, max_discrete_conds=9, bin_wid
         ax.set_yticks(np.arange(len(unique_rots)))
         ax.set_yticklabels(unique_rots)
         title = (f"Force Range: {force_target[0]}-{force_target[1]} N"
-                if use_force_bins
-                else f"Force: {force_target} N")
+                 if use_force_bins
+                 else f"Force: {force_target} N")
         ax.set_title(title)
         ax.set_ylabel("Aperture (mm)")
         ax.set_xlabel("Rotation (deg)")
@@ -219,13 +219,13 @@ class SessionGroup:
 
             if sessions:
                 if sw.sess_name in sessions:
-                    create_heatmap_from_trials_list(all_trials, "Greens",
-                                                    savename=os.path.join(sw.results_dir,
-                                                     "AvgCondSuccessMatrix.png"))
+                    create_heatmap_from_trials_list(
+                        all_trials, "Greens",
+                        savename=os.path.join(sw.results_dir, "AvgCondSuccessMatrix.png"))
             else:
-                create_heatmap_from_trials_list(all_trials, "Greens",
-                                                savename=os.path.join(sw.results_dir,
-                                                "AvgCondSuccessMatrix.png"))
+                create_heatmap_from_trials_list(
+                    all_trials, "Greens",
+                    savename=os.path.join(sw.results_dir, "AvgCondSuccessMatrix.png"))
 
     @staticmethod
     def plot_performace_fig(date_success_dict, last_n_days_label=None, include_last_tick=False,
@@ -332,12 +332,12 @@ class SessionGroup:
 
         date_l_trial_success_dict = {}
 
-        for datetime in session_wrappers_by_date:
+        for dt in session_wrappers_by_date:
             trial_success_list_per_date = []
-            for sw in session_wrappers_by_date[datetime]:
+            for sw in session_wrappers_by_date[dt]:
                 trial_success_list_per_date += [tr.success for tr in sw.msession]
 
-            date_l_trial_success_dict[datetime] = trial_success_list_per_date
+            date_l_trial_success_dict[dt] = trial_success_list_per_date
 
         # Now loop through session wrappers and plot
         for sw in tqdm(self.session_wrappers, desc="Plotting Performance"):
@@ -348,12 +348,13 @@ class SessionGroup:
             date_success_dict_total = {dt: date_l_trial_success_dict[dt] for dt in dates_total}
             date_success_dict_10_day = {dt: date_l_trial_success_dict[dt] for dt in dates_10_day}
 
-            SessionGroup.plot_performace_fig(date_success_dict_total, savename=os.path.join(
-                                             sw.results_dir, "Performance.png"))
-            SessionGroup.plot_performace_fig(date_success_dict_10_day, last_n_days_label="10",
-                                             include_last_tick=True, annotate_dates=True,
-                                             savename=os.path.join(sw.results_dir,
-                                             "PerformanceLast10Days.png"))
+            SessionGroup.plot_performace_fig(
+                date_success_dict_total,
+                savename=os.path.join(sw.results_dir, "Performance.png"))
+            SessionGroup.plot_performace_fig(
+                date_success_dict_10_day,
+                last_n_days_label="10", include_last_tick=True, annotate_dates=True,
+                savename=os.path.join(sw.results_dir, "PerformanceLast10Days.png"))
 
 
 class SessionWrapper:
@@ -365,11 +366,11 @@ class SessionWrapper:
     """
 
     EXPECTED_PLOT_NAMES = ["AvgCondSuccessMatrix.png",
-                            "CondSuccessMatrix.png",
-                            "ForceTrace_from_success_grasp_start.png",
-                            "ForceTrace_from_ttl_to_reward.png",
-                            "Performance.png",
-                            "PerformanceLast10Days.png",]
+                           "CondSuccessMatrix.png",
+                           "ForceTrace_from_success_grasp_start.png",
+                           "ForceTrace_from_ttl_to_reward.png",
+                           "Performance.png",
+                           "PerformanceLast10Days.png",]
 
     def __init__(self, raw_ss, proc_ss):
         self.raw_ss = raw_ss
@@ -398,7 +399,7 @@ class SessionWrapper:
             self.has_meta = True
             if len(self.mstruct["auto_log"]) > 0:
                 self.log_full = self.mstruct["auto_log"][0]
-        except meta_session.IncompleteMetaError as _:
+        except meta_session.IncompleteMetaError:
             # ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)},
             # skipping')
             return
@@ -574,16 +575,16 @@ class SessionWrapper:
         return (times, forces_summed)
 
     def plot_force_traces(
-        self,
-        timepoints_df,
-        savedir,
-        ref_events=[],
-        max_discrete_conds=9,
-        time_bin_width=0.02,
-        pre_event_pad=1,
-        post_event_pad=1,
-        processes=os.cpu_count() - 1,
-        only_successful_trials=True):
+            self,
+            timepoints_df,
+            savedir,
+            ref_events=[],
+            max_discrete_conds=9,
+            time_bin_width=0.02,
+            pre_event_pad=1,
+            post_event_pad=1,
+            processes=os.cpu_count() - 1,
+            only_successful_trials=True):
         # 1. get raw tsm data (times and forces) for each trial
         # feed trials from self.msession
         trials_flattened = self.msession[:]

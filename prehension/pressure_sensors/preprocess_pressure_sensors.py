@@ -29,11 +29,9 @@ import clr  # pip install pythonnet (module is clr-loader)
 import numpy as np
 import pandas as pd
 import reporting_pool
-import tqdm
 import timed_sparse_matrix as tsm
 
 from .. import meta_session
-from ..tools import logs
 from ..tools.logs import rs, ws
 from ..tools.session_management import apply_to_sessions_helper
 

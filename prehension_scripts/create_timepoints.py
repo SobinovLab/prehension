@@ -26,7 +26,7 @@ import time
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.find_event_onsets import find_event_onsets
-from prehension.tools.logs import rs
+from prehension.tools.logs import rs, ws
 
 # ============================================ Notes ============================================= #
 # Lint with: py -3.7 -m pycodestyle create_timepoints.py --max-line-length 100 --ignore E402

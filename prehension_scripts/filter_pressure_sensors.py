@@ -1,7 +1,7 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Creates meta-information for sessions.
+Filters pressure sensors to remove noise.
 
 Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension
@@ -42,7 +42,7 @@ if __name__ == "__main__":
                         dest="export_roms",
                         action="store_false",
                         help=("Exports range of motion data from OpenSim model into a convenient "
-                            " CSV meta file. If this flag is provided, meta_dof is not created."))
+                              " CSV meta file. If this flag is provided, meta_dof is not created."))
 
     args = parser.parse_args(args=argv)
     start_time = time.time()

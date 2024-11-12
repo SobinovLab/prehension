@@ -24,11 +24,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import sys
 import argparse
 
+from colorama import init
+
 from prehension.visualization import session_status_visualization
 from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.session_management import fetch_server_session_dirs
 from prehension.visualization.session_data_visualization import SessionWrapper
-from colorama import init
 
 
 preset_names = ['daiquiri_right_hemisphere', 'pimms_left_hemisphere_training_k1',
