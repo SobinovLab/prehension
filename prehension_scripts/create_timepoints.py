@@ -26,10 +26,10 @@ import time
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.find_event_onsets import find_event_onsets
-from prehension.tools.logs import rs
+from prehension.tools.logs import rs, ws
 
 # ============================================ Notes ============================================= #
-# Lint with: py -3.7 -m pycodestyle find_event_onsets.py --max-line-length 100 --ignore E402
+# Lint with: py -3.7 -m pycodestyle create_timepoints.py --max-line-length 100 --ignore E402
 # - trial_id - same as meta_session
 # - shoulder_movement_onset - onset of movement of shoulder joints
 # - elbow_movement_onset
@@ -48,48 +48,27 @@ from prehension.tools.logs import rs
 #     (shoulder and elbow kinematics close to beginning)
 # - (boolean) regrasp - should be 1 if the force drops to 0 at any
 #     point between grasp and release.
-
-# =========================================== Examples =========================================== #
-# Example call:
-# py find_event_onsets.py cr_test --server "C:\PrehensionDataLocal\MojitoRightHemisphere"
-# --sessions 2022_04_19_Set1 --overwrite --processes 1
-
-# Server:
-# py find_event_onsets.py cr_test --server
-# "S:\ProjectFolders\Prehension\Data\MojitoRightHemisphere\sessions"
-#  --sessions 2022_04_27_Set1 --trials 34 --overwrite
-
-# py find_event_onsets.py cr_test --server
-#  "S:\ProjectFolders\Prehension\Data\MojitoRightHemisphere\sessions"
-#  --sessions 2022_04_27_Set1 --overwrite --processes 1 --make_plots
+# ================================================================================================ #
 
 
 if __name__ == "__main__":
     # Add arguments
     preset_name, current_preset, argv = preset.process_args_for_preset()
 
-    parser = argparse.ArgumentParser(
-        description=("Outputs a csv of movement onset times for each session")
-    )
+    parser = argparse.ArgumentParser(description=("Outputs a csv of movement onset times "
+                                                  " for each session"))
 
-    cmd_args.add_default_kwarguments(
-        parser, {"server": current_preset["default_server"]})
-    cmd_args.add_default_arguments(
-        parser, ("sessions", "trials", "temp", "overwrite", "processes", "make_plots")
-    )
+    cmd_args.add_default_kwarguments(parser, {"server": current_preset["default_server"]})
+    cmd_args.add_default_arguments(parser, ("sessions", "trials", "temp", "overwrite", "processes",
+                                            "make_plots"))
 
-    parser.add_argument(
-        "--store_plots",
-        action='store_true',
-        help="Save plots to disk.")
-    parser.add_argument(
-        "--dont_show_plots",
-        action='store_true',
-        help="Does not show the generated plots.")
-    parser.add_argument(
-        '--make_trial_plots',
-        action='store_true',
-        help='Makes more inspection figures.')
+    parser.add_argument("--store_plots", action='store_true', help="Save plots to disk.")
+    parser.add_argument("--dont_show_plots", action='store_true',
+                        help="Does not show the generated plots.")
+    parser.add_argument('--make_trial_plots', action='store_true',
+                        help='Makes more inspection figures.')
+
+    args = parser.parse_args(args=argv)
 
     # Plot logic note:
     # When running the first time if make_plots is not set
@@ -97,20 +76,45 @@ if __name__ == "__main__":
     # If a future run specifies make_plots (timepoints.csv existing)
     # Then we want to create the timepoints folder and plots per row of csv
 
-    args = parser.parse_args(args=argv)
-
     start_time = time.time()
-    find_event_onsets(
-        args.server,
-        args.sessions,
-        args.trials,
-        args.temp,
-        args.overwrite,
-        args.processes,
-        args.make_plots,
-        args.store_plots,
-        args.make_trial_plots,
-        not args.dont_show_plots,
-        current_preset
-    )
+
+    # Step 1: process experiment sessions
+    find_event_onsets(current_preset['default_server'],
+                      current_preset['processed_server'],
+                      args.sessions,
+                      args.trials,
+                      args.temp,
+                      args.overwrite,
+                      args.processes,
+                      args.make_plots,
+                      args.store_plots,
+                      args.make_trial_plots,
+                      not args.dont_show_plots)
+
+    do_training = True
+
+    # Step 2: process training sessions
+    if not current_preset['default_training_server']:
+        ws('No raw training server specified in preset. Skipping...')
+        do_training = False
+
+    if not current_preset['processed_training_server']:
+        ws('No processed training server specified in preset. Skipping...')
+        do_training = False
+
+    if do_training:
+        # Step 2: Process training sessions
+        find_event_onsets(current_preset['default_training_server'],
+                          current_preset['processed_training_server'],
+                          args.sessions,
+                          args.trials,
+                          args.temp,
+                          args.overwrite,
+                          args.processes,
+                          args.make_plots,
+                          args.store_plots,
+                          args.make_trial_plots,
+                          not args.dont_show_plots)
+
+
     rs("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

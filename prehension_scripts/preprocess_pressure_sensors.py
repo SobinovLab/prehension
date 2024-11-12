@@ -1,9 +1,9 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Exporting digit forces from the matched contacts and the pressure sensor recordings.
+Preprocess pressure sensors data.
 
-Copyright (C) 2019-2024 Anton Sobinov
+Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension
 
 This program is free software: you can redistribute it and/or modify
@@ -19,30 +19,27 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import argparse
 import datetime
 import time
 
-import matplotlib.pyplot as plt
-
 from prehension import preset
-from prehension import tools
-from prehension.matching.export_digit_forces import export_digit_forces
+from prehension.tools import cmd_args
+from prehension.pressure_sensors import preprocess_pressure_sensors as ppps
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
-    parser = argparse.ArgumentParser(
-        description=("Compare manually-labeled to the automatically-labeled forces"
-                     " using sensor masks."))
-    tools.add_default_kwarguments(parser, {"server": current_preset["default_server"]})
-    tools.add_default_arguments(parser, ("sessions", "trials", "temp", "overwrite", "processes"))
+    parser = argparse.ArgumentParser(description='Creates meta information for a session.')
+    cmd_args.add_default_kwarguments(parser, {'server': current_preset['default_server']})
+    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
 
     args = parser.parse_args(args=argv)
-
     start_time = time.time()
-    export_digit_forces(args.server, args.sessions, args.trials, args.temp, args.overwrite,
-                        args.processes)
-    print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
-    plt.show()
+    ppps.preprocess_pressure_sensors(current_preset, args.trials, args.temp, args.overwrite,
+                                     args.processes, sessions_sel=args.sessions)
+
+    print('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))

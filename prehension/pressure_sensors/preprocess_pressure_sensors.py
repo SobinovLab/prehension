@@ -19,6 +19,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import ctypes
 import inspect
 import os
@@ -28,15 +29,13 @@ import clr  # pip install pythonnet (module is clr-loader)
 import numpy as np
 import pandas as pd
 import reporting_pool
-import tqdm
 import timed_sparse_matrix as tsm
 
 from .. import meta_session
-from ..tools import logs
 from ..tools.logs import rs, ws
+from ..tools.session_management import apply_to_sessions_helper
 
-currentdir = os.path.dirname(os.path.abspath(
-    inspect.getfile(inspect.currentframe())))
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 dll_dir = os.path.join(currentdir, 'TekDLL')
 sys.path.append(dll_dir)
@@ -122,109 +121,114 @@ def fsxToTsm(filename, o_filename, trial_timestamps):
 def process_trial(trial, trial_timestamp):
     for ps_name in trial.raw_ps_filenames.keys():
         fsxToTsm(trial.raw_ps_filenames[ps_name],
-                 trial.transformed_ps_filenames[ps_name], trial_timestamp)
+                 trial.transformed_ps_filenames[ps_name],
+                 trial_timestamp)
 
 
-def preprocess_pressure_sensors(server, sessions, trials_sel, temp, overwrite, processes, preset):
-    """Creates meta information for a session.
+def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
+    """preprocess_pressure_sensors helper function. Runs preprocess_pressure_sensors on single
+    session.
 
-    Arguments:
-        server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all
-            unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all
-            unprocessed trials.
-        temp {str} --- Folder for local temporary storage.
-        overwrite {bool} --- Overwrites the created files if they exist.
-        processes {int} --- Number of parallel processes in the pool.
-        preset {dict} --- Preset dictionary.
+    Args:
+        raw_ss (dir): raw session folder - used for loading meta
+        proc_ss (dir): processed session folder - used for loading meta
+        _ (dict): Placeholder for preset, unused but passed by apply_to_sessions
+        session (str): the session name (e.g. '2022_03_08_Set1
+        trials_sel (list[int]): the selected trial numbers, defaults to [] (all trials)
+        overwrite (bool): whether to overwrite existing files
+        processes (int): number of processes in the pool
     """
-    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
-    if not os.path.exists(server):
-        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+    try:
+        mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
+    except Exception as e:
+        ws('Could not load meta data from session {}, skipping.'.format(session))
+        ws('Error message: {}'.format(e))
+        return
 
-    if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+    output_dir = mstruct['transformed_ps_dir']
+    trial_log_filename = mstruct['ps_log_filename']
+    os.makedirs(output_dir, exist_ok=True)
 
-    if len(trials_sel) > 0 and len(sessions) > 1:
-        ws('A subset of trials was selected, only the first session will be used.')
-        sessions = sessions[:1]
+    if not os.path.isfile(trial_log_filename):
+        ws(f"Trial log {trial_log_filename} file for session {raw_ss} does not exist")
+        return
 
-    # sort
-    sessions.sort()
-    rs('Found {} sessions: {}'.format(len(sessions), ', '.join(sessions)))
+    # accumulate trials
+    trials = []
+    for trial in msession:
+        if len(trials_sel) != 0 and trial.trial_number not in trials_sel:
+            continue
+        # Skip if missing input fsx files
+        if any([not os.path.exists(trial.raw_ps_filenames[ps_name])
+                for ps_name in trial.raw_ps_filenames.keys()]):
+            continue
+        # Skip if output files exist and overwrite==False
+        if not overwrite and all([os.path.exists(fpf)
+                                  for fpf in trial.transformed_ps_filenames.values()]):
+            continue
+        trials.append(trial)
 
-    # Iterate over dates
+    # Just continue if no trials
+    if not trials:
+        return
+
+    rs('Found {} trials: {}'.format(len(trials), ', '.join([str(t.trial_number) for t in trials])))
+
+    trial_timestamps = loadTrialLog(trial_log_filename, [t.trial_number for t in trials])
+
+    p_args = list(zip(trials, trial_timestamps))
+
     failed_trial_reports = []
-    for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
-        print()
-        rs('Processing session {}.'.format(session))
-        raw_server_session = os.path.join(server, session)
-        proc_server_session = os.path.join(preset['processed_server'], session)
 
-        if not os.path.exists(raw_server_session):
-            ws('Session {} does not exist on the server.'.format(session))
-            continue
+    if len(p_args) > 0:
+        pool = reporting_pool.ReportingPool(process_trial, p_args, processes=processes,
+                                            report_on_change=True, track_failures=True)
+        pool.start()
 
-        # load session meta
-        try:
-            mstruct, _, _, msession = meta_session.load_meta_information(
-                raw_server_session, proc_server_session)
-        except Exception as e:
-            ws('Could not load meta data from session {}, skipping.'.format(session))
-            ws('Error message: {}'.format(e))
-            continue
-
-        output_dir = mstruct['transformed_ps_dir']
-        trial_log_filename = mstruct['ps_log_filename']
-        os.makedirs(output_dir, exist_ok=True)
-
-        if not os.path.isfile(trial_log_filename):
-            ws(f"Trial log {trial_log_filename} file for session {raw_server_session} does not exist")
-            return
-
-        # accumulate trials
-        trials = []
-        for trial in msession:
-            if len(trials_sel) != 0 and trial.trial_number not in trials_sel:
-                continue
-            # Skip if missing input fsx files
-            if any([not os.path.exists(trial.raw_ps_filenames[ps_name])
-                    for ps_name in trial.raw_ps_filenames.keys()]):
-                continue
-            # Skip if output files exist and overwrite==False
-            if not overwrite and all([os.path.exists(fpf)
-                                      for fpf in trial.transformed_ps_filenames.values()]):
-                continue
-            trials.append(trial)
-
-        rs('Found {} trials: {}'.format(
-            len(trials), ', '.join([str(t.trial_number) for t in trials])))
-
-        if len(trials) == 0:
-            continue
-
-        trial_timestamps = loadTrialLog(trial_log_filename, [t.trial_number for t in trials])
-
-        p_args = list(zip(trials, trial_timestamps))
-
-        if len(p_args) > 0:
-            pool = reporting_pool.ReportingPool(process_trial, p_args, processes=processes,
-                                                report_on_change=True, track_failures=True)
-            pool.start()
-
-            if len(pool.failed_i_jobs) > 0:
-                print()
-                ws('Failed to transform trials:')
-                for v in pool.failed_i_jobs:
-                    ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
-                    failed_trial_reports.append('session {} trial {} error: {}'.format(
-                        session, trials[v].trial_number, pool.error_reports[v]))
+        if len(pool.failed_i_jobs) > 0:
+            print()
+            ws('Failed to transform trials:')
+            for v in pool.failed_i_jobs:
+                ws('\t{}: {}'.format(trials[v].trial_number, pool.error_reports[v]))
+                failed_trial_reports.append('session {} trial {} error: {}'.format(
+                    session, trials[v].trial_number, pool.error_reports[v]))
 
     if len(failed_trial_reports) > 0:
         print()
         ws('Failed trials across sessions:')
         for failed_trial_report in failed_trial_reports:
             ws('\t{}'.format(failed_trial_report))
+
+
+def preprocess_pressure_sensors(current_preset, trials_sel, temp, overwrite, processes,
+                                sessions_sel=[]):
+    """Preprocesses the pressure sensor data - outputs folder called transformed_sensors.
+    """
+
+    # Step 1: process experiment sessions
+    apply_to_sessions_helper(current_preset['default_server'],
+                             current_preset['processed_server'],
+                             current_preset,
+                             temp,
+                             ppps_helper,
+                             args=(trials_sel, overwrite, processes),
+                             sessions=sessions_sel)
+
+    # Step 2: process training sessions
+    if not current_preset['default_training_server']:
+        ws('No raw training server specified in preset. Skipping...')
+        return
+
+    if not current_preset['processed_training_server']:
+        ws('No processed training server specified in preset. Skipping...')
+        return
+
+    # Step 2: Process training sessions
+    apply_to_sessions_helper(current_preset['default_training_server'],
+                             current_preset['processed_training_server'],
+                             current_preset,
+                             temp,
+                             ppps_helper,
+                             args=(trials_sel, overwrite, processes),
+                             sessions=sessions_sel)
