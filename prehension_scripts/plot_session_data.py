@@ -33,10 +33,8 @@ from prehension_presets.prehension_presets import PRESETS
 from prehension.tools.logs import rs, setup_logging
 from prehension.tools import cmd_args
 from prehension.visualization.session_data_visualization import SessionWrapper, SessionGroup
-from prehension.tools.session_management import (
-    does_trianing_servers_exist,
-    fetch_server_session_dirs,
-)
+from prehension.tools.session_management import (does_training_servers_exist,
+                                                 fetch_server_session_dirs)
 
 # --- future features ---
 # Plot performance should consider all sessions with red dot for experimental sessions

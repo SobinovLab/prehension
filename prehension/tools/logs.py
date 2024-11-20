@@ -84,8 +84,8 @@ def rs(s):
 
 
 def ws(s):
-    warnings.warning(s, stacklevel=2)
-    logging.warning(s)
+    warnings.warn(s, stacklevel=2)
+    logging.warn(s)
 
 
 ## alternative logging for the future switch:
