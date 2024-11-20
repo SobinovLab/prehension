@@ -75,7 +75,7 @@ def main(preset, sessions, temp, overwrite, transfer=True):
     setup_logging(temp, sessions_dir=preset["processed_server"])
 
     # Check if preset defines training servers, if so we try transferring sessions to training,
-    has_training_server = does_trianing_servers_exist(preset)
+    has_training_server = does_training_servers_exist(preset)
 
     # Move sessions from experiment to training
     if transfer:
