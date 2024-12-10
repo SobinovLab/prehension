@@ -32,7 +32,7 @@ from prehension.tools.session_management import fetch_server_session_dirs
 from prehension.visualization.session_data_visualization import SessionWrapper
 
 
-preset_names = ['daiquiri_right_hemisphere', 'pimms_left_hemisphere_training_k1',
+PRESET_NAMES = ['daiquiri_right_hemisphere', 'pimms_left_hemisphere_training_k1',
                 'pappy_left_hemisphere_training_v1']
 
 
@@ -42,6 +42,10 @@ def main(args):
     across the presets in preset names. Option to transfer sessions to training server if
     --clean is passed.
     """
+    if args.preset:
+        preset_names = args.preset
+    else:
+        preset_names = PRESET_NAMES
     for preset_name in preset_names:
         print(preset_name.upper())
         init(autoreset=True)  # for colorama
@@ -51,9 +55,7 @@ def main(args):
 
         current_preset = PRESETS[preset_name]
         # Get raw/processed session dirs for preset
-        experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(current_preset,
-                                                                             sessions=[],
-                                                                             filter=False)
+        experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(current_preset)
 
         exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
         train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]
@@ -78,8 +80,14 @@ if __name__ == "__main__":
         default=False,
     )
 
-    parser.add_argument('--last', type=int, default=-1, help='Number of sessions to display.'
-                        ' Default: -1 (all)')
+    parser.add_argument(
+        '--last',
+        type=int, default=-1,
+        help='Number of sessions to display. Default: -1 (all)')
+    parser.add_argument(
+        '--preset',
+        type=str, nargs='*',
+        help='List presets to use. Defaults to [{}].'.format(', '.join(PRESET_NAMES)))
 
     args = parser.parse_args(sys.argv[1:])
     main(args)

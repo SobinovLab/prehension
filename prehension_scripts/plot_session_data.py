@@ -83,7 +83,7 @@ def main(preset, sessions, temp, overwrite, transfer=True):
         if has_training_server:
             rs("Moving training sessions")
             experimental_ss_pairs_pre_move, _ = fetch_server_session_dirs(
-                preset, sessions, filter=False)
+                preset, sessions)
             for sw in tqdm([SessionWrapper(*exp_pair) for exp_pair in
                             experimental_ss_pairs_pre_move]):
                 sw.ensure_transfer_to_training_server(
@@ -97,7 +97,8 @@ def main(preset, sessions, temp, overwrite, transfer=True):
 
     # Get raw/processed session dirs for preset
     # Note: we want to fetch all sessions here for performance analysis
-    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(preset, filter=True)
+    experimental_ss_pairs, training_ss_pairs = fetch_server_session_dirs(
+        preset, remove_missing_sessions=True)
 
     exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
     train_session_wrappers = [SessionWrapper(*train_pair) for train_pair in training_ss_pairs]

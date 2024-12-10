@@ -37,7 +37,7 @@ def find_session_dirs(dirname):
     for d in os.listdir(dirname):
         if session_re.fullmatch(d) is not None:
             sessions.append(d)
-    return sessions
+    return sorted(sessions)
 
 
 def get_default_meta_structure():

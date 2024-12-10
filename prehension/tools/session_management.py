@@ -60,14 +60,59 @@ def _filter_pairs(raw_ss_list, proc_ss_list, verbose=False):
     return pairs
 
 
-def fetch_server_session_dirs(preset, sessions=[], filter=False):
+def _fetch_session_dirs(preset_server, preset_proc_server, sessions, remove_missing_sessions=False):
+    """Returns a list of raw and processed session folders that exist for a given preset, only
+    the actual experiments, no training
+
+    Args:
+        preset_server:
+        preset_proc_server:
+        sessions (list): list of sessions we want to process.
+        remove_missing_sessions (bool, optional): remove out sessions that do not exist.
+            Defaults to False.
+
+    Returns:
+        list[tuple(dir, dir)]: matched pairs of raw and processed session folders
+    """
+    # Build initial list of raw and proc server session dirs
+    raw_server_sessions = [
+        os.path.normpath(os.path.join(preset_server, os.path.basename(ss)))
+        for ss in sessions]
+    proc_server_sessions = [
+        os.path.normpath(os.path.join(preset_proc_server, os.path.basename(ss)))
+        for ss in sessions]
+
+    # read through and remove_missing_sessions out/warn on any that do not exist
+    if remove_missing_sessions:
+        raw_proc_pairs = _filter_pairs(raw_server_sessions, proc_server_sessions)
+    else:
+        raw_proc_pairs = list(zip(raw_server_sessions, proc_server_sessions))
+
+    return raw_proc_pairs
+
+
+def fetch_exp_session_dirs(preset, sessions=None, remove_missing_sessions=False):
+    if sessions:
+        exp_session_names = sessions
+    else:
+        exp_session_names = meta_session.find_session_dirs(preset["default_server"])
+
+    experimental_raw_proc_pairs = _fetch_session_dirs(
+        preset["default_server"], preset["processed_server"], exp_session_names,
+        remove_missing_sessions=remove_missing_sessions)
+
+    return experimental_raw_proc_pairs
+
+
+def fetch_server_session_dirs(preset, sessions=None, remove_missing_sessions=False):
     """Returns a list of raw and processed session folders that exist for a given preset
 
     Args:
         preset (dict): the preset in question
         sessions (list, optional): list of sessions we want to process.
             Defaults to [] (i.e. all sessions)
-        filter (bool, optional): filter out sessions that do not exist. Defaults to False.
+        remove_missing_sessions (bool, optional): remove sessions that do not exist.
+            Defaults to False.
 
     Returns:
         list[tuple(dir, dir)], list[tuple[dir, dir]]: matched pairs of raw and processed
@@ -75,49 +120,23 @@ def fetch_server_session_dirs(preset, sessions=[], filter=False):
     """
 
     # Decide if we are finding sessions or using the provided sessions
-    if not sessions:
-        exp_session_names = meta_session.find_session_dirs(preset["default_server"])
-        train_session_names = meta_session.find_session_dirs(preset["default_training_server"])
-    else:
+    if sessions:
         exp_session_names = sessions
         train_session_names = sessions
-
-    # Build initial list of raw and proc server session dirs
-    raw_server_sessions = [
-        os.path.normpath(os.path.join(
-            preset["default_server"], os.path.basename(ss)))
-        for ss in exp_session_names]
-    proc_server_sessions = [
-        os.path.normpath(os.path.join(
-            preset["processed_server"], os.path.basename(ss)))
-        for ss in exp_session_names]
-
-    # now raw and proc ss lists should be the same length, read through and filter out/warn
-    # on any that do not exist
-    assert len(raw_server_sessions) == len(proc_server_sessions)
-    if filter:
-        experimental_raw_proc_pairs = _filter_pairs(raw_server_sessions, proc_server_sessions)
     else:
-        experimental_raw_proc_pairs = list(zip(raw_server_sessions, proc_server_sessions))
+        exp_session_names = meta_session.find_session_dirs(preset["default_server"])
+        train_session_names = meta_session.find_session_dirs(preset["default_training_server"])
 
-    # Build initial list of raw and proc training session dirs
-    raw_training_sessions = []
-    proc_training_sessions = []
+    experimental_raw_proc_pairs = _fetch_session_dirs(
+        preset["default_server"], preset["processed_server"], exp_session_names,
+        remove_missing_sessions=remove_missing_sessions)
+
     if does_training_servers_exist(preset):
-        raw_training_sessions += [
-            os.path.normpath(os.path.join(
-                preset["default_training_server"], os.path.basename(ss)))
-            for ss in train_session_names]
-
-        proc_training_sessions += [
-            os.path.normpath(os.path.join(
-                preset["processed_training_server"], os.path.basename(ss)))
-            for ss in train_session_names]
-
-    if filter:
-        training_raw_proc_pairs = _filter_pairs(raw_training_sessions, proc_training_sessions)
+        training_raw_proc_pairs = _fetch_session_dirs(
+            preset["default_training_server"], preset["processed_training_server"],
+            train_session_names, remove_missing_sessions=remove_missing_sessions)
     else:
-        training_raw_proc_pairs = list(zip(raw_training_sessions, proc_training_sessions))
+        training_raw_proc_pairs = []
 
     return experimental_raw_proc_pairs, training_raw_proc_pairs
 
@@ -133,7 +152,8 @@ def does_training_servers_exist(preset, verbose=False):
         bool: True if all training servers exist in preset else False
     """
     keys = ["default_training_server", "processed_training_server"]
-    assert all(k in preset for k in keys), "Missing keys in preset: {}".format(keys)
+    if not all(k in preset for k in keys):
+        raise ValueError("Missing keys in preset: {}".format(keys))
 
     training_servers_not_none = all(v is not None for v in (preset[k] for k in keys))
 
@@ -142,10 +162,10 @@ def does_training_servers_exist(preset, verbose=False):
         training_servers_exist = all(os.path.exists(v) for v in (preset[k] for k in keys))
 
     if not training_servers_not_none and verbose:
-        ws("one or more training servers are None in preset: {}".format(preset["names"][0]))
+        ws("One or more training servers are None in preset: {}".format(preset["names"][0]))
 
     if not training_servers_exist and verbose:
-        ws("one or more training servers do not exist in preset: {}".format(preset["names"][0]))
+        ws("One or more training servers do not exist in preset: {}".format(preset["names"][0]))
 
     return training_servers_not_none and training_servers_exist
 
