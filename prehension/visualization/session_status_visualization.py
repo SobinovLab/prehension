@@ -1,8 +1,12 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Provides utilities for session visualization such as session status and exising files within a
-given session
+Provides utilities for session visualization such as session status and existing files within a
+given session.
+
+If your command line is not displaying the tick marks, change the default font to something like
+Cascadia Code.
+
 
 Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
 https://github.com/BensmaiaLab/prehension
@@ -49,12 +53,12 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         behavior_exists = os.path.exists(os.path.join(session_path, "behavior"))
         sensors_exists = os.path.exists(os.path.join(session_path, "sensors"))
 
-        behavior_symbol = (f" {Fore.GREEN}✔{Style.RESET_ALL} "
+        behavior_symbol = (f" {Fore.GREEN}✓{Style.RESET_ALL} "
                            if behavior_exists
-                           else f" {Fore.RED}✘{Style.RESET_ALL} ")
-        sensors_symbol = (f" {Fore.GREEN}✔{Style.RESET_ALL} "
+                           else f" {Fore.RED}x{Style.RESET_ALL} ")
+        sensors_symbol = (f" {Fore.GREEN}✓{Style.RESET_ALL} "
                           if sensors_exists
-                          else f" {Fore.RED}✘{Style.RESET_ALL} ")
+                          else f" {Fore.RED}x{Style.RESET_ALL} ")
 
         return f"{behavior_symbol}{sensors_symbol}"
 
@@ -69,9 +73,9 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
         transformed_sensors = os.path.exists(os.path.join(proc_path, "transformed_sensors"))
 
-        filtered_symbol = (f" {Fore.GREEN}✔{Style.RESET_ALL} "
+        filtered_symbol = (f" {Fore.GREEN}✓{Style.RESET_ALL} "
                            if filtered_sensors
-                           else f" {Fore.RED}✘{Style.RESET_ALL} ")
+                           else f" {Fore.RED}x{Style.RESET_ALL} ")
 
         if all(prehension_plots_exist_bool):
             prehension_symbol = (f" {Fore.GREEN}{sum(prehension_plots_exist_bool)}/"
@@ -83,24 +87,24 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
             prehension_symbol = (f" {Fore.RED}{sum(prehension_plots_exist_bool)}/"
                                  f"{len(EXPECTED_PLOT_NAMES)}{Style.RESET_ALL} ")
 
-        transformed_symbol = (f" {Fore.GREEN}✔{Style.RESET_ALL} "
+        transformed_symbol = (f" {Fore.GREEN}✓{Style.RESET_ALL} "
                               if transformed_sensors
-                              else f" {Fore.RED}✘{Style.RESET_ALL} ")
+                              else f" {Fore.RED}x{Style.RESET_ALL} ")
 
         return f"{filtered_symbol}{prehension_symbol}{transformed_symbol}"
 
     # Function to check for timepoints.csv in sw.proc_ss
     def check_timepoints(proc_path):
         timepoints_exist = os.path.exists(os.path.join(proc_path, "timepoints.csv"))
-        return (f" {Fore.GREEN}✔{Style.RESET_ALL} "
+        return (f" {Fore.GREEN}✓{Style.RESET_ALL} "
                 if timepoints_exist
-                else f" {Fore.RED}✘{Style.RESET_ALL} ")
+                else f" {Fore.RED}x{Style.RESET_ALL} ")
 
     # Function to check and format the has_meta property
     def format_meta(has_meta):
-        return (f" {Fore.GREEN}✔{Style.RESET_ALL} "
+        return (f" {Fore.GREEN}✓{Style.RESET_ALL} "
                 if has_meta
-                else f" {Fore.RED}✘{Style.RESET_ALL} ")
+                else f" {Fore.RED}x{Style.RESET_ALL} ")
 
     def can_delete(sw, delete=False):
         if not sw.log_full:
