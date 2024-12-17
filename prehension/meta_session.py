@@ -113,6 +113,19 @@ def get_default_meta_structure():
     }
 
 
+def _try_searching_for_behavior_log(raw_ss, log_rel_dir, s):
+    auto_log = glob.glob(os.path.join(raw_ss, log_rel_dir, s))
+    if len(auto_log) > 1:
+        # sort them
+        def order(v):
+            if re.match('.*\([0-9]+\).csv$', v) is not None:
+                return int(re.findall('\([0-9]+\)', v)[-1][1:-1])
+            return -1
+
+        auto_log.sort(key=order)
+    return auto_log
+
+
 # meta_session.fill_meta_structure(mstruct_rel, raw_dir, session)
 def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
     '''If the meta structure dictionary has empty auto_log and manual_log, script searches for them.
@@ -126,21 +139,16 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
     # Search auto log
     if len(mstruct['auto_log']) == 0:
         # search automatically
+        auto_log = _try_searching_for_behavior_log(raw_ss, log_rel_dir, 'session_*.csv')
+        if len(auto_log) == 0:
+            auto_log = _try_searching_for_behavior_log(raw_ss, log_rel_dir, '*.csv')
         auto_log = glob.glob(os.path.join(raw_ss, log_rel_dir, 'session_*.csv'))
         if len(auto_log) > 1:
-            # sort them
-            def order(v):
-                if re.match('.*\([0-9]+\).csv$', v) is not None:
-                    return int(re.findall('\([0-9]+\)', v)[-1][1:-1])
-                return -1
-
-            auto_log.sort(key=order)
-
             warnings.warn('Several session log filenames found: {}'.format(auto_log))
         elif len(auto_log) == 0:
             raise ValueError('Could not find auto log session filenames in {}.'.format(raw_ss))
 
-        mstruct['auto_log'] = auto_log  # SWITCH TO FULL PATH
+        mstruct['auto_log'] = auto_log
 
     # Search manual log
     if len(mstruct['manual_log']) == 0:
@@ -197,14 +205,18 @@ def normjoinpath(dirname, p):
 
 
 def import_meta_structure(meta_structure_path, raw_dir=None, proc_dir=None):
-    assert 'ProcessedData' in meta_structure_path, '{} is not a meta structure path.'.format(
-        meta_structure_path
-    )
+    # assert 'ProcessedData' in meta_structure_path, '{} is not a meta structure path.'.format(
+    #     meta_structure_path
+    # )
 
+    # to avoid errors when loading older metastructures, start with default
+    mstruct = get_default_meta_structure()
     with open(meta_structure_path, 'r') as f:
-        mstruct = json.load(f)
+        _mstruct = json.load(f)
+        for k, v in _mstruct.items():
+            mstruct[k] = v
 
-    assert 'jarvis_video_dir' in mstruct, 'No jarvis video directory in meta structure.'
+    # assert 'jarvis_video_dir' in mstruct, 'No jarvis video directory in meta structure.'
 
     # resolve relative paths
     # on processed server
@@ -337,9 +349,9 @@ class IncompleteMetaError(Exception):
             [os.path.join(*os.path.normpath(f).split(os.sep)[-5:]) for f in self.missing_files]
         )
         return (
-            f"Incomplete metadata: {len(self.missing_files)} file(s) missing."
-            + f"\nMissing files:\n"
-            + pretty_string
+            f"Incomplete metadata: {len(self.missing_files)} file(s) missing." +
+            "\nMissing files:\n" +
+            pretty_string
         )
 
 

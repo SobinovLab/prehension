@@ -383,14 +383,7 @@ class SessionWrapper:
         self.results_dir = os.path.join(self.proc_ss, "prehension_plots")
         os.makedirs(self.results_dir, exist_ok=True)
         self.has_meta = False
-
-        potential_logs = glob.glob(os.path.join(self.raw_ss, "behavior", "*.csv"))
-        if len(potential_logs) > 1:
-            ws(f"Found more than one log for session: {os.path.basename(self.raw_ss)}, skipping")
-        if len(potential_logs) == 1:
-            self.log_full = potential_logs[0]
-        else:
-            self.log_full = None
+        self.load_meta_exception = ''
 
         # Load meta
         try:
@@ -399,7 +392,8 @@ class SessionWrapper:
             self.has_meta = True
             if len(self.mstruct["auto_log"]) > 0:
                 self.log_full = self.mstruct["auto_log"][0]
-        except meta_session.IncompleteMetaError:
+        except meta_session.IncompleteMetaError as e:
+            self.load_meta_exception = str(e)
             # ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)},
             # skipping')
             return

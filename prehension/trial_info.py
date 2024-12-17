@@ -233,6 +233,8 @@ class TrialInfo():
 
     # VIDEOS
     def do_videos_files_exist(self):
+        if len(self.videos) == 0 or len(self.videos_logs) == 0:
+            return False
         for d in self.videos.values():
             if not os.path.exists(d):
                 return False
@@ -240,6 +242,9 @@ class TrialInfo():
             if not os.path.exists(f):
                 return False
         return True
+
+    def video_file_times(self):
+        return [os.path.getmtime(f) for f in self.videos.values()]
 
     # DLC files
     @staticmethod
@@ -277,7 +282,11 @@ class TrialInfo():
         }
 
     def do_2d_files_exist(self):
-        return None not in self.get_2d_filenames().values()
+        _2d_filenames = self.get_2d_filenames()
+        return None not in _2d_filenames.values() and len(_2d_filenames) > 0
+
+    def m_2d_file_times(self):
+        return [os.path.getmtime(f) for f in self.get_2d_filenames().values()]
 
     def remove_2d_files_all(self):
         '''Will clean anything that looks like a 2D marker file'''
@@ -320,6 +329,10 @@ class TrialInfo():
             return False
         return True
 
+    def m_3d_files_times(self):
+        return [os.path.getmtime(self.markers_3D_filename_csv),
+                os.path.getmtime(self.markers_3D_filename_trc)]
+
     def do_pre_ik_files_exist(self):
         if not os.path.exists(self.markers_3D_filename_trc):
             return False
@@ -327,11 +340,18 @@ class TrialInfo():
             return False
         return True
 
+    def pre_ik_times(self):
+        return [os.path.getmtime(self.markers_3D_filename_trc),
+                os.path.getmtime(self.ik_filename)]
+
     # JOINT ANGLES
     def does_post_ik_file_exists(self):
         if not os.path.exists(self.pre_kinematic_filename):
             return False
         return True
+
+    def post_ik_file_time(self):
+        return os.path.getmtime(self.pre_kinematic_filename)
 
     def do_pre_base_ik_files_exist(self):
         if not os.path.exists(self.markers_3D_filename_trc):
@@ -349,6 +369,9 @@ class TrialInfo():
     def does_pre_kin_file_exist(self):
         return self.does_post_ik_file_exists()
 
+    def pre_kin_file_time(self):
+        return self.post_ik_file_time()
+
     def does_post_kin_file_exist(self):
         if not os.path.exists(self.post_kinematic_filename_mot):
             return False
@@ -356,7 +379,22 @@ class TrialInfo():
             return False
         return True
 
+    def post_kin_file_times(self):
+        return [os.path.getmtime(self.post_kinematic_filename_mot),
+                os.path.getmtime(self.post_kinematic_filename_csv)]
+
     # PRESSURE
+    def do_transformed_ps_files_exist(self):
+        answ = True
+        for filename in self.transformed_ps_csv_filenames.values():
+            if not os.path.exists(filename):
+                answ = False
+                break
+        return answ
+
+    def transformed_ps_files_times(self):
+        return [os.path.getmtime(f) for f in self.transformed_ps_csv_filenames.values()]
+
     def do_pre_ps_files_exist(self):
         answ = True
         for filename in self.filtered_ps_filenames.values():
@@ -365,12 +403,18 @@ class TrialInfo():
                 break
         return answ
 
+    def pre_ps_files_times(self):
+        return [os.path.getmtime(f) for f in self.filtered_ps_filenames.values()]
+
     def get_pre_ps_filenames(self):
         return self.filtered_ps_filenames
 
     # PREPROCESSED DATA
     def do_all_pre_files_exist(self):
         return self.does_pre_kin_file_exist() and self.do_pre_ps_files_exist()
+
+    def all_pre_files_times(self):
+        return [self.pre_kin_file_time()] + self.pre_ps_files_times()
 
     # PROCESSED PRESSURE
     def do_post_ps_files_exist(self):
@@ -386,6 +430,9 @@ class TrialInfo():
                 break
         return answ
 
+    def post_ps_files_times(self):
+        return [os.path.getmtime(f) for f in self.aligned_ps_filenames.values()]
+
     def get_post_ps_filenames(self):
         # # prioritize TSM
         # post_ps_filenames = {}
@@ -400,6 +447,9 @@ class TrialInfo():
     def do_all_post_files_exist(self):
         return self.does_post_kin_file_exist() and self.do_post_ps_files_exist()
 
+    def all_post_files_times(self):
+        return self.post_kin_file_times() + self.post_ps_files_times()
+
     # AUTOMATICALLY MATCHED CONTACTS
     def do_matched_contacts_files_exist(self):
         answ = True
@@ -408,6 +458,9 @@ class TrialInfo():
                 answ = False
                 break
         return answ
+
+    def matched_contacts_files_times(self):
+        return [os.path.getmtime(f) for f in self.matched_contacts_filenames.values()]
 
     # MANUALLY LABELLED FORCES
     def does_manually_labelled_file_exists(self):
@@ -430,10 +483,16 @@ class TrialInfo():
             return True
         return False
 
+    def digit_force_file_time(self):
+        return os.path.getmtime(self.digit_forces_filename)
+
     def does_segment_force_file_exist(self):
         if os.path.exists(self.segment_forces_filename):
             return True
         return False
+
+    def segment_force_file_time(self):
+        return os.path.getmtime(self.segment_forces_filename)
 
 
 def form_cam_fname(vid_dir, trial_name, cam_id, ext):

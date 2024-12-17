@@ -23,17 +23,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
 import argparse
+import tqdm
 
 from colorama import init
 
 from prehension.visualization import session_processing_status
 from prehension_presets.prehension_presets import PRESETS
+from prehension.tools import cmd_args
 from prehension.tools.session_management import fetch_exp_session_dirs
 from prehension.visualization.session_data_visualization import SessionWrapper
 
 
 PRESET_NAMES = ['mrhem']
-PRESET_NAMES = ['daiquiri_right_hemisphere']
+# PRESET_NAMES = ['daiquiri_right_hemisphere']
 
 
 def main(args):
@@ -47,23 +49,26 @@ def main(args):
     else:
         preset_names = PRESET_NAMES
 
+    if args.sessions and len(preset_names) > 1:
+        raise ValueError('Sessions argument can only be provided if a single preset was selected.')
+
     for preset_name in preset_names:
-        print(preset_name.upper())
+        print(preset_name)
         init(autoreset=True)  # for colorama
 
         if preset_name not in PRESETS.keys():
             raise ValueError(f'preset_name {preset_name} not found in presets {PRESETS.keys()}')
 
-        current_preset = PRESETS[preset_name]
         # Get raw/processed session dirs for preset
-        experimental_ss_pairs = fetch_exp_session_dirs(current_preset)
+        experimental_ss_pairs = fetch_exp_session_dirs(PRESETS[preset_name], sessions=args.sessions)
 
-        exp_session_wrappers = [SessionWrapper(*exp_pair) for exp_pair in experimental_ss_pairs]
+        exp_session_wrappers = []
+        for exp_pair in tqdm.tqdm(experimental_ss_pairs, ncols=100, desc='Pooling sessions'):
+            exp_session_wrappers.append(SessionWrapper(*exp_pair))
 
         session_processing_status.report_sessions_processing_status(
-            exp_session_wrappers, args.last)
+            exp_session_wrappers, verbose=0)
 
-        print()
         print()
 
 
@@ -73,13 +78,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Display session info about a given monkey")
 
     parser.add_argument(
-        '--last',
-        type=int, default=-1,
-        help='Number of sessions to display. Default: -1 (all)')
-    parser.add_argument(
         '--preset',
         type=str, nargs='*',
         help='List presets to use. Defaults to [{}].'.format(', '.join(PRESET_NAMES)))
+    cmd_args.add_default_arguments(parser, ("sessions"))
 
     args = parser.parse_args(sys.argv[1:])
     main(args)

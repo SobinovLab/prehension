@@ -68,14 +68,15 @@ def new_make_video(frame_filenames, filename_ou, rate):
             ffconcat, filename_ou,
             f_in='concat', safe_in=0, r_in=rate,
             overwrite=True,  # y=None,  # overwrite
-            hide_banner=None, loglevel='error',  # show_log=False,  # printing to stdout
+            hide_banner=None,  # loglevel='error',
+            # show_log=True,  # printing to stdout
             an=None, an_in=None,  # no sound for output or input
             **{
                 'r': rate,
                 'codec:v': 'h264_nvenc',
                 'pix_fmt': 'rgb0',
-                'preset:v': 'hq',
-                'profile:v': 'high',
+                'preset:v': 'p7',
+                'tune:v': 'hq',
                 'rc:v': 'vbr', 'b:v': 0,
                 'cq:v': 23,
                 'coder': 'cabac',
