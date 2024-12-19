@@ -24,9 +24,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 import sys
 
 from colorama import Fore, Style
+
+YES = f'{Fore.GREEN}✓{Style.RESET_ALL}'
+NO = f'{Fore.RED}x{Style.RESET_ALL}'
 
 
 ####################################### Callable classes to evaluate stages of processing
@@ -326,10 +330,10 @@ class SpMetaSession(SessionProcessedBase):
     def _eval_per_session(self, sw, preset):
         if sw.has_meta:
             self._skip_the_rest = False
-            return f'{Fore.GREEN}✓{Style.RESET_ALL}'
+            return YES
         else:
             self._skip_the_rest = True
-            return f'{Fore.RED}x{Style.RESET_ALL}'
+            return NO
 
 
 class SpNumTrialsSession(SessionProcessedBase):
@@ -341,7 +345,7 @@ class SpNumTrialsSession(SessionProcessedBase):
 
     def _eval_per_session(self, sw, preset):
         numtrials = len(sw.msession)
-        return f'{numtrials:>3}'
+        return f'{numtrials:>{self.width()}}'
 
 
 class SpNumSuccessfulTrialsSession(SessionProcessedBase):
@@ -353,13 +357,61 @@ class SpNumSuccessfulTrialsSession(SessionProcessedBase):
 
     def _eval_per_session(self, sw, preset):
         numsucces = sum([trial.success for trial in sw.msession])
-        return f'{numsucces:>3}'
+        return f'{numsucces:>{self.width()}}'
+
+
+class SpOpensimModel(SessionProcessedBase):
+    header = 'O'
+    _type = 'per_session_one_symbol'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        if os.path.exists(sw.mstruct['opensim_model_locked_base']):
+            self._skip_the_rest = False
+            return YES
+        else:
+            self._skip_the_rest = True
+            return NO
+
+
+class SpMujocoModel(SessionProcessedBase):
+    header = 'M'
+    _type = 'per_session_one_symbol'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        if os.path.exists(sw.mstruct['mujoco_model_sensorized']):
+            self._skip_the_rest = False
+            return YES
+        else:
+            self._skip_the_rest = True
+            return NO
+
+
+class SpGoodSession(SessionProcessedBase):
+    header = 'G'
+    _type = 'per_session_one_symbol'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        if 'good_sessions' in preset.keys() and sw.sess_name in preset['good_sessions']:
+            self._skip_the_rest = False
+            return YES
+        else:
+            self._skip_the_rest = True
+            return NO
 
 
 DEFAULT_EVALUATORS = (
-    SpMetaSession(), SpNumTrialsSession(), SpNumSuccessfulTrialsSession(),
-    SpMarkers2D(), SpMarkers3D(), SpJointAngles(),
-    SpFilteredSensors(), SpAlignedData(),
+    SpMetaSession(), SpGoodSession(), SpNumTrialsSession(), SpNumSuccessfulTrialsSession(),
+    SpMarkers2D(), SpMarkers3D(), SpOpensimModel(), SpJointAngles(),
+    SpFilteredSensors(), SpAlignedData(), SpMujocoModel(),
     SpMatchedContacts(), SpExportedForces(),
     SpTorques())
 
