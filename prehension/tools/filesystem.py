@@ -76,9 +76,38 @@ class PrintCopyAccumulateSize():
         return humanbytes(self.size)
 
 
+class PrintMoveAccumulateSize(PrintCopyAccumulateSize):
+    """Calculates the sum of sizes of files passed as
+
+    Removes the files if the dst is newer, overwrites them if older.
+    """
+    def __init__(self, dry_run, verbose, overwrite_with_new=False):
+        super(PrintMoveAccumulateSize, self).__init__(dry_run, verbose)
+        self.overwrite_with_new = overwrite_with_new
+        self.size_remove = 0
+
+    def __call__(self, src, dst, **kwargs):
+        # if dst does not exist or it is older than src
+        if not os.path.exists(dst) or (
+                self.overwrite_with_new and overwrite_existing_new(src, dst)):
+            if self.verbose > 0:
+                print_copy(src, dst, **kwargs)
+            self.size += os.path.getsize(src)
+            if not self.dry_run:
+                shutil.move(src, dst)
+        # if file was not moved, it means it is older so remove it
+        if self.overwrite_with_new and os.path.exists(src) and os.path.exists(dst):
+            self.size_remove += os.path.getsize(src)
+            if not self.dry_run:
+                os.remove(src)
+
+    def str_remove(self):
+        return humanbytes(self.size_remove)
+
+
 def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
              ignore_dangling_symlinks=False, make_dir=True, dir_exist_ok=False,
-             overwrite_existing=None, verbose=False):
+             overwrite_existing=None, verbose=False, moving=False):
     """Recursively copy a directory tree.
 
     ADAPTED from shutil.py function. Changes:
@@ -89,6 +118,8 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
         a callable option that asks what to do when the file already exists at the destination.
             Return True to overwrite, False to skip.
         verbose prints current source directory.
+        moving - if true (and make_dir is True), the source directory will be removed if it is
+            empty. Use together with move file move commands to cleanup source.
 
     The destination directory must not already exist.
     If exception(s) occur, an Error is raised with a list of reasons.
@@ -158,7 +189,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
                             symlinks=symlinks, ignore=ignore, copy_function=copy_function,
                             ignore_dangling_symlinks=ignore_dangling_symlinks, make_dir=make_dir,
                             dir_exist_ok=dir_exist_ok, overwrite_existing=overwrite_existing,
-                            verbose=verbose)
+                            verbose=verbose, moving=moving)
                     else:
                         if (overwrite_existing is None or not os.path.exists(dstname) or
                                 overwrite_existing(srcname, dstname)):
@@ -169,7 +200,7 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
                     symlinks=symlinks, ignore=ignore, copy_function=copy_function,
                     ignore_dangling_symlinks=ignore_dangling_symlinks, make_dir=make_dir,
                     dir_exist_ok=dir_exist_ok, overwrite_existing=overwrite_existing,
-                    verbose=verbose)
+                    verbose=verbose, moving=moving)
             else:
                 if (overwrite_existing is None or not os.path.exists(dstname) or
                         overwrite_existing(srcname, dstname)):
@@ -189,6 +220,9 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
             errors.append((src, dst, str(why)))
     if errors:
         raise shutil.Error(errors)
+
+    if make_dir and moving and len(os.listdir(src)) == 0:
+        os.rmdir(src)
     return dst
 
 
@@ -209,8 +243,10 @@ def overwrite_existing_new_box(srcname, dstname):
     return os.path.getmtime(srcname) - os.path.getmtime(dstname) >= 1
 
 
-def copy_folder_contents(src_dir, target_dir, dir_names=[], file_names=[], suppress_warnings=False,
-                         dry_run=False, copy_function=None, box=False, overwrite=False):
+def copy_folder_contents(
+        src_dir, target_dir,
+        dir_names=[], file_names=[], suppress_warnings=False,
+        dry_run=False, copy_function=None, box=False, overwrite=False, moving=False):
     start_time = time.time()
     if copy_function is None:
         local_copy_function = True
@@ -230,7 +266,7 @@ def copy_folder_contents(src_dir, target_dir, dir_names=[], file_names=[], suppr
         dst = os.path.join(target_dir, dir_name)
         if os.path.isdir(src):
             copytree(src, dst, overwrite_existing=oex, dir_exist_ok=True,
-                     copy_function=copy_function)
+                     copy_function=copy_function, moving=moving)
         else:
             if not suppress_warnings:
                 ws(f'Warning: could not find expected directory ({src}) to upload')

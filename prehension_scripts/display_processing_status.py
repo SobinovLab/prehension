@@ -58,16 +58,17 @@ def main(args):
 
         if preset_name not in PRESETS.keys():
             raise ValueError(f'preset_name {preset_name} not found in presets {PRESETS.keys()}')
+        preset = PRESETS[preset_name]
 
         # Get raw/processed session dirs for preset
-        experimental_ss_pairs = fetch_exp_session_dirs(PRESETS[preset_name], sessions=args.sessions)
+        experimental_ss_pairs = fetch_exp_session_dirs(preset, sessions=args.sessions)
 
         exp_session_wrappers = []
         for exp_pair in tqdm.tqdm(experimental_ss_pairs, ncols=100, desc='Pooling sessions'):
             exp_session_wrappers.append(SessionWrapper(*exp_pair))
 
         session_processing_status.report_sessions_processing_status(
-            exp_session_wrappers, verbose=0)
+            exp_session_wrappers, preset, verbose=0)
 
         print()
 

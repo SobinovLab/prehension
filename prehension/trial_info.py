@@ -386,14 +386,14 @@ class TrialInfo():
     # PRESSURE
     def do_transformed_ps_files_exist(self):
         answ = True
-        for filename in self.transformed_ps_csv_filenames.values():
+        for filename in self.transformed_ps_filenames.values():
             if not os.path.exists(filename):
                 answ = False
                 break
         return answ
 
     def transformed_ps_files_times(self):
-        return [os.path.getmtime(f) for f in self.transformed_ps_csv_filenames.values()]
+        return [os.path.getmtime(f) for f in self.transformed_ps_filenames.values()]
 
     def do_pre_ps_files_exist(self):
         answ = True

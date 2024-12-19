@@ -24,33 +24,147 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
+import sys
 
 from colorama import Fore, Style
 
 
 ####################################### Callable classes to evaluate stages of processing
-class TrialProcessedBase():
-    """docstring for TrialProcBase"""
-    header = 'UNDEFINED'  # 12 symbols or less. Shortest column 3 symbols
+class SessionProcessedBase():
+    '''
+    Children have to set
+        header
+        _type
+    and implement either
+        _eval_trial (if _type == per_trial)
+        _eval_per_session (if _type == per_session_one_symbol or per_session_num_trials)
+    '''
+    header = 'UNDEFINED'
+    _type = 'NOT IMPLEMENTED'
+    max_trial_symbols = 3  # maximum number of symbols needed to describe all trials in a session
 
-    def __call__(self, trial):
+    def __init__(self):
+        self._select_type_methods()
+        self._skip_the_rest = False
+
+    def _select_type_methods(self):
+        # pyflakes complains about match
+        match self._type:
+            case 'per_trial':
+                self.header_1 = self._header_1_per_trial
+                self.header_2 = self._header_2_per_trial
+                self.width = self._width_per_trial
+                self.eval = self._eval_per_trial
+            case 'per_session_one_symbol':
+                self.header_1 = self._header_1_per_session
+                self.header_2 = self._header_2_per_session
+                self.width = self._width_one_symbol
+                self.eval = self._eval_per_session
+            case 'per_session_num_trials':
+                self.header_1 = self._header_1_per_session
+                self.header_2 = self._header_2_per_session
+                self.width = self._width_num_trials
+                self.eval = self._eval_per_session
+            case _:
+                raise ValueError('Wrong type set:', self._type)
+
+    def skip_the_rest(self):
+        '''If returns True, the rest of SessionProcesses are skipped for this session. The
+        variable should be set during the session call.
+
+        Almost never should be set to True, except for checking for critical steps like having
+        meta files.
+        '''
+        return self._skip_the_rest
+
+    # CALLS and EVALS
+    def _eval_trial(self, trial):
         """Return
             -1 if previous does not exist,
             0 if exists, but child does not,
             1 if child exists,
             2 if child was made after the parents  TODO(AS)
         """
+        raise NotImplementedError()
         return -1
 
+    def eval(self, sw, preset):
+        '''Returns a string evaluation of 1 session.
+
+        If general, returns general answer, otherwise - stats per trial
+        '''
+        raise NotImplementedError()
+        return ''
+
+    def _eval_per_trial(self, sw, preset):
+        numsucces = sum([trial.success for trial in sw.msession])
+        reports = [self._eval_trial(t) for t in sw.msession]
+        resp_neg = sum([v == -1 for v in reports])
+        resp_zer = sum([v == 0 for v in reports])
+        resp_pos = sum([v > 0 for v in reports])
+        resp_cor = sum([v == 2 for v in reports])
+        color_pos = _color_resp_trials(resp_pos, numsucces)
+        color_cor = _color_resp_trials(resp_cor, numsucces)
+        return (
+            f'{resp_neg:>{self.max_trial_symbols}}' +
+            f'{resp_zer:>{self.max_trial_symbols+1}}' +
+            f'{color_pos}{resp_pos:>{self.max_trial_symbols+1}}{Style.RESET_ALL}' +
+            f'{color_cor}{resp_cor:>{self.max_trial_symbols+1}}{Style.RESET_ALL}')
+
+    def _eval_per_session(self, sw, preset):
+        raise NotImplementedError()
+        return ''
+
+    # HEADERS FORMATTING
+    def header_1(self):
+        raise NotImplementedError()
+        return ''
+
+    def _header_1_per_trial(self):
+        return f'{self.header:^{self.width()}}'
+
+    def _header_1_per_session(self):
+        return f"{self.header[:self.width()]:^{self.width()}}"
+
+    def header_2(self):
+        raise NotImplementedError()
+        return ''
+
+    def _header_2_per_trial(self):
+        return (
+            f'{"NEG":>{self.max_trial_symbols}}' +
+            f'{"ZER":>{self.max_trial_symbols+1}}' +
+            f'{"POS":>{self.max_trial_symbols+1}}' +
+            f'{"COR":>{self.max_trial_symbols+1}}')
+
+    def _header_2_per_session(self):
+        return ' ' * self.width()
+
+    # WIDTH
     def width(self):
-        return 3  # max(len(self.header), 3)
+        """Width of one column"""
+        raise NotImplementedError()
+        return 0
+
+    def _width_per_trial(self):
+        return (self.max_trial_symbols + 1) * 4 - 1
+
+    def _width_one_symbol(self):
+        return 1
+
+    def _width_num_trials(self):
+        return self.max_trial_symbols
 
 
-class TpMarkers2D(TrialProcessedBase):
+# ----------------- per trial classes
+class SpMarkers2D(SessionProcessedBase):
     header = 'Markers 2D'
+    _type = 'per_trial'
 
-    def __call__(self, trial):
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         if not trial.do_videos_files_exist():
             return -1
         if not trial.do_2d_files_exist():
@@ -62,10 +176,15 @@ class TpMarkers2D(TrialProcessedBase):
         return 2
 
 
-class TpMarkers3D(TrialProcessedBase):
-    header = 'Markers 3D'
 
-    def __call__(self, trial):
+class SpMarkers3D(SessionProcessedBase):
+    header = 'Markers 3D'
+    _type = 'per_trial'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         if not trial.do_2d_files_exist():
             return -1
         if not trial.do_3d_files_exist():
@@ -77,10 +196,14 @@ class TpMarkers3D(TrialProcessedBase):
         return 2
 
 
-class TpJointAngles(TrialProcessedBase):
+class SpJointAngles(SessionProcessedBase):
     header = 'Raw JA'
+    _type = 'per_trial'
 
-    def __call__(self, trial):
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         if not trial.do_pre_ik_files_exist():
             return -1
         if not trial.does_post_ik_file_exists():
@@ -94,11 +217,17 @@ class TpJointAngles(TrialProcessedBase):
         return 2
 
 
-class TpFilteredSensors(TrialProcessedBase):
+class SpFilteredSensors(SessionProcessedBase):
     header = 'Filtered PS'
+    _type = 'per_trial'
 
-    def __call__(self, trial):
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         if not trial.do_transformed_ps_files_exist():
+            print(trial.transformed_ps_filenames.values())
+            sys.exit()
             return -1
         if not trial.do_pre_ps_files_exist():
             return 0
@@ -111,10 +240,14 @@ class TpFilteredSensors(TrialProcessedBase):
         return 2
 
 
-class TpAlignedData(TrialProcessedBase):
+class SpAlignedData(SessionProcessedBase):
     header = 'Aligned Data'
+    _type = 'per_trial'
 
-    def __call__(self, trial):
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         if not trial.do_all_pre_files_exist():
             return -1
         if not trial.do_all_post_files_exist():
@@ -128,10 +261,14 @@ class TpAlignedData(TrialProcessedBase):
         return 2
 
 
-class TpMatchedContacts(TrialProcessedBase):
+class SpMatchedContacts(SessionProcessedBase):
     header = 'Matched Conts'
+    _type = 'per_trial'
 
-    def __call__(self, trial):
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         if not trial.do_all_post_files_exist():
             return -1
         if not trial.do_matched_contacts_files_exist():
@@ -145,10 +282,14 @@ class TpMatchedContacts(TrialProcessedBase):
         return 2
 
 
-class TpExportedForces(TrialProcessedBase):
+class SpExportedForces(SessionProcessedBase):
     header = 'Exp Forces'
+    _type = 'per_trial'
 
-    def __call__(self, trial):
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         if not trial.do_matched_contacts_files_exist():
             return -1
         if not trial.does_digit_force_file_exist() or not trial.does_segment_force_file_exist():
@@ -162,19 +303,75 @@ class TpExportedForces(TrialProcessedBase):
         return 2
 
 
-class TpTorques(TrialProcessedBase):
+class SpTorques(SessionProcessedBase):
     header = 'Torques'
+    _type = 'per_trial'
 
-    def __call__(self, trial):
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
         # not implemented
         return -1
 
 
-DEFAULT_TRIAL_EVALUATORS = (
-    TpMarkers2D(), TpMarkers3D(), TpJointAngles(),
-    TpFilteredSensors(), TpAlignedData(),
-    TpMatchedContacts(), TpExportedForces(),
-    TpTorques())
+# ----------------- per session classes
+class SpMetaSession(SessionProcessedBase):
+    header = 'M'
+    _type = 'per_session_one_symbol'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        if sw.has_meta:
+            self._skip_the_rest = False
+            return f'{Fore.GREEN}✓{Style.RESET_ALL}'
+        else:
+            self._skip_the_rest = True
+            return f'{Fore.RED}x{Style.RESET_ALL}'
+
+
+class SpNumTrialsSession(SessionProcessedBase):
+    header = 'NUM'
+    _type = 'per_session_num_trials'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        numtrials = len(sw.msession)
+        return f'{numtrials:>3}'
+
+
+class SpNumSuccessfulTrialsSession(SessionProcessedBase):
+    header = 'SUC'
+    _type = 'per_session_num_trials'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        numsucces = sum([trial.success for trial in sw.msession])
+        return f'{numsucces:>3}'
+
+
+DEFAULT_EVALUATORS = (
+    SpMetaSession(), SpNumTrialsSession(), SpNumSuccessfulTrialsSession(),
+    SpMarkers2D(), SpMarkers3D(), SpJointAngles(),
+    SpFilteredSensors(), SpAlignedData(),
+    SpMatchedContacts(), SpExportedForces(),
+    SpTorques())
+
+# TODO:
+# Add Jarvis variant
+# Add check for OpenSim models
+# Add check for MuJoCo models
+
+
+
+
+
 
 
 ####################################### Processing processing
@@ -186,11 +383,11 @@ def _color_resp_trials(resp, numtrials):
     return Fore.YELLOW
 
 
-def report_sessions_processing_status(session_wrappers, trial_evaluators=None, verbose=0):
+def report_sessions_processing_status(session_wrappers, preset, evaluators=None, verbose=0):
     """
     Keyword Arguments:
-        trial_evaluators (list of callable): each element should implement TrialProcessedBase class
-            methods. If None, uses DEFAULT_TRIAL_EVALUATORS.
+        evaluators (list of callable): each element should implement SessionProcessedBase class
+            methods. If None, uses DEFAULT_EVALUATORS.
         verbose (int): if >0, will report additional multi-line error messages.
 
     Total report structure
@@ -206,60 +403,29 @@ def report_sessions_processing_status(session_wrappers, trial_evaluators=None, v
         POS: children file(s) exist
         COR: children file(s) exist and are newer than parents
     """
-    if trial_evaluators is None:
-        trial_evaluators = DEFAULT_TRIAL_EVALUATORS
+    # TODO switch list based on preset
+    if evaluators is None:
+        evaluators = DEFAULT_EVALUATORS
 
     session_field_width = max([len(sw.sess_name) for sw in session_wrappers])
-    # first several global reports
-    print(' '*session_field_width + '|M|NUM|SUC', end='')
+    # first line
+    print(' '*session_field_width, end='')
+    for e in evaluators:
+        print(f'|{e.header_1()}', end='')
 
-    # then trial evaluators
-    for te in trial_evaluators:
-        width = te.width()
-        width_tot = (width + 1) * 4 - 1
-        print('|' + f'{te.header:^{width_tot}}', end='')
-
+    # second line
     print()
-    print(' '*session_field_width + '| |   |   ', end='')
-    for te in trial_evaluators:
-        width = te.width()
-        print('|' +
-              f'{"NEG":>{width}}' +
-              f'{"ZER":>{width+1}}' +
-              f'{"POS":>{width+1}}' +
-              f'{"COR":>{width+1}}',
-              end='')
+    print(' '*session_field_width, end='')
+    for e in evaluators:
+        print(f'|{e.header_2()}', end='')
 
     for sw in session_wrappers:
         print()
-        # session-wide reports
+        # session name
         print(f'{sw.sess_name:{session_field_width}}', end='')
-        if sw.has_meta:
-            print(f'|{Fore.GREEN}✓{Style.RESET_ALL}', end='')
-        else:
-            print(f'|{Fore.RED}x{Style.RESET_ALL}', end='')
-            if verbose > 0:
-                print(sw.load_meta_exception)
-            continue
 
-        numtrials = len(sw.msession)
-        numsucces = sum([trial.success for trial in sw.msession])
-        print(f'|{numtrials:>3}|{numsucces:>3}', end='')
-
-        # per-trial evals
-        for te in trial_evaluators:
-            width = te.width()
-            reports = [te(t) for t in sw.msession]
-            resp_neg = sum([v == -1 for v in reports])
-            resp_zer = sum([v == 0 for v in reports])
-            resp_pos = sum([v > 0 for v in reports])
-            resp_cor = sum([v == 2 for v in reports])
-            color_pos = _color_resp_trials(resp_pos, numsucces)
-            color_cor = _color_resp_trials(resp_cor, numsucces)
-            print('|' +
-                  f'{resp_neg:>{width}}' +
-                  f'{resp_zer:>{width+1}}' +
-                  f'{color_pos}{resp_pos:>{width+1}}{Style.RESET_ALL}' +
-                  f'{color_cor}{resp_cor:>{width+1}}{Style.RESET_ALL}',
-                  end='')
+        for e in evaluators:
+            print(f'|{e.eval(sw, preset)}', end='')
+            if e.skip_the_rest():
+                continue
     print()
