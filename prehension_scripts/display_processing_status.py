@@ -49,7 +49,8 @@ def main(args):
     else:
         preset_names = PRESET_NAMES
 
-    if args.sessions and len(preset_names) > 1:
+    sessions = args.sessions
+    if sessions and len(preset_names) > 1:
         raise ValueError('Sessions argument can only be provided if a single preset was selected.')
 
     for preset_name in preset_names:
@@ -60,8 +61,11 @@ def main(args):
             raise ValueError(f'preset_name {preset_name} not found in presets {PRESETS.keys()}')
         preset = PRESETS[preset_name]
 
+        if args.only_good and 'good_sessions' in preset.keys():
+            sessions = preset['good_sessions']
+
         # Get raw/processed session dirs for preset
-        experimental_ss_pairs = fetch_exp_session_dirs(preset, sessions=args.sessions)
+        experimental_ss_pairs = fetch_exp_session_dirs(preset, sessions=sessions)
 
         exp_session_wrappers = []
         for exp_pair in tqdm.tqdm(experimental_ss_pairs, ncols=100, desc='Pooling sessions'):
@@ -77,12 +81,17 @@ def main(args):
 if __name__ == "__main__":
     # Add arguments
     parser = argparse.ArgumentParser(description="Display session info about a given monkey")
+    cmd_args.add_default_arguments(parser, ("sessions"))
 
     parser.add_argument(
         '--preset',
         type=str, nargs='*',
         help='List presets to use. Defaults to [{}].'.format(', '.join(PRESET_NAMES)))
-    cmd_args.add_default_arguments(parser, ("sessions"))
+
+    parser.add_argument(
+        '--only_good',
+        action='store_true',
+        help='Only use the good sessions specified in preset.')
 
     args = parser.parse_args(sys.argv[1:])
     main(args)

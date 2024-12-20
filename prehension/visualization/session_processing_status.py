@@ -369,10 +369,8 @@ class SpOpensimModel(SessionProcessedBase):
 
     def _eval_per_session(self, sw, preset):
         if os.path.exists(sw.mstruct['opensim_model_locked_base']):
-            self._skip_the_rest = False
             return YES
         else:
-            self._skip_the_rest = True
             return NO
 
 
@@ -385,10 +383,8 @@ class SpMujocoModel(SessionProcessedBase):
 
     def _eval_per_session(self, sw, preset):
         if os.path.exists(sw.mstruct['mujoco_model_sensorized']):
-            self._skip_the_rest = False
             return YES
         else:
-            self._skip_the_rest = True
             return NO
 
 
@@ -401,10 +397,8 @@ class SpGoodSession(SessionProcessedBase):
 
     def _eval_per_session(self, sw, preset):
         if 'good_sessions' in preset.keys() and sw.sess_name in preset['good_sessions']:
-            self._skip_the_rest = False
             return YES
         else:
-            self._skip_the_rest = True
             return NO
 
 
@@ -479,5 +473,5 @@ def report_sessions_processing_status(session_wrappers, preset, evaluators=None,
         for e in evaluators:
             print(f'|{e.eval(sw, preset)}', end='')
             if e.skip_the_rest():
-                continue
+                break
     print()
