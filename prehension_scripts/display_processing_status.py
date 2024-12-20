@@ -34,7 +34,8 @@ from prehension.tools.session_management import fetch_exp_session_dirs
 from prehension.visualization.session_data_visualization import SessionWrapper
 
 
-PRESET_NAMES = ['mrhem']
+PRESET_NAMES = ['mojito_right_hemisphere']
+PRESET_NAMES = ['pimms_right_hemisphere']
 # PRESET_NAMES = ['daiquiri_right_hemisphere']
 
 
@@ -54,7 +55,7 @@ def main(args):
         raise ValueError('Sessions argument can only be provided if a single preset was selected.')
 
     for preset_name in preset_names:
-        print(preset_name)
+        print('*'*8, preset_name, '*'*8)
         init(autoreset=True)  # for colorama
 
         if preset_name not in PRESETS.keys():
@@ -73,8 +74,6 @@ def main(args):
 
         session_processing_status.report_sessions_processing_status(
             exp_session_wrappers, preset, verbose=0)
-
-        print()
 
 
 # Entry

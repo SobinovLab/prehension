@@ -510,7 +510,8 @@ class SessionWrapper:
         for trial in self.msession:
             # trial.target_condition = target_condition
             stub = self.mobject[trial.object_id]["def"]
-            trial.target_force = float(stub["targetForce(N)"])
+            # some old sessions did not have a target force
+            trial.target_force = float(stub.get("targetForce(N)", 0))
             bound_keys = ["targetForceRelRangeMin(N)", "targetForceRelRangeMax(N)"]
             # Check if keys exist in the stub
             trial.range_delta = None

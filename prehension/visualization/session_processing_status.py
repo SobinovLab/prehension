@@ -1,7 +1,7 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Provides utilities for session visualization such as session status and exising files within a
+Provides utilities for session visualization such as session status and existing files within a
 given session.
 
 If your command line is not displaying the tick marks, change the default font to something like
@@ -45,6 +45,7 @@ class SessionProcessedBase():
     '''
     header = 'UNDEFINED'
     _type = 'NOT IMPLEMENTED'
+    _legend = 'None'
     max_trial_symbols = 3  # maximum number of symbols needed to describe all trials in a session
 
     def __init__(self):
@@ -120,6 +121,9 @@ class SessionProcessedBase():
         return ''
 
     # HEADERS FORMATTING
+    def legend(self):
+        return f'{self.header:<{self._width_per_trial()}}: {self._legend}'
+
     def header_1(self):
         raise NotImplementedError()
         return ''
@@ -164,6 +168,7 @@ class SessionProcessedBase():
 class SpMarkers2D(SessionProcessedBase):
     header = 'Markers 2D'
     _type = 'per_trial'
+    _legend = '2D markers found by DLC/ResNet.'
 
     def __init__(self):
         super().__init__()
@@ -184,9 +189,32 @@ class SpMarkers2D(SessionProcessedBase):
 class SpMarkers3D(SessionProcessedBase):
     header = 'Markers 3D'
     _type = 'per_trial'
+    _legend = 'Triangulated markers.'
 
     def __init__(self):
         super().__init__()
+
+    def _eval_per_trial(self, sw, preset):
+        '''Adding skip the rest if there are no positive'''
+        numsucces = sum([trial.success for trial in sw.msession])
+        reports = [self._eval_trial(t) for t in sw.msession]
+        resp_neg = sum([v == -1 for v in reports])
+        resp_zer = sum([v == 0 for v in reports])
+        resp_pos = sum([v > 0 for v in reports])
+        resp_cor = sum([v == 2 for v in reports])
+        color_pos = _color_resp_trials(resp_pos, numsucces)
+        color_cor = _color_resp_trials(resp_cor, numsucces)
+
+        if resp_pos == 0:
+            self._skip_the_rest = True
+        else:
+            self._skip_the_rest = False
+
+        return (
+            f'{resp_neg:>{self.max_trial_symbols}}' +
+            f'{resp_zer:>{self.max_trial_symbols+1}}' +
+            f'{color_pos}{resp_pos:>{self.max_trial_symbols+1}}{Style.RESET_ALL}' +
+            f'{color_cor}{resp_cor:>{self.max_trial_symbols+1}}{Style.RESET_ALL}')
 
     def _eval_trial(self, trial):
         if not trial.do_2d_files_exist():
@@ -203,6 +231,7 @@ class SpMarkers3D(SessionProcessedBase):
 class SpJointAngles(SessionProcessedBase):
     header = 'Raw JA'
     _type = 'per_trial'
+    _legend = 'Joint angles produced by OpenSim inverse kinematics.'
 
     def __init__(self):
         super().__init__()
@@ -221,17 +250,38 @@ class SpJointAngles(SessionProcessedBase):
         return 2
 
 
+class SpTransformedSensors(SessionProcessedBase):
+    header = 'Transform PS'
+    _type = 'per_trial'
+    _legend = 'Pressure sensor files transformed from Tekscan format into tsm.'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_trial(self, trial):
+        if not trial.do_raw_ps_files_exist():
+            return -1
+        if not trial.do_transformed_ps_files_exist():
+            return 0
+
+        latest_pre_file = max(trial.raw_ps_files_times())
+        oldest_pos_file = min(trial.transformed_ps_files_times())
+
+        if latest_pre_file > oldest_pos_file:
+            return 1
+        return 2
+
+
 class SpFilteredSensors(SessionProcessedBase):
     header = 'Filtered PS'
     _type = 'per_trial'
+    _legend = 'Filtered and denoised pressure sensor files.'
 
     def __init__(self):
         super().__init__()
 
     def _eval_trial(self, trial):
         if not trial.do_transformed_ps_files_exist():
-            print(trial.transformed_ps_filenames.values())
-            sys.exit()
             return -1
         if not trial.do_pre_ps_files_exist():
             return 0
@@ -247,6 +297,7 @@ class SpFilteredSensors(SessionProcessedBase):
 class SpAlignedData(SessionProcessedBase):
     header = 'Aligned Data'
     _type = 'per_trial'
+    _legend = 'Kinematic and pressure sensor data aligned to the same frame times and TTL.'
 
     def __init__(self):
         super().__init__()
@@ -268,6 +319,7 @@ class SpAlignedData(SessionProcessedBase):
 class SpMatchedContacts(SessionProcessedBase):
     header = 'Matched Conts'
     _type = 'per_trial'
+    _legend = 'Matched contact files produced with MuJoCo simulation.'
 
     def __init__(self):
         super().__init__()
@@ -289,6 +341,8 @@ class SpMatchedContacts(SessionProcessedBase):
 class SpExportedForces(SessionProcessedBase):
     header = 'Exp Forces'
     _type = 'per_trial'
+    _legend = ('Files summarizing force applied to each segment and digit extracted from matched'
+               ' contacts and filtered pressure sensors.')
 
     def __init__(self):
         super().__init__()
@@ -310,6 +364,7 @@ class SpExportedForces(SessionProcessedBase):
 class SpTorques(SessionProcessedBase):
     header = 'Torques'
     _type = 'per_trial'
+    _legend = 'Actuating torques in the system. NOT IMPLEMENTED'
 
     def __init__(self):
         super().__init__()
@@ -323,6 +378,7 @@ class SpTorques(SessionProcessedBase):
 class SpMetaSession(SessionProcessedBase):
     header = 'M'
     _type = 'per_session_one_symbol'
+    _legend = 'Presence of meta-information for the session.'
 
     def __init__(self):
         super().__init__()
@@ -339,6 +395,7 @@ class SpMetaSession(SessionProcessedBase):
 class SpNumTrialsSession(SessionProcessedBase):
     header = 'NUM'
     _type = 'per_session_num_trials'
+    _legend = 'Number of trials in the session.'
 
     def __init__(self):
         super().__init__()
@@ -351,6 +408,7 @@ class SpNumTrialsSession(SessionProcessedBase):
 class SpNumSuccessfulTrialsSession(SessionProcessedBase):
     header = 'SUC'
     _type = 'per_session_num_trials'
+    _legend = 'Number of successful trials in the session.'
 
     def __init__(self):
         super().__init__()
@@ -363,6 +421,7 @@ class SpNumSuccessfulTrialsSession(SessionProcessedBase):
 class SpOpensimModel(SessionProcessedBase):
     header = 'O'
     _type = 'per_session_one_symbol'
+    _legend = 'Scaled and torso-fixed OpenSim skeletal model needed for IK.'
 
     def __init__(self):
         super().__init__()
@@ -377,6 +436,7 @@ class SpOpensimModel(SessionProcessedBase):
 class SpMujocoModel(SessionProcessedBase):
     header = 'M'
     _type = 'per_session_one_symbol'
+    _legend = 'Number of trials in the session.'
 
     def __init__(self):
         super().__init__()
@@ -391,6 +451,7 @@ class SpMujocoModel(SessionProcessedBase):
 class SpGoodSession(SessionProcessedBase):
     header = 'G'
     _type = 'per_session_one_symbol'
+    _legend = 'Whether the session was marked as good in the preset.'
 
     def __init__(self):
         super().__init__()
@@ -402,17 +463,32 @@ class SpGoodSession(SessionProcessedBase):
             return NO
 
 
+class SpTimepoints(SessionProcessedBase):
+    header = 'T'
+    _type = 'per_session_one_symbol'
+    _legend = 'Does the timepoints.csv file exist for the session.'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        if os.path.exists(sw.mstruct['timepoint_csv_filename']):
+            return YES
+        else:
+            return NO
+
+
 DEFAULT_EVALUATORS = (
-    SpMetaSession(), SpGoodSession(), SpNumTrialsSession(), SpNumSuccessfulTrialsSession(),
+    SpMetaSession(), SpTimepoints(), SpGoodSession(),
+    SpNumTrialsSession(), SpNumSuccessfulTrialsSession(),
+    SpTransformedSensors(), SpFilteredSensors(),
     SpMarkers2D(), SpMarkers3D(), SpOpensimModel(), SpJointAngles(),
-    SpFilteredSensors(), SpAlignedData(), SpMujocoModel(),
-    SpMatchedContacts(), SpExportedForces(),
+    SpAlignedData(), SpMujocoModel(), SpMatchedContacts(),
+    SpExportedForces(),
     SpTorques())
 
 # TODO:
 # Add Jarvis variant
-# Add check for OpenSim models
-# Add check for MuJoCo models
 
 
 
@@ -452,6 +528,11 @@ def report_sessions_processing_status(session_wrappers, preset, evaluators=None,
     # TODO switch list based on preset
     if evaluators is None:
         evaluators = DEFAULT_EVALUATORS
+
+    # print legend
+    print('Legend:')
+    for e in evaluators:
+        print(f'\t{e.legend()}')
 
     session_field_width = max([len(sw.sess_name) for sw in session_wrappers])
     # first line

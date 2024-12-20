@@ -160,12 +160,10 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         if len(trials_sel) != 0 and trial.trial_number not in trials_sel:
             continue
         # Skip if missing input fsx files
-        if any([not os.path.exists(trial.raw_ps_filenames[ps_name])
-                for ps_name in trial.raw_ps_filenames.keys()]):
+        if not trial.do_raw_ps_files_exist():
             continue
         # Skip if output files exist and overwrite==False
-        if not overwrite and all([os.path.exists(fpf)
-                                  for fpf in trial.transformed_ps_filenames.values()]):
+        if not overwrite and trial.do_transformed_ps_files_exist():
             continue
         trials.append(trial)
 

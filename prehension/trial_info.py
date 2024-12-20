@@ -384,6 +384,17 @@ class TrialInfo():
                 os.path.getmtime(self.post_kinematic_filename_csv)]
 
     # PRESSURE
+    def do_raw_ps_files_exist(self):
+        answ = True
+        for filename in self.raw_ps_filenames.values():
+            if not os.path.exists(filename):
+                answ = False
+                break
+        return answ
+
+    def raw_ps_files_times(self):
+        return [os.path.getmtime(f) for f in self.raw_ps_filenames.values()]
+
     def do_transformed_ps_files_exist(self):
         answ = True
         for filename in self.transformed_ps_filenames.values():
