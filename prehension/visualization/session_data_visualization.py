@@ -444,6 +444,15 @@ class SessionWrapper:
             # defined vars:
             # [dst_session_dir] - raw_(training)_server_session: the expected directory name after
             # transfer
+
+            # Check that we don't somehow transfer to a raw from a processed dir or vice-versa
+            if 'raw' in src_session_dir.lower() and 'proc' in dst_parent_dir.lower():
+                raise ValueError('Src path contains the string raw, but found proc in'
+                                    'destination directory. Ensure the preset values are correct')
+            if 'proc' in src_session_dir.lower() and 'raw' in dst_parent_dir.lower():
+                raise ValueError('Src path contains the string proce, but found raw in'
+                                    'destination directory. Ensure the preset values are correct')
+
             dst_session_dir = os.path.join(dst_parent_dir, os.path.basename(src_session_dir))
 
             # logic:
