@@ -66,7 +66,9 @@ RPS_NAME = 'lateral_sensor'
 # only needed for DOF extraction here
 # and to remind user which model to start from
 ORIGINAL_OPENSIM_MODEL = os.path.join(
-    '../../stereo_inverse_kinematics', 'osim_models', 'default_model',
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    'osim_models',
+    'default_model',
     'RightArmAndHand_NoMuscles.osim')
 # CALIBRATIONS_DIR = os.path.join(
 #     r'\\BENSMAIA-LAB', 'LabSharing', 'Stereognosis', 'DeepLabCut', 'CameraConfigs')
