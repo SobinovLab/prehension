@@ -542,7 +542,7 @@ class SessionWrapper:
         return current_date, set_number
 
     def plot_force_trace(self):
-        tp_path = os.path.join(self.proc_ss, "timepoints.csv")
+        tp_path = self.mstruct['timepoint_csv_filename']
 
         if not os.path.isfile(tp_path):
             ws(f"Could not find timepoints csv {tp_path}, skipping force trace")

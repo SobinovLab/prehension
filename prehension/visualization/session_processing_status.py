@@ -60,6 +60,11 @@ class SessionProcessedBase():
                 self.header_2 = self._header_2_per_trial
                 self.width = self._width_per_trial
                 self.eval = self._eval_per_trial
+            case 'per_trial_skip_enabled':
+                self.header_1 = self._header_1_per_trial
+                self.header_2 = self._header_2_per_trial
+                self.width = self._width_per_trial
+                self.eval = self._eval_per_trial_skip_if_all_nonpos
             case 'per_session_one_symbol':
                 self.header_1 = self._header_1_per_session
                 self.header_2 = self._header_2_per_session
@@ -115,6 +120,29 @@ class SessionProcessedBase():
             f'{resp_zer:>{self.max_trial_symbols+1}}' +
             f'{color_pos}{resp_pos:>{self.max_trial_symbols+1}}{Style.RESET_ALL}' +
             f'{color_cor}{resp_cor:>{self.max_trial_symbols+1}}{Style.RESET_ALL}')
+
+    def _eval_per_trial_skip_if_all_nonpos(self, sw, preset):
+        '''Adding skip the rest if there are no positive'''
+        numsucces = sum([trial.success for trial in sw.msession])
+        reports = [self._eval_trial(t) for t in sw.msession]
+        resp_neg = sum([v == -1 for v in reports])
+        resp_zer = sum([v == 0 for v in reports])
+        resp_pos = sum([v > 0 for v in reports])
+        resp_cor = sum([v == 2 for v in reports])
+        color_pos = _color_resp_trials(resp_pos, numsucces)
+        color_cor = _color_resp_trials(resp_cor, numsucces)
+
+        if resp_pos == 0:
+            self._skip_the_rest = True
+        else:
+            self._skip_the_rest = False
+
+        return (
+            f'{resp_neg:>{self.max_trial_symbols}}' +
+            f'{resp_zer:>{self.max_trial_symbols+1}}' +
+            f'{color_pos}{resp_pos:>{self.max_trial_symbols+1}}{Style.RESET_ALL}' +
+            f'{color_cor}{resp_cor:>{self.max_trial_symbols+1}}{Style.RESET_ALL}')
+
 
     def _eval_per_session(self, sw, preset):
         raise NotImplementedError()
@@ -188,33 +216,11 @@ class SpMarkers2D(SessionProcessedBase):
 
 class SpMarkers3D(SessionProcessedBase):
     header = 'Markers 3D'
-    _type = 'per_trial'
+    _type = 'per_trial_skip_enabled'
     _legend = 'Triangulated markers.'
 
     def __init__(self):
         super().__init__()
-
-    def _eval_per_trial(self, sw, preset):
-        '''Adding skip the rest if there are no positive'''
-        numsucces = sum([trial.success for trial in sw.msession])
-        reports = [self._eval_trial(t) for t in sw.msession]
-        resp_neg = sum([v == -1 for v in reports])
-        resp_zer = sum([v == 0 for v in reports])
-        resp_pos = sum([v > 0 for v in reports])
-        resp_cor = sum([v == 2 for v in reports])
-        color_pos = _color_resp_trials(resp_pos, numsucces)
-        color_cor = _color_resp_trials(resp_cor, numsucces)
-
-        if resp_pos == 0:
-            self._skip_the_rest = True
-        else:
-            self._skip_the_rest = False
-
-        return (
-            f'{resp_neg:>{self.max_trial_symbols}}' +
-            f'{resp_zer:>{self.max_trial_symbols+1}}' +
-            f'{color_pos}{resp_pos:>{self.max_trial_symbols+1}}{Style.RESET_ALL}' +
-            f'{color_cor}{resp_cor:>{self.max_trial_symbols+1}}{Style.RESET_ALL}')
 
     def _eval_trial(self, trial):
         if not trial.do_2d_files_exist():
@@ -230,7 +236,7 @@ class SpMarkers3D(SessionProcessedBase):
 
 class SpJointAngles(SessionProcessedBase):
     header = 'Raw JA'
-    _type = 'per_trial'
+    _type = 'per_trial_skip_enabled'
     _legend = 'Joint angles produced by OpenSim inverse kinematics.'
 
     def __init__(self):
@@ -318,7 +324,7 @@ class SpAlignedData(SessionProcessedBase):
 
 class SpMatchedContacts(SessionProcessedBase):
     header = 'Matched Conts'
-    _type = 'per_trial'
+    _type = 'per_trial_skip_enabled'
     _legend = 'Matched contact files produced with MuJoCo simulation.'
 
     def __init__(self):

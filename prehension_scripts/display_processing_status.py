@@ -35,7 +35,7 @@ from prehension.visualization.session_data_visualization import SessionWrapper
 
 
 PRESET_NAMES = ['mojito_right_hemisphere']
-PRESET_NAMES = ['pimms_right_hemisphere']
+# PRESET_NAMES = ['pimms_right_hemisphere']
 # PRESET_NAMES = ['daiquiri_right_hemisphere']
 
 
