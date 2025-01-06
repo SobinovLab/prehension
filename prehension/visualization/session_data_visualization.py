@@ -508,6 +508,8 @@ class SessionWrapper:
         if not self.has_meta:
             return False
         # Check if it is an experiment or not
+        # Consider it an experiment if it has videos directory and raw_ps directory
+        # Neural is optional right now
         experiment_expected_dirnames = [os.path.join(self.raw_ss, self.mstruct["videos_dir"]),
                                         os.path.join(self.raw_ss, self.mstruct["raw_ps_dir"])]
         is_training_session = not all([os.path.exists(dname) for dname
