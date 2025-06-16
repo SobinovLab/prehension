@@ -133,4 +133,4 @@ if __name__ == "__main__":
 
     main(current_preset, args.sessions, args.temp, args.overwrite)
 
-    rs("Program took {}.".format(timedelta(seconds=time.time() - start_time)))
+    rs(f"Program took {timedelta(seconds=time.time() - start_time)}.")

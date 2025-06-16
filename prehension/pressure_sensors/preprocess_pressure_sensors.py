@@ -162,7 +162,10 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         # Skip if missing input fsx files
         if any([not os.path.exists(trial.raw_ps_filenames[ps_name])
                 for ps_name in trial.raw_ps_filenames.keys()]):
+            ws(f'Missing fsx files {[trial.raw_ps_filenames[ps_name] for ps_name in trial.raw_ps_filenames.keys()]} for trial {trial.trial_number}')
             continue
+
+
         # Skip if output files exist and overwrite==False
         if not overwrite and all([os.path.exists(fpf)
                                   for fpf in trial.transformed_ps_filenames.values()]):
@@ -171,6 +174,7 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
 
     # Just continue if no trials
     if not trials:
+        ws('No trials found')
         return
 
     rs('Found {} trials: {}'.format(len(trials), ', '.join([str(t.trial_number) for t in trials])))
