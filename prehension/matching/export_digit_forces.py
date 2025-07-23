@@ -179,7 +179,7 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
         overwrite {bool} --- Overwrites the created files if they exist.
         processes {int} --- Number of parallel processes in the pool.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

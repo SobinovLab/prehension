@@ -294,7 +294,7 @@ def predict_points_jarvis(server, processed_server, sessions, temp, trials_sel, 
         make_videos {bool} --- Renders videos with prediction.
     """
     # Jarvis saves own log
-    # tools.setup_logging(temp, sessions_dir=processed_server)
+    # tools.logs.setup_logging(temp, sessions_dir=processed_server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

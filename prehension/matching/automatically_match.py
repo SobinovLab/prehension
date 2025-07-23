@@ -69,7 +69,7 @@ def automatically_match(server, sessions, trials_sel, temp, processes, overwrite
         verbose {bool} --- Enable verbose prints about program running.
     """
 
-    tools.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

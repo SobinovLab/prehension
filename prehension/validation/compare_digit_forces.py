@@ -193,7 +193,7 @@ def compare_digit_forces(server, sessions, trials_sel, temp, find_good, make_plo
         make_plots {bool} --- Makes some inspection figures.
         find_good_n {bool} --- Default number of random good trials to select from a session.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

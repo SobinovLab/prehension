@@ -310,7 +310,7 @@ def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite,
             the execution, but low values are too short for relatively large bending bones like metacarpals
             and large muscle areas like thenar eminence. In meters.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

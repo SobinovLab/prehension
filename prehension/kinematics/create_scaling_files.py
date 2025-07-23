@@ -282,7 +282,7 @@ def create_scaling_files(server, session, trial_number, temp, overwrite, period,
         transfer_position {bool} --- Transfer the joint angles that have resulted from IK into the model
             that is being scaled. Different mode of operation, does not generate scaling files.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

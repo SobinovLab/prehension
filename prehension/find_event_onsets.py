@@ -944,8 +944,8 @@ def create_plot_from_dictionary(timepoints_d,
     return fig
 
 
-def find_event_onsets(raw_dir,
-                      proc_dir,
+def find_event_onsets(rserv,
+                      pserv,
                       sessions,
                       trials_sel,
                       temp,
@@ -983,13 +983,13 @@ def find_event_onsets(raw_dir,
         num_processes, create_plots)
     """
 
-    logs.setup_logging(temp, sessions_dir=proc_dir)
+    logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(raw_dir):
-        raise ValueError("Server directory {} does not exist or is inaccessible.".format(raw_dir))
+    if not os.path.exists(rserv):
+        raise ValueError("Server directory {} does not exist or is inaccessible.".format(rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(raw_dir)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws("A subset of trials was selected, only the first session will be used.")
@@ -1009,8 +1009,8 @@ def find_event_onsets(raw_dir,
     for session in tqdm.tqdm(sessions, ncols=100, desc="Sessions"):
         print()
         rs("Processing session {}.".format(session))
-        raw_ss = os.path.join(raw_dir, session)
-        proc_ss = os.path.join(proc_dir, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
         if not os.path.exists(raw_ss):
             ws("Session {} does not exist on the server.".format(raw_ss))

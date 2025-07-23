@@ -212,7 +212,7 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
         preset {dict} --- Preset dictionary.
         make_plots {bool} --- Makes some inspection figures. Run with --processes 1.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

@@ -17,7 +17,7 @@ def make_adjustment(server, session, trial_number, temp, overwrite, executable_f
         overwrite {bool} --- Overwrites the created files if they exist.
         executable_filename {str} --- Filename of the executable MuJoCo file.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=server)
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
