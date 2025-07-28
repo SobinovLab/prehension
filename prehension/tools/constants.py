@@ -77,3 +77,46 @@ CALIBRATIONS_DIR = os.path.join(
 
 THORAX_DOF_NAMES = ('Thorax_tra1', 'Thorax_tra2', 'Thorax_tra3',
                     'Thorax_rot1', 'Thorax_rot2', 'Thorax_rot3')
+
+DEPENDENT_DOFS = (
+    'ra_sternoclavicular_r2_d', 'ra_sternoclavicular_r3_d', 'ra_unrotscap_r3_d',
+    'ra_unrotscap_r2_d', 'ra_acromioclavicular_r2_d', 'ra_acromioclavicular_r3_d',
+    'ra_acromioclavicular_r1_d', 'ra_unrothum_r1_d', 'ra_unrothum_r3_d', 'ra_unrothum_r2_d',
+    'ra_shoulder1_r2_d', 'ra_proximal_distal_r1_d', 'ra_proximal_distal_r3_d')
+ALL_DOFS = (
+    'ra_sh_elv_angle', 'ra_sh_elv', 'ra_sh_rot',
+    'ra_el_e_f',
+    'ra_wr_sup_pro', 'ra_wr_rd_ud', 'ra_wr_e_f',
+    'ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab', 'ra_mcp1_e_f', 'ra_ip1_e_f',
+    'ra_mcp2_e_f', 'ra_mcp2_ad_ab', 'ra_pip2_e_f', 'ra_dip2_e_f',
+    'ra_mcp3_e_f', 'ra_mcp3_rd_ud', 'ra_pip3_e_f', 'ra_dip3_e_f',
+    'ra_mcp4_e_f', 'ra_mcp4_ad_ab', 'ra_pip4_e_f', 'ra_dip4_e_f',
+    'ra_mcp5_e_f', 'ra_mcp5_ad_ab', 'ra_pip5_e_f', 'ra_dip5_e_f')
+ALL_DOFS_PROX_TO_DISTAL = (
+    'ra_sh_elv_angle', 'ra_sh_elv', 'ra_sh_rot',
+    'ra_el_e_f',
+    'ra_wr_sup_pro', 'ra_wr_rd_ud', 'ra_wr_e_f',
+    'ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab',
+    'ra_mcp1_e_f', 'ra_mcp2_e_f', 'ra_mcp3_e_f', 'ra_mcp4_e_f', 'ra_mcp5_e_f',
+    'ra_mcp2_ad_ab', 'ra_mcp3_rd_ud', 'ra_mcp4_ad_ab', 'ra_mcp5_ad_ab',
+    'ra_ip1_e_f', 'ra_pip2_e_f', 'ra_pip3_e_f', 'ra_pip4_e_f', 'ra_pip5_e_f',
+    'ra_dip2_e_f', 'ra_dip3_e_f', 'ra_dip4_e_f', 'ra_dip5_e_f')
+PROXIMAL_DOFS = (
+    'ra_sh_elv_angle', 'ra_sh_elv', 'ra_sh_rot',
+    'ra_el_e_f')
+WRIST_DOFS = (
+    'ra_wr_sup_pro', 'ra_wr_rd_ud', 'ra_wr_e_f')
+DISTAL_DOFS = (
+    'ra_wr_sup_pro', 'ra_wr_rd_ud', 'ra_wr_e_f',
+    'ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab', 'ra_mcp1_e_f', 'ra_ip1_e_f',
+    'ra_mcp2_e_f', 'ra_mcp2_ad_ab', 'ra_pip2_e_f', 'ra_dip2_e_f',
+    'ra_mcp3_e_f', 'ra_mcp3_rd_ud', 'ra_pip3_e_f', 'ra_dip3_e_f',
+    'ra_mcp4_e_f', 'ra_mcp4_ad_ab', 'ra_pip4_e_f', 'ra_dip4_e_f',
+    'ra_mcp5_e_f', 'ra_mcp5_ad_ab', 'ra_pip5_e_f', 'ra_dip5_e_f')
+PER_DIGIT_DOFS = {
+    'thumb': ('ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab', 'ra_mcp1_e_f', 'ra_ip1_e_f'),
+    'index': ('ra_mcp2_e_f', 'ra_mcp2_ad_ab', 'ra_pip2_e_f', 'ra_dip2_e_f'),
+    'middle': ('ra_mcp3_e_f', 'ra_mcp3_rd_ud', 'ra_pip3_e_f', 'ra_dip3_e_f'),
+    'ring': ('ra_mcp4_e_f', 'ra_mcp4_ad_ab', 'ra_pip4_e_f', 'ra_dip4_e_f'),
+    'pinky': ('ra_mcp5_e_f', 'ra_mcp5_ad_ab', 'ra_pip5_e_f', 'ra_dip5_e_f')
+}
