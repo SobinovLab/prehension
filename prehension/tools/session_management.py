@@ -171,7 +171,7 @@ def does_training_servers_exist(preset, verbose=False):
     return training_servers_not_none and training_servers_exist
 
 
-def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions=[]):
+def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=None, sessions=None):
     """Apply a function to raw and processed session folders found in rserv and pserv. Will create
     the processed session folder if it does not exist.
 
@@ -192,6 +192,10 @@ def apply_to_sessions_helper(rserv, pserv, preset, temp, func, args=(), sessions
     Returns:
         list: List of failed sessions.
     """
+    if args is None:
+        args = ()
+    if sessions is None:
+        sessions = []
 
     logs.setup_logging(temp, sessions_dir=pserv)
 

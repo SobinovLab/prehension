@@ -1,4 +1,4 @@
-#!python3.7
+#!python3
 import os
 import warnings
 from itertools import product
@@ -9,18 +9,18 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .. import io_tools
+from ..tools import io
 from .. import meta_session
 from .. import tools
-from ..materialsio_colors import materialsio_colors_rgb as micolors
-from ..tools import rs, ws
+from ..tools.materialsio_colors import materialsio_colors_rgb as micolors
+from ..tools.logs import rs, ws
 
 LPS_NAME = 'medial_sensor'
 RPS_NAME = 'lateral_sensor'
 SHIFT_JUMP = 10
-DIGITS = tools.DIGITS
-UNCLAIMED_NAME = tools.UNCLAIMED_NAME
-UNCLAIMED_INDEX = tools.UNCLAIMED_INDEX
+DIGITS = tools.constants.DIGITS
+UNCLAIMED_NAME = tools.constants.UNCLAIMED_NAME
+UNCLAIMED_INDEX = tools.constants.UNCLAIMED_INDEX
 
 # 0.5 for standard view, 0.25 for enhanced visibility of patterns
 FORCE_POWER_TRANSFORM_FOR_MAP = 0.5
@@ -215,9 +215,9 @@ class ForceLabellingInterface:
     def generate_internal_data(self):
         # ps_times should be the same for all
         self.ps_matrices = {}
-        self.ps_times, self.ps_matrices[LPS_NAME] = io_tools.import_matrices(
+        self.ps_times, self.ps_matrices[LPS_NAME] = io.import_matrices(
             self.trial.get_post_ps_filenames()[LPS_NAME])
-        _, self.ps_matrices[RPS_NAME] = io_tools.import_matrices(
+        _, self.ps_matrices[RPS_NAME] = io.import_matrices(
             self.trial.get_post_ps_filenames()[RPS_NAME])
 
         self.nsenselsr = np.shape(self.ps_matrices[LPS_NAME])[1]  # number of sensels one direction
@@ -247,9 +247,9 @@ class ForceLabellingInterface:
             else:
                 # load
                 self.matched_contacts = {
-                    LPS_NAME: io_tools.import_matched_contacts(
+                    LPS_NAME: io.import_matched_contacts(
                         self.trial.matched_contacts_filenames[LPS_NAME]),
-                    RPS_NAME: io_tools.import_matched_contacts(
+                    RPS_NAME: io.import_matched_contacts(
                         self.trial.matched_contacts_filenames[RPS_NAME])
                 }
                 # get traces
@@ -620,22 +620,22 @@ class ForceLabellingInterface:
     def export_matched_data(self):
         column_names = ['time'] + [ds['name'] for ds in self.digit_selectors]
         values = [self.ps_times] + self.total_force_traces
-        io_tools.export_csv(self.trial.manually_labelled_filename, column_names, values)
+        io.export_csv(self.trial.manually_labelled_filename, column_names, values)
         print('Exported matched profiles to {}.'.format(self.trial.manually_labelled_filename))
 
-        io_tools.export_one_csv_matrix(self.trial.lps_map_filename, self.lps_digit_mask)
-        io_tools.export_one_csv_matrix(self.trial.rps_map_filename, self.rps_digit_mask)
+        io.export_one_csv_matrix(self.trial.lps_map_filename, self.lps_digit_mask)
+        io.export_one_csv_matrix(self.trial.rps_map_filename, self.rps_digit_mask)
         print('Exported left and right pressure sensor masks into {} and {}, respectively.'.format(
             self.trial.lps_map_filename, self.trial.rps_map_filename))
 
     def load_maps(self):
         if os.path.exists(self.trial.lps_map_filename):
             self.lps_digit_mask = np.array(
-                io_tools.import_one_csv_matrix(self.trial.lps_map_filename, dtype=int))
+                io.import_one_csv_matrix(self.trial.lps_map_filename, dtype=int))
             print('Loaded left pressure sensor map from {}.'.format(self.trial.lps_map_filename))
         if os.path.exists(self.trial.rps_map_filename):
             self.rps_digit_mask = np.array(
-                io_tools.import_one_csv_matrix(self.trial.rps_map_filename, dtype=int))
+                io.import_one_csv_matrix(self.trial.rps_map_filename, dtype=int))
             print('Loaded right pressure sensor map from {}.'.format(self.trial.rps_map_filename))
 
     def find_square_from_events(self, event1, event2):
@@ -742,7 +742,7 @@ class ForceLabellingInterface:
                 sensel = self.ps_matrices[LPS_NAME][:, y, x]
                 senselmax = np.max(sensel)
                 if senselmax > 0:
-                    i_frame = tools.find_first(sensel >= np.max(sensel))
+                    i_frame = tools.misc.find_first(sensel >= np.max(sensel))
                     self.i_frame = i_frame
                     self.update_on_frame_change()
             self.lps_avg_pressevent = None
@@ -754,7 +754,7 @@ class ForceLabellingInterface:
                 sensel = self.ps_matrices[RPS_NAME][:, y, x]
                 senselmax = np.max(sensel)
                 if senselmax > 0:
-                    i_frame = tools.find_first(sensel >= np.max(sensel))
+                    i_frame = tools.misc.find_first(sensel >= np.max(sensel))
                     self.i_frame = i_frame
                     self.update_on_frame_change()
             self.rps_avg_pressevent = None
@@ -764,7 +764,7 @@ class ForceLabellingInterface:
                 event.inaxes == self.highlight_pressevent.inaxes):
             dx = event.xdata - self.highlight_pressevent.xdata
             new_x = self.dt_offset_times[self.i_frame] + dx
-            self.moving_i_frame = tools.find_first(new_x <= self.dt_offset_times)
+            self.moving_i_frame = tools.misc.find_first(new_x <= self.dt_offset_times)
             self.update_vertical_lines(self.moving_i_frame)
 
     def on_key_press(self, event):
@@ -823,7 +823,7 @@ def manual_force_labeling(trial, lps_ref_video_filename, rps_ref_video_filename,
     plt.show()
 
 
-def manually_label_forces(server, session, trial_number, temp,
+def manually_label_forces(rserv, pserv, session, trial_number, temp,
                           lps_ref_camera_name, rps_ref_camera_name, show_automatic):
     """Opens a GUI to manually assign sensels to digits.
 
@@ -835,23 +835,24 @@ def manually_label_forces(server, session, trial_number, temp,
         rps_ref_camera_name {str} --- Camera name.
         show_automatic {bool} ---
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(session) == 0:
-        session = meta_session.find_session_dirs(server)[0]
+        session = meta_session.find_session_dirs(rserv)[0]
 
     rs('Processing session {}.'.format(session))
-    server_session = os.path.join(server, session)
+    r_server_session = os.path.normpath(os.path.join(rserv, session))
+    p_server_session = os.path.normpath(os.path.join(pserv, session))
 
-    if not os.path.exists(server_session):
+    if not os.path.exists(r_server_session):
         ValueError('Session {} does not exist on the server.'.format(session))
 
     # load session meta
-    mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+    mstruct, _, _, msession = meta_session.load_meta_information(r_server_session, p_server_session)
 
     # find trial
     trial = None

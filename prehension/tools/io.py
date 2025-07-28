@@ -316,10 +316,10 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
     '''
     if key_cast is None:
         def key_cast(x):
-            x.strip()
+            return x.strip()
     if value_cast is None:
         def value_cast(x):
-            x.strip()
+            return x.strip()
 
     dic = {}
     with open(fname, 'r') as f:

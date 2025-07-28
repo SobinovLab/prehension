@@ -385,14 +385,7 @@ class SessionWrapper:
         self.results_dir = os.path.join(self.proc_ss, "prehension_plots")
         os.makedirs(self.results_dir, exist_ok=True)
         self.has_meta = False
-
-        potential_logs = glob.glob(os.path.join(self.raw_ss, "behavior", "*.csv"))
-        if len(potential_logs) > 1:
-            ws(f"Found more than one log for session: {os.path.basename(self.raw_ss)}, skipping")
-        if len(potential_logs) == 1:
-            self.log_full = potential_logs[0]
-        else:
-            self.log_full = None
+        self.load_meta_exception = ''
 
         # Load meta
         try:
@@ -401,7 +394,8 @@ class SessionWrapper:
             self.has_meta = True
             if len(self.mstruct["auto_log"]) > 0:
                 self.log_full = self.mstruct["auto_log"][0]
-        except meta_session.IncompleteMetaError:
+        except meta_session.IncompleteMetaError as e:
+            self.load_meta_exception = str(e)
             # ws(f'Incomplete meta information for session: {os.path.basename(self.raw_ss)},
             # skipping')
             return
@@ -538,7 +532,8 @@ class SessionWrapper:
         for trial in self.msession:
             # trial.target_condition = target_condition
             stub = self.mobject[trial.object_id]["def"]
-            trial.target_force = float(stub["targetForce(N)"])
+            # some old sessions did not have a target force
+            trial.target_force = float(stub.get("targetForce(N)", 0))
             bound_keys = ["targetForceRelRangeMin(N)", "targetForceRelRangeMax(N)"]
             # Check if keys exist in the stub
             trial.range_delta = None
@@ -572,7 +567,7 @@ class SessionWrapper:
             raise ValueError(f'Could not parse date from folder name: {folder}')
 
     def plot_force_trace(self):
-        tp_path = os.path.join(self.proc_ss, "timepoints.csv")
+        tp_path = self.mstruct['timepoint_csv_filename']
 
         if not os.path.isfile(tp_path):
             ws(f"Could not find timepoints csv {tp_path}, skipping force trace")

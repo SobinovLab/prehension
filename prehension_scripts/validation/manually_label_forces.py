@@ -1,11 +1,11 @@
-#!python3.7
+#!python3
 import argparse
 import time
 
 from prehension import preset
 from prehension import tools
 from prehension.validation.manually_label_forces import manually_label_forces
-from prehension.tools import rs
+from prehension.tools.logs import rs
 
 
 if __name__ == '__main__':
@@ -20,9 +20,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description=('Opens a GUI to manually assign sensels to digits.'))
-    tools.add_default_kwarguments(
-        parser, {'server': current_preset['default_server']})
-    tools.add_default_arguments(
+    tools.cmd_args.add_default_arguments(
         parser, ('session', 'trial', 'temp'))
 
     parser.add_argument(
@@ -33,7 +31,9 @@ if __name__ == '__main__':
 
     start_time = time.time()
     manually_label_forces(
-        args.server, args.session, args.trial, args.temp,
+        current_preset['default_server'],
+        current_preset['processed_server'],
+        args.session, args.trial, args.temp,
         lps_ref_camera_name, rps_ref_camera_name, args.show_automatic)
 
     rs('Program took {} s.'.format(time.time() - start_time))

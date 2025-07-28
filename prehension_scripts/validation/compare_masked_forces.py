@@ -1,4 +1,4 @@
-#!python3.7
+#!python3
 import argparse
 import datetime
 import time
@@ -6,20 +6,17 @@ import time
 import matplotlib.pyplot as plt
 
 from prehension import preset
-from prehension import tools
+from prehension.tools import cmd_args
 from prehension.validation.compare_masked_forces import compare_masked_forces
 
 
 if __name__ == '__main__':
-
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
     parser = argparse.ArgumentParser(
         description=('Compare manually-labeled to the automatically-labeled forces using sensor'
                      ' masks.'))
-    tools.add_default_kwarguments(
-        parser, {'server': current_preset['default_server']})
-    tools.add_default_arguments(
+    cmd_args.add_default_arguments(
         parser, ('sessions', 'trials', 'temp', 'make_plots'))
 
     parser.add_argument(
@@ -35,7 +32,8 @@ if __name__ == '__main__':
 
     start_time = time.time()
     compare_masked_forces(
-        args.server, args.sessions, args.trials, args.temp, args.find_good,
+        current_preset['default_server'], current_preset['processed_server'],
+        args.sessions, args.trials, args.temp, args.find_good,
         args.make_plots, args.find_good_n)
     print('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

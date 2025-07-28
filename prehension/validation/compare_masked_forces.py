@@ -6,25 +6,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
-from .. import io_tools
 from .. import meta_session
 from .. import tools
-from ..tools import rs, ws
+from ..tools import logs
+from ..tools.logs import rs, ws
 
-DIGITS = tools.DIGITS
-UNCLAIMED_NAME = tools.UNCLAIMED_NAME
-UNCLAIMED_INDEX = tools.UNCLAIMED_INDEX
+DIGITS = tools.constants.DIGITS
+UNCLAIMED_NAME = tools.constants.UNCLAIMED_NAME
+UNCLAIMED_INDEX = tools.constants.UNCLAIMED_INDEX
 
 
 def load_maps(trial):
     if os.path.exists(trial.lps_map_filename):
         lps_digit_mask = np.array(
-            io_tools.import_one_csv_matrix(trial.lps_map_filename, dtype=int))
+            tools.io.import_one_csv_matrix(trial.lps_map_filename, dtype=int))
     else:
         raise ValueError('Map does not exist.')
     if os.path.exists(trial.rps_map_filename):
         rps_digit_mask = np.array(
-            io_tools.import_one_csv_matrix(trial.rps_map_filename, dtype=int))
+            tools.io.import_one_csv_matrix(trial.rps_map_filename, dtype=int))
     else:
         raise ValueError('Map does not exist.')
     return lps_digit_mask, rps_digit_mask
@@ -35,9 +35,9 @@ def load_forces(mstruct, trial):
     matched_contacts = {}
     segments_set = set()
     for ps_name in mstruct['ps_dic'].keys():
-        ps_times, ps_matrices[ps_name] = io_tools.import_matrices(
+        ps_times, ps_matrices[ps_name] = tools.io.import_matrices(
             trial.get_post_ps_filenames()[ps_name])
-        matched_contacts[ps_name] = io_tools.import_matched_contacts(
+        matched_contacts[ps_name] = tools.io.import_matched_contacts(
             trial.matched_contacts_filenames[ps_name])
 
     # some basic force parameters
@@ -84,7 +84,7 @@ def load_forces(mstruct, trial):
             for i_digit, d in enumerate(DIGITS.values()):
                 if i_digit == len(DIGITS) - 1:
                     break
-                digit_auto_mask = tools.get_matched_contact_frame_mask(
+                digit_auto_mask = tools.forces.get_matched_contact_frame_mask(
                     d['exp'], matched_contacts[ps_name][i_frame],
                     np.shape(manual_digit_map))
                 auto_mask[digit_auto_mask] = i_digit
@@ -118,11 +118,11 @@ TV_DIFF_F = {
     }
 }
 DIFF_F = {
-    'misattributed impulse': {
+    'misattr impulse': {
         'f': lambda trial: np.sum(trial.mask_based_diff * trial.dts),
         'unit': 'N s'
     },
-    'normalized misattributed impulse': {
+    'norm misattr impulse': {
         # 'f': lambda trial: np.sum(trial.mask_based_diff * trial.dts) / trial.summed_impulse * 100,
         # equivalent to the following, assuming dt is constant
         'f': lambda trial: np.sum(trial.mask_based_diff) / trial.summed_force * 100,
@@ -132,7 +132,7 @@ DIFF_F = {
         'f': lambda trial: np.sum(trial.unclaimed_force * trial.dts),
         'unit': 'N s'
     },
-    'normalized unclaimed impulse': {
+    'norm uncl impulse': {
         # 'f': lambda trial: np.sum(trial.unclaimed_force * trial.dts) / trial.summed_impulse * 100,
         # equivalent to the following, assuming dt is constant
         'f': lambda trial: np.sum(trial.unclaimed_force) / trial.summed_force * 100,
@@ -152,26 +152,29 @@ def calculate_differences(trial):
         trial.differences[k] = v['f'](trial)
 
 
-def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_plots, find_good_n):
+def compare_masked_forces(rserv, pserv, sessions, trials_sel, temp, find_good, make_plots,
+                          find_good_n):
     """Compare manually-labeled to the automatically-labeled forces using sensor masks.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all
+            unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         find_good {bool} --- Find good trials - candidates for labeling.
         make_plots {bool} --- Makes some inspection figures.
         find_good_n {bool} --- Default number of random good trials to select from a session.
     """
-    tools.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -188,16 +191,17 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        r_server_session = os.path.normpath(os.path.join(rserv, session))
+        p_server_session = os.path.normpath(os.path.join(pserv, session))
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(r_server_session):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
             mstruct, _, mobject, msession = meta_session.load_meta_information(
-                server_session, check_manual_log=True)
+                r_server_session, p_server_session, check_manual_log=True)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
@@ -288,7 +292,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
         data = sum([[trial.differences[dm] for trial in trials]
                     for trials in trials_by_session.values()], [])
         ax.hist(data, color='k', bins=30)
-        tools.actual_vline(ax, np.median(data), color='r')
+        tools.plotting.actual_vline(ax, np.median(data), color='r')
         rs('{} median {} {}.'.format(dm, np.median(data), dmv['unit']))
         ax.set_xlim(left=0)
         ax.set_xlabel('{}, {}'.format(dm, dmv['unit']))
@@ -305,7 +309,7 @@ def compare_masked_forces(server, sessions, trials_sel, temp, find_good, make_pl
             for trial in trials:
                 data += sum(trial.tv_differences[dm], [])
         ax.hist(data, color='k', bins=100)
-        tools.actual_vline(ax, np.median(data), color='r')
+        tools.plotting.actual_vline(ax, np.median(data), color='r')
         rs('{} median {} {}.'.format(dm, np.median(data), dmv['unit']))
         ax.set_xlim(left=0)
         ax.set_xlabel('{}, {}'.format(dm, dmv['unit']))

@@ -20,7 +20,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import math
 
+import matplotlib as mpl
+from matplotlib import cm
 import matplotlib.animation as mpl_ani
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,12 +36,77 @@ from ..tools import io
 from .. import meta_session
 
 
+class SharedPSDisplayers:
+    def __init__(self, displayers, fig, ax_cbar, normalize='total', force_transform_power=0.5):
+        '''Share the normalization and time between displayers'''
+        self.displayers = displayers
+        self.fig = fig
+        self.ax_cbar = ax_cbar
+        self.normalize = normalize
+        self.normalize_value = 1
+        self.force_transform_power = force_transform_power
+
+        # other config parameters
+        self.cmap = 'Greys'
+        self.matrix_max = np.max  # estimate matrix max
+        # other option: np.percentile(matrix, 99)
+
+    def set_custom_normalization(self, normalize_value):
+        self.normalize_value = normalize_value
+        self.normalize = 'custom'
+
+    def display_time(self, time):
+        # spread configs
+        for d in self.displayers:
+            d.cmap = self.cmap
+            d.force_transform_power = self.force_transform_power
+            d.matrix_max = self.matrix_max
+
+        # get normalization
+        if self.normalize == 'total':
+            normalize_value = max([d.ps_vmax for d in self.displayers])
+        elif self.normalize == 'frame':
+            for d in self.displayers:
+                d.display_time(time)
+            normalize_value = max([self.matrix_max(d.matrix) for d in self.displayers])
+        elif self.normalize == 'custom':
+            normalize_value = self.normalize_value
+
+        for d in self.displayers:
+            d.set_custom_normalization(normalize_value)
+            d.display_time(time)
+
+        # update the grayscale
+        self.fig.colorbar(
+            cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=0, vmax=normalize_value),
+                              cmap=self.cmap),
+            cax=self.ax_cbar, label='Force, N')
+        yticks = [math.floor(v*100)/100 for v in np.linspace(0, normalize_value, 4)]
+        yticklabels = ['{:.2f}'.format(v) for v in yticks]
+        yticks = [(v / normalize_value) ** self.force_transform_power * normalize_value
+                  for v in yticks]
+        self.ax_cbar.set_yticks(yticks)
+        self.ax_cbar.set_yticklabels(yticklabels)
+
+
 # TODO move to tools or pressure_sensors
 class PSDisplayer:
-    def __init__(self, ax, ps_times, ps_matrices):
+    def __init__(self, ax, ps_times, ps_matrices,
+                 invert_x=False, normalize='total', force_transform_power=0.5):
         self.ax = ax
         self.ps_times = ps_times
         self.ps_matrices = ps_matrices
+        self.invert_x = invert_x
+        # total, frame, custom
+        self.normalize = normalize
+        self.normalize_value = 1
+        self.force_transform_power = force_transform_power
+
+        # other config parameters
+        self.cmap = 'Greys'
+        self.matrix_max = np.max  # estimate matrix max
+        # other option:
+
         self.generate_internal_data()
 
         # generate figure template and axes
@@ -49,6 +117,8 @@ class PSDisplayer:
         self.ax.set_xticks([])
         self.ax.set_yticks([])
         self.ax.set_ylim([-0.5, self.nsenselsr - 0.5])  # default is upside down
+        if self.invert_x:
+            self.ax.set_xlim([self.nsenselsr - 0.5, -0.5])
 
     def generate_internal_data(self):
         self.nsenselsr = np.shape(self.ps_matrices)[1]  # number of sensels one direction
@@ -57,18 +127,31 @@ class PSDisplayer:
         self.ps_vmax = np.max(self.ps_matrices)
 
     def force_map_transform(self, matrix):
-        return np.sqrt(matrix)
+        # 0.5 for standard view, 0.25 for enhanced visibility of patterns
+        return np.power(matrix, self.force_transform_power)
+
+    def set_custom_normalization(self, normalize_value):
+        self.normalize_value = normalize_value
+        self.normalize = 'custom'
 
     def display_ps_frame(self, i_frame=None):
         if i_frame is None:
             i_frame = self.i_frame
         else:
             self.i_frame = i_frame
+        self.matrix = self.ps_matrices[i_frame]
         if self.image is not None:
             self.image.remove()
-        matrix = self.ps_matrices[i_frame] / self.ps_vmax
-        self.image = self.ax.imshow(self.force_map_transform(matrix),
-                                    vmin=0, vmax=1, cmap='Greys')
+
+        if self.normalize == 'total':
+            self.normalize_value = self.ps_vmax
+        elif self.normalize == 'frame':
+            self.normalize_value = self.matrix_max(self.matrix)
+        matrix = self.matrix
+
+        self.image = self.ax.imshow(
+            self.force_map_transform(matrix / self.normalize_value) * self.normalize_value,
+            vmin=0, vmax=self.normalize_value, cmap=self.cmap)
 
     def display_time(self, time):
         i_frame = misc.find_first(self.ps_times >= time)
