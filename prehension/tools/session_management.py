@@ -151,6 +151,7 @@ def does_training_servers_exist(preset, verbose=False):
     Returns:
         bool: True if all training servers exist in preset else False
     """
+
     keys = ["default_training_server", "processed_training_server"]
     if not all(k in preset for k in keys):
         raise ValueError("Missing keys in preset: {}".format(keys))

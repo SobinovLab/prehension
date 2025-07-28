@@ -50,17 +50,43 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
 
     # Function to check if specific folders (behavior, sensors) exist in sw.raw_ss
     def check_folders(session_path):
-        behavior_exists = os.path.exists(os.path.join(session_path, "behavior"))
-        sensors_exists = os.path.exists(os.path.join(session_path, "sensors"))
 
-        behavior_symbol = (f" {Fore.GREEN}✓{Style.RESET_ALL} "
+        # Required directories
+        behavior_path = os.path.join(session_path, "behavior")
+        sensors_path = os.path.join(session_path, "sensors")
+
+        # Required only for experimental sessions
+        cameras_path = os.path.join(session_path, "cameras")
+        neural_path = os.path.join(session_path, "neural")
+
+        # list of paths witch are okay to exist
+        approved_paths = {behavior_path, sensors_path, cameras_path, neural_path}
+
+        # See if we have any other contents in the session directory
+        other_contents = set(glob.glob(os.path.join(session_path, "*"))) - approved_paths
+
+        behavior_exists = os.path.exists(behavior_path)
+        sensors_exists = os.path.exists(sensors_path)
+        cameras_exists = os.path.exists(cameras_path)
+        neural_exists = os.path.exists(neural_path)
+
+        behavior_symbol = (f" {Fore.GREEN}B{Style.RESET_ALL} "
                            if behavior_exists
-                           else f" {Fore.RED}x{Style.RESET_ALL} ")
-        sensors_symbol = (f" {Fore.GREEN}✓{Style.RESET_ALL} "
+                           else f" {Fore.RED}!{Style.RESET_ALL} ")
+        sensors_symbol = (f" {Fore.GREEN}S{Style.RESET_ALL} "
                           if sensors_exists
-                          else f" {Fore.RED}x{Style.RESET_ALL} ")
+                          else f" {Fore.RED}!{Style.RESET_ALL} ")
+        cameras_symbol = (f" {Fore.GREEN}C{Style.RESET_ALL} "
+                          if cameras_exists
+                          else f" {Fore.GREEN}-{Style.RESET_ALL} ")
+        neural_symbol = (f" {Fore.GREEN}N{Style.RESET_ALL} "
+                          if neural_exists
+                          else f" {Fore.GREEN}-{Style.RESET_ALL} ")
+        warning_symbol = (f" {Fore.YELLOW}?? ({len(other_contents)}){Style.RESET_ALL} "
+                            if other_contents
+                            else f" {Fore.GREEN}-{Style.RESET_ALL} ")
 
-        return f"{behavior_symbol}{sensors_symbol}"
+        return f"{behavior_symbol}{sensors_symbol}{cameras_symbol}{neural_symbol}{warning_symbol}"
 
     # Function to check if specific directories (filtered_sensors, prehension_plots,
     # transformed_sensors) exist in sw.proc_ss
@@ -106,6 +132,7 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
                 if has_meta
                 else f" {Fore.RED}x{Style.RESET_ALL} ")
 
+
     def can_delete(sw, delete=False):
         if not sw.log_full:
             return "no log found"
@@ -126,7 +153,6 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
         return f" {Fore.RED}DELETE{msg}{Style.RESET_ALL} " if mark_for_delete else "KEEP"
 
     # Helper function to format the table rows
-
     def format_row(raw_status, folder_status_raw, proc_status, folder_status_proc,
                    timepoints_status, meta_status, can_delete):
 
@@ -137,7 +163,7 @@ def display_session_info(experimental_server_wrappers, training_server_wrappers,
     # Print a nicely formatted table for experimental sessions
     def print_header(header_text):
         print(f"{Fore.CYAN}~~~~~~~~~~~ {header_text} ~~~~~~~~~~~{Style.RESET_ALL}")
-        print(f"{'raw session':<16} {'(behavior/sensors)':<21} {'processed session':<22} "
+        print(f"{'raw session':<16} {'(behavior/sensors/cameras/neural/other)':<21} {'processed session':<22} "
               f"{'(filtered/plots/transformed/timepoints/meta)':<20} {'cleanup status':<7}")
         print("-" * 135)
 

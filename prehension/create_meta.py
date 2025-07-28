@@ -361,7 +361,8 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
     os.makedirs(processed_ss, exist_ok=True)
 
     # raw_ss = os.path.join(preset['default_server'], session)
-    assert os.path.exists(raw_ss), 'server session {} does not exist on the server.'.format(raw_ss)
+    if not os.path.exists(raw_ss):
+        raise ValueError('server session {} does not exist on the server.'.format(raw_ss))
 
     if overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_structure.json')):
         mstruct_rel = meta_session.get_default_meta_structure()

@@ -33,7 +33,7 @@ from prehension.visualization.session_data_visualization import SessionWrapper
 
 
 PRESET_NAMES = ['daiquiri_right_hemisphere', 'pimms_left_hemisphere_training_k1',
-                'pappy_left_hemisphere_training_v1']
+                'pappy_left_hemisphere_training_v1', 'pinot_left_hemisphere']
 
 
 def main(args):

@@ -153,6 +153,38 @@ def import_csv(filename, cast=float):
     return column_names, values
 
 
+def import_csv_as_dic(filename, cast=float):
+    '''Imports csv into a simple structure. The column names are the dictionary keys.
+
+    Arguments:
+        filename {str} -- filename to import.
+    Keyword Arguments:
+        cast {callable} -- class of variables to return. Defaults to float.
+    Returns a dictionary of:
+        column_names: values {str: N of cast type if possible, str otherwise}
+    '''
+    return {cn: v for cn, v in zip(*import_csv(filename, cast=cast))}
+
+
+def import_joint_angles(filename):
+    '''Imports a csv and separates the time column.
+
+    Arguments:
+        filename {str} -- filename to import.
+    Returns a tuple of:
+        times {list of float} -- time points.
+        ja_names {list of M str} -- list of all joint angle names.
+        values {list [M][N] of float} -- list of all joint angle.
+            First index corresponds to column number.
+    '''
+    column_names, values = import_csv(filename)
+    time_index = column_names.index('time')
+    times = values[time_index]
+    del column_names[time_index]
+    del values[time_index]
+    return times, column_names, values
+
+
 def import_csv_matrix_low(filename, rowscols=None):
     '''[summary]
 
