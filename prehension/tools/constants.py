@@ -113,6 +113,25 @@ DISTAL_DOFS = (
     'ra_mcp3_e_f', 'ra_mcp3_rd_ud', 'ra_pip3_e_f', 'ra_dip3_e_f',
     'ra_mcp4_e_f', 'ra_mcp4_ad_ab', 'ra_pip4_e_f', 'ra_dip4_e_f',
     'ra_mcp5_e_f', 'ra_mcp5_ad_ab', 'ra_pip5_e_f', 'ra_dip5_e_f')
+DISTAL_DOFS_NOWRIST = (
+    'ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab', 'ra_mcp1_e_f', 'ra_ip1_e_f',
+    'ra_mcp2_e_f', 'ra_mcp2_ad_ab', 'ra_pip2_e_f', 'ra_dip2_e_f',
+    'ra_mcp3_e_f', 'ra_mcp3_rd_ud', 'ra_pip3_e_f', 'ra_dip3_e_f',
+    'ra_mcp4_e_f', 'ra_mcp4_ad_ab', 'ra_pip4_e_f', 'ra_dip4_e_f',
+    'ra_mcp5_e_f', 'ra_mcp5_ad_ab', 'ra_pip5_e_f', 'ra_dip5_e_f')
+DISTAL_DOFS_PROX_TO_DISTAL = (
+    'ra_wr_sup_pro', 'ra_wr_rd_ud', 'ra_wr_e_f',
+    'ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab',
+    'ra_mcp1_e_f', 'ra_mcp2_e_f', 'ra_mcp3_e_f', 'ra_mcp4_e_f', 'ra_mcp5_e_f',
+    'ra_mcp2_ad_ab', 'ra_mcp3_rd_ud', 'ra_mcp4_ad_ab', 'ra_mcp5_ad_ab',
+    'ra_ip1_e_f', 'ra_pip2_e_f', 'ra_pip3_e_f', 'ra_pip4_e_f', 'ra_pip5_e_f',
+    'ra_dip2_e_f', 'ra_dip3_e_f', 'ra_dip4_e_f', 'ra_dip5_e_f')
+DISTAL_DOFS_NOWRIST_PROX_TO_DISTAL = (
+    'ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab',
+    'ra_mcp1_e_f', 'ra_mcp2_e_f', 'ra_mcp3_e_f', 'ra_mcp4_e_f', 'ra_mcp5_e_f',
+    'ra_mcp2_ad_ab', 'ra_mcp3_rd_ud', 'ra_mcp4_ad_ab', 'ra_mcp5_ad_ab',
+    'ra_ip1_e_f', 'ra_pip2_e_f', 'ra_pip3_e_f', 'ra_pip4_e_f', 'ra_pip5_e_f',
+    'ra_dip2_e_f', 'ra_dip3_e_f', 'ra_dip4_e_f', 'ra_dip5_e_f')
 PER_DIGIT_DOFS = {
     'thumb': ('ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab', 'ra_mcp1_e_f', 'ra_ip1_e_f'),
     'index': ('ra_mcp2_e_f', 'ra_mcp2_ad_ab', 'ra_pip2_e_f', 'ra_dip2_e_f'),

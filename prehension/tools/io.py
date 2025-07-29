@@ -331,6 +331,11 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
 
 
 def load_roms(filename, dof_names=None):
+    '''Reads ranges of motion from a file.
+
+    Depending on input either returns a list of dof_names and their ranges [min, max], or just
+    the ranges.
+    '''
     column_names, values = import_csv(filename)
 
     i_dofname = column_names.index('dof_name')
