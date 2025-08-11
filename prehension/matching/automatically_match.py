@@ -1,4 +1,4 @@
-#!python3.7
+#!python
 import os
 
 import tqdm
@@ -6,7 +6,7 @@ from reporting_pool import ReportingPool
 
 from .. import meta_session
 from .. import tools
-from ..tools import rs, ws
+from ..tools.logs import rs, ws
 
 
 # to be run in parallel
@@ -48,35 +48,38 @@ def match_trial(executable_filename, trial, model_filename, adjustment_filename,
         raise ValueError('Command returned with {} error message.'.format(ret))
 
 
-def automatically_match(server, sessions, trials_sel, temp, processes, overwrite,
-                        executable_filename, visualize, skip_export, write_video, quality_threshold, verbose):
+def automatically_match(
+        rserv, pserv, sessions, trials_sel, temp, processes, overwrite,
+        executable_filename, visualize, skip_export, write_video, quality_threshold, verbose):
     """Automatically matches sensels with hand segments using MuJoCo program.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
         trials_sel {int} --- List of trials for processing. If empty, find all unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} -- Number of parallel processes in the pool.
         overwrite {bool} -- Overwrites the created files if they exist.
         executable_filename {str} --- Filename of the executable MuJoCo file.
         visualize {bool} -- Visualize the grasping motion. Disables parallel execution.
-        skip_export {bool} --- Does not export the results. Useful when just trying to visualize the trial,
-            instead of specifying `overwrite`.
+        skip_export {bool} --- Does not export the results. Useful when just trying to visualize
+            the trial, instead of specifying `overwrite`.
         write_video {bool} --- Write video during force matching simulation, when running.
         quality_threshold {float} --- If the unmatched force exceeds this portion of total force,
-            the trial will throw  an error. Useful to detect when the model is actually breaking bad.
+            the trial will throw  an error. Useful to detect when the model is actually breaking
+            bad.
         verbose {bool} --- Enable verbose prints about program running.
     """
 
-    tools.logs.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -90,22 +93,23 @@ def automatically_match(server, sessions, trials_sel, temp, processes, overwrite
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
             continue
 
         # load session's adjustment filename
-        adjustment_trials = meta_session.import_adjustment_trials(server_session)
+        adjustment_trials = meta_session.import_adjustment_trials(pserv)
 
         # accumulate data
         trials = []

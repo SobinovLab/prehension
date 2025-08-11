@@ -60,3 +60,11 @@ def match_yaxes_ranges(axs):
         ymin, ymax = ax.get_ylim()
         ymid = ymin + (ymax - ymin) / 2
         ax.set_ylim((ymid - yhrange, ymid + yhrange))
+
+
+def share_ylim(axs):
+    min_ylim = min([ax.get_ylim()[0] for ax in axs])
+    max_ylim = max([ax.get_ylim()[1] for ax in axs])
+
+    for ax in axs:
+        ax.set_ylim([min_ylim, max_ylim])
