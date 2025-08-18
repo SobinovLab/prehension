@@ -199,6 +199,22 @@ def import_joint_angles(filename):
     return import_timed_csv(filename)
 
 
+def import_torques(filename):
+    '''Imports a csv and separates the time column.
+
+    How many copies does one need?
+
+    Arguments:
+        filename {str} -- filename to import.
+    Returns a tuple of:
+        times {list of float} -- time points.
+        ja_names {list of M str} -- list of all joint angle names.
+        values {list [M][N] of float} -- list of all torques.
+            First index corresponds to column number.
+    '''
+    return import_timed_csv(filename)
+
+
 def import_csv_matrix_low(filename, rowscols=None):
     '''[summary]
 
@@ -342,6 +358,26 @@ def dic_from_csv(fname, keyword, value, key_cast=None, value_cast=None):
             dic[key_cast(li[keyword])] = value_cast(li[value])
 
     return dic
+
+
+
+def dic_to_csv(fname, dic, column_names=None):
+    '''Writes a dictionary into a csv.
+
+    Arguments:
+        fname {str} -- CSV filename.
+        dic {dict} -- dic with values. No check on values is performed.
+    Keyword Arguments:
+        column_names {None or list of str} -- the first line of the csv (nothing if None).
+    '''
+    with open(fname, 'w', newline='') as f:
+        fw = csv.writer(f)
+
+        if column_names is not None:
+            fw.writerow(column_names)
+
+        for k, v in dic.items():
+            fw.writerow([k, v])
 
 
 def load_roms(filename, dof_names=None):
