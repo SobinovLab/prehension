@@ -2568,7 +2568,7 @@ std::vector<mjtNum> get_actuating_torques(
   for (size_t i = 0; i < dof_indices.size(); i++) {
     if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(),
              dof_indices[i]) == ignore_dof_indices.end())
-      a[i] = d->qpos[dof_indices[i]];
+      a[i] = d->qfrc_inverse[dof_indices[i]];
   }
   return a;
 }
@@ -3405,11 +3405,13 @@ int main(int argc, const char** argv)
             if (verbose)
                 std::cout << "Exported right pressure sensor contact matches to " << ri_ps_file_o << std::endl;
             // torques
-            IOFunctions::export_timed_csv(torque_file_o, times, ja_names,
-                                          actuating_torques_storage);
-            if (verbose)
-              std::cout << "Exported actuating torques to " << torque_file_o
-                        << std::endl;
+            if (!torque_file_o.empty()) {
+              IOFunctions::export_timed_csv(torque_file_o, times, ja_names,
+                                            actuating_torques_storage);
+              if (verbose)
+                std::cout << "Exported actuating torques to " << torque_file_o
+                          << std::endl;
+            }
         }
 
         if (quality_threshold > 0 && (unmatchedForce > (unmatchedForce + matchedForce) * quality_threshold)) {

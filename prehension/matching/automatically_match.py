@@ -19,16 +19,17 @@ def match_trial(executable_filename, trial, model_filename, adjustment_filename,
     reps_in = post_ps_filenames['lateral_sensor']
     leps_ou = trial.matched_contacts_filenames['medial_sensor']
     rips_ou = trial.matched_contacts_filenames['lateral_sensor']
+    tors_ou = trial.torques_filename
 
     command = (
         '{executable_filename} -m "{model_filename}" {visualize}{skip_export}{quality_threshold}'
         '  '  # --vertical_thorax
-        '--ja_in "{ja_filename}" '
+        '--ja_in "{ja_filename}" --torque_ou "{tors_ou}" '
         '--leps_in "{leps_in}" --rips_in "{reps_in}" '
         '--leps_ou "{leps_ou}" --rips_ou "{rips_ou}"{adjustment_arg}{video_arg}{verbose}'.format(
             executable_filename=executable_filename,
             model_filename=model_filename,
-            ja_filename=ja_filename,
+            ja_filename=ja_filename, tors_ou=tors_ou,
             leps_in=leps_in, reps_in=reps_in,
             leps_ou=leps_ou, rips_ou=rips_ou,
             adjustment_arg=(' --adj "{}"'.format(adjustment_filename)
@@ -119,7 +120,8 @@ def automatically_match(
                 continue
             if not trial.do_all_post_files_exist():
                 continue
-            if not overwrite and not skip_export and trial.do_matched_contacts_files_exist():
+            if not overwrite and not skip_export and (
+                    trial.do_matched_contacts_files_exist() and trial.does_torque_file_exist()):
                 continue
             # find adjustment filename
             adjustment_filename = None
@@ -141,6 +143,7 @@ def automatically_match(
             len(trials), ', '.join([str(t.trial_number) for t in trials])))
 
         os.makedirs(mstruct['matched_contacts_dir'], exist_ok=True)
+        os.makedirs(mstruct['torques_dir'], exist_ok=True)
 
         if write_video:
             os.makedirs(mstruct['mujoco_videos_dir'], exist_ok=True)

@@ -212,6 +212,10 @@ class TrialInfo():
             self.calib_base_ik_log_filename = None
             self.calib_base_kinematic_filename = None
 
+        # actuating torques
+        self.torques_filename = os.path.join(
+            mstruct['torques_dir'], trial_name + '.csv')
+
         # digit forces - compiled from matched_contacts
         self.digit_forces_filename = os.path.join(
             mstruct['digit_forces_dir'], trial_name + '.csv')
@@ -472,6 +476,10 @@ class TrialInfo():
 
     def matched_contacts_files_times(self):
         return [os.path.getmtime(f) for f in self.matched_contacts_filenames.values()]
+
+    # TORQUES
+    def does_torque_file_exist(self):
+        return os.path.exists(self.torques_filename)
 
     # MANUALLY LABELLED FORCES
     def does_manually_labelled_file_exists(self):
