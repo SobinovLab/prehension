@@ -111,5 +111,10 @@ public:
         const std::vector<std::vector<int>> fitting_dof_indices,
         const std::vector<std::vector<double>> x_vecs,
         const std::vector<double> fvals);
+
+    static int export_timed_csv(const std::string filename,
+                                const std::vector<mjtNum>& times,
+                                const std::vector<std::string>& column_names,
+                                const std::vector<std::vector<mjtNum>>& values);
 };
 

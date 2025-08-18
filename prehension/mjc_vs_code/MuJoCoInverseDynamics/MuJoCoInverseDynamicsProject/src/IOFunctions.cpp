@@ -408,3 +408,27 @@ int IOFunctions::export_optimization_logs(
     fo.close();
     return 0;
 }
+
+int IOFunctions::export_timed_csv(
+    const std::string filename, const std::vector<mjtNum>& times,
+    const std::vector<std::string>& column_names,
+    const std::vector<std::vector<mjtNum>>& values) {
+
+    std::ofstream csv;
+
+    csv.open(filename, ofstream::out);
+    csv << "time,";
+    for (size_t i_cn = 0; i_cn < column_names.size() - 1; i_cn++) 
+      csv << column_names[i_cn] << ",";
+    csv << column_names.back() << std::endl;
+    
+    for (size_t i_time = 0; i_time < times.size(); i_time++) {
+      csv << times[i_time] << ",";
+      for (size_t i_cn = 0; i_cn < column_names.size() - 1; i_cn++)
+        csv << values[i_time][i_cn] << ",";
+      csv << values[i_time].back() << std::endl;
+    }
+    csv.close();
+
+  return 0;
+}

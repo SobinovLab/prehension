@@ -5,6 +5,14 @@ __pycache__/
 
 MUJOCO_LOG.TXT
 .vs/
+*.tlog
+*.pdb
+*.recipe
+*.ilk
+*.obj
+*.idb
+*.vcxproj.FileListAbsolute.txt
+*.vcxproj.user
 
 # C extensions
 *.so

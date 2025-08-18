@@ -2281,6 +2281,7 @@ int set_kinematics(
     const std::vector<mjtNum>& dof_vels,
     const std::vector<mjtNum>& dof_accs)
 {
+    // DEPRECATED
     // TODO future assert that lengths of all vectors are the same
     for (size_t i = 0; i < dof_indices.size(); i++)
     {
@@ -2292,9 +2293,12 @@ int set_kinematics(
 }
 
 
-int set_kinematics(const std::vector<int>& dof_indices, const std::vector<mjtNum>& dof_angles, const std::vector<int>& ignore_dof_indices = {})
+int set_kinematics(
+    const std::vector<int>& dof_indices, 
+    const std::vector<mjtNum>& dof_angles, 
+    const std::vector<int>& ignore_dof_indices = {})
 {
-    std::vector<int>::iterator it;
+    //std::vector<int>::iterator it;
     for (size_t i = 0; i < dof_indices.size(); i++)
     {
         if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(), dof_indices[i]) == ignore_dof_indices.end())
@@ -2304,6 +2308,64 @@ int set_kinematics(const std::vector<int>& dof_indices, const std::vector<mjtNum
         //    d->qpos[dof_indices[i]] += 0.003;
         if (dof_indices[i] == 12)
             d->qpos[dof_indices[i]] *= -1;
+    }
+    return 0;
+}
+
+
+std::vector<mjtNum> differential(const std::vector<mjtNum> left,
+                                 const std::vector<mjtNum> right, mjtNum dt) {
+  std::vector<mjtNum> diff;
+  for (int i = 0; i < left.size(); i++)
+    diff.push_back((right[i] - left[i]) / dt);
+  return diff;
+}
+
+
+int set_all_kinematics(
+    const int current_time_point,
+    const std::vector<int>& dof_indices,
+    const std::vector<std::vector<mjtNum>>& dof_angles_all,
+    const std::vector<mjtNum> time,
+    const std::vector<int>& ignore_dof_indices = {}) {
+
+    // estimate dt
+    mjtNum dt = (
+        time[MIN(current_time_point + 1, dof_angles_all.size() - 1)] -
+        time[MAX(current_time_point - 1, 0)]) / 2;
+
+    // 3 points of position
+    std::vector<mjtNum> pos = dof_angles_all[current_time_point];
+
+    std::vector<mjtNum> pos_left =
+        dof_angles_all[MAX(current_time_point - 1, 0)];
+    std::vector<mjtNum> pos_right =
+        dof_angles_all[MIN(current_time_point + 1, dof_angles_all.size()-1)];
+
+    // 2 points of velocity
+    std::vector<mjtNum> vel_left = differential(pos_left, pos, dt);
+    std::vector<mjtNum> vel_right = differential(pos, pos_right, dt);
+
+    // average velocity from left and right estimate
+    std::vector<mjtNum> vel;
+    for (int i = 0; i < vel_left.size(); i++)
+      vel.push_back((vel_left[i] + vel_right[i]) / 2);  
+
+    // 1 point of acceleration
+    std::vector<mjtNum> acc = differential(vel_left, vel_right, dt);
+
+    std::vector<int>::iterator it;
+    for (size_t i = 0; i < dof_indices.size(); i++) {
+    if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(),
+                dof_indices[i]) == ignore_dof_indices.end())
+        d->qpos[dof_indices[i]] = pos[i];
+        d->qvel[dof_indices[i]] = vel[i];
+        d->qacc[dof_indices[i]] = acc[i];
+
+        // HACK FIX for pressure sensor - but do not care about the vel/acc for it
+        // if (dof_indices[i] == 12 || dof_indices[i] == 13)
+        //    d->qpos[dof_indices[i]] += 0.003;
+        if (dof_indices[i] == 12) d->qpos[dof_indices[i]] *= -1;
     }
     return 0;
 }
@@ -2465,6 +2527,53 @@ void export_contacts(std::string& filename, std::vector<std::vector<MyContact>>&
 }
 
 
+//-------------------------------- externally applied forces ----------------------------
+void apply_external_forces(const std::vector<MyContact>& ps_hand_contacts) {
+  int body;
+  // the largest face of the box
+  const int axis = 2;
+  mjtNum torque[3], force[3], n_world[3], face_center[3];
+  mjtNum *sz, *p, *R;
+  mju_zero(torque, 3);
+  for (const MyContact& c : ps_hand_contacts) {
+    body = m->geom_bodyid[c.hand_geomid];
+
+    // get the normal orientation of the geom
+    R = d->geom_xmat + 9 * c.ps_geomid;
+    n_world[0] = R[axis + 0];
+    n_world[1] = R[axis + 3];
+    n_world[2] = R[axis + 6];
+
+    // get the largest face center point
+    sz = m->geom_size + 3 * c.ps_geomid;
+    p = d->geom_xpos + 3 * c.ps_geomid;
+    face_center[0] = p[0] + sz[axis] * n_world[0];
+    face_center[1] = p[1] + sz[axis] * n_world[1];
+    face_center[2] = p[2] + sz[axis] * n_world[2];
+
+    // force equals normal vector times c.force
+    mju_scl(force, n_world, c.force, 3);
+
+    // apply
+    mj_applyFT(m, d, force, torque, face_center, body, d->qfrc_applied);
+  }
+}
+
+
+std::vector<mjtNum> get_actuating_torques(
+    const std::vector<int>& dof_indices,
+    const std::vector<int>& ignore_dof_indices = {}) {
+  std::vector<mjtNum> a(dof_indices.size(), 0.0);
+
+  for (size_t i = 0; i < dof_indices.size(); i++) {
+    if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(),
+             dof_indices[i]) == ignore_dof_indices.end())
+      a[i] = d->qpos[dof_indices[i]];
+  }
+  return a;
+}
+
+
 //-------------------------------- arithmetics on contact -------------------------------
 double dist_transform(const double dist, const double desired_min_dist=0.1, const double threshold_min_dist=0.0)
 {
@@ -2560,6 +2669,7 @@ double median_distance(const std::vector<MyContact>& contacts)
 
 
 //-------------------------------- optimization -----------------------------------------
+// DEPRECATED and no longer needed/supported
 // globals for optimization
 struct ObjFunData_
 {
@@ -2810,6 +2920,8 @@ int main(int argc, const char** argv)
     // output pressure sensor filename
     std::string le_ps_file_o;
     std::string ri_ps_file_o;
+    // output torque filename
+    std::string torque_file_o = "";
     // optimization frame
     int optimization_frame = -1;
     // adjustment filename - for trial processing (as input) or optimization (as output)
@@ -2900,6 +3012,17 @@ int main(int argc, const char** argv)
             else {
                 ri_ps_file_o = argv[++i_arg];
             }
+        }
+        // Right pressure sensor CSV filename.
+        else if (!strcmp(argv[i_arg], "--torque_ou")) {
+          if (i_arg + 1 == argc || argv[i_arg + 1][0] == '-') {
+            std::cout << "Output torque file argument "
+                         "specified, but not provided. Aborting."
+                      << std::endl;
+            return -1;
+          } else {
+            torque_file_o = argv[++i_arg];
+          }
         }
         // quality threshold for the found matching - portion of force that can remain unmatched
         else if (!strcmp(argv[i_arg], "--quality_threshold")) {
@@ -3124,6 +3247,8 @@ int main(int argc, const char** argv)
     std::vector<std::vector<MyContact>> ri_phc_storage;
     std::vector<std::vector<MyContact>> le_phc_storage;
 
+    std::vector<std::vector<mjtNum>> actuating_torques_storage;
+
     // for quality control
     mjtNum unmatchedForce = 0.;
     mjtNum matchedForce = 0.;
@@ -3187,6 +3312,7 @@ int main(int argc, const char** argv)
             // identify next timepoint
             if (settings.run && (current_time >= (times[i_current_point] - times[0]))) {
                 // process current timepoint
+                // only pos is needed to compute the contacts and relative locations
                 set_kinematics(ja_indices, joint_angles[i_current_point], base_ja_ids);
 
                 // set coloration of the sensor
@@ -3194,14 +3320,29 @@ int main(int argc, const char** argv)
                 set_sensor_coloration(ri_ps_matrix[i_current_point], ri_ps_geoms);
 
                 // compute stuff
-                //mj_inverse(m, d); // - only run this instead of forward bc it computes the forward as the first step
                 mj_forward(m, d);
 
                 // get the distances
                 le_phc_storage.push_back(match_sensors_hand(le_ps_matrix[i_current_point], le_ps_geoms, thumb_geoms, unmatchedForce, matchedForce));
                 ri_phc_storage.push_back(match_sensors_hand(ri_ps_matrix[i_current_point], ri_ps_geoms, finger_geoms, unmatchedForce, matchedForce));
 
-                // was this point successfully evaluated?
+                // set the desired pos, vel, acc - needed for the inverse
+                set_all_kinematics(i_current_point, ja_indices, joint_angles,
+                                   times, base_ja_ids);
+
+                // apply the forces
+                // TODO - possibly need to inverse one of the vectors
+                apply_external_forces(le_phc_storage.back());
+                apply_external_forces(ri_phc_storage.back());
+
+                // compute the torques
+                mj_inverse(m, d);
+
+                // save the torques
+                actuating_torques_storage.push_back(
+                    get_actuating_torques(ja_indices, base_ja_ids));
+
+                // was this point successfully evaluated? - good foir debugging
                 point_status[i_current_point] = 1;
                 i_current_point++;
 
@@ -3263,6 +3404,12 @@ int main(int argc, const char** argv)
             export_contacts(ri_ps_file_o, ri_phc_storage, ri_geom_to_id, geom_to_name);
             if (verbose)
                 std::cout << "Exported right pressure sensor contact matches to " << ri_ps_file_o << std::endl;
+            // torques
+            IOFunctions::export_timed_csv(torque_file_o, times, ja_names,
+                                          actuating_torques_storage);
+            if (verbose)
+              std::cout << "Exported actuating torques to " << torque_file_o
+                        << std::endl;
         }
 
         if (quality_threshold > 0 && (unmatchedForce > (unmatchedForce + matchedForce) * quality_threshold)) {
@@ -3274,6 +3421,7 @@ int main(int argc, const char** argv)
             std::cout << "Unmatched force " << unmatchedForce << " N, matched force " << matchedForce << " N, " << " total trial force " << unmatchedForce + matchedForce << " N." << std::endl;
     }
     else {  // OPTIMIZATION mode
+        // DEPRECATED and no longer used/needed
         if (!visuals_enabled) {
             std::cout << "OPTIMIZATION mode is not supported without visualization. Aborting." << std::endl;
             return -11;
