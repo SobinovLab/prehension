@@ -708,7 +708,7 @@ def triangulate(trial, calibration, mstruct):
         trial.calib_base_markers_3D_filename_trc, trial.calib_base_kinematic_filename, [0, 0.02])
 
 
-def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
+def mark_base(rserv, pserv, sessions, temp, overwrite, skip_gui, preset):
     """Manually label points on macaque torso to find its location once per calibration.
 
     Arguments:
@@ -719,14 +719,14 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
         overwrite {bool} --- Overwrites the created files if they exist.
         skip_gui {bool} --- Do not launch the GUI for labeling.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     # sort
     sessions.sort()
@@ -736,15 +736,16 @@ def mark_base(server, sessions, temp, overwrite, skip_gui, preset):
     mstructs = {}
     msessions = {}
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
-            mstruct, mdof, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, mdof, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
