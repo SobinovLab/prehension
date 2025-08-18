@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 MUJOCO_LOG.TXT
+.vs/
 
 # C extensions
 *.so
