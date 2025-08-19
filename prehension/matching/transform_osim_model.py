@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Transforms an OpenSim model into a MuJoCo one. Once per monkey.
+
+Copyright (C) 2019-2025 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 import warnings
 
@@ -55,7 +75,7 @@ def convert_osim_model(osim_model, geometry_folder, output_folder):
     converter4.convert(osim_model, output_folder, geometry_folder, False)
 
 
-def transform_osim_model(server, session, overwrite):
+def transform_osim_model(rserv, pserv, session, overwrite):
     """Generates a MuJoCo model from an OpenSim model.
 
     Arguments:
@@ -63,21 +83,22 @@ def transform_osim_model(server, session, overwrite):
         session {str} --- Session directory to use.
         temp {str} --- Folder for local temporary storage.
     """
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(session) == 0:
-        session = meta_session.find_session_dirs(server)[0]
+        session = meta_session.find_session_dirs(rserv)[0]
 
     print('Processing session {}.'.format(session))
-    server_session = os.path.join(server, session)
+    raw_ss = os.path.join(rserv, session)
+    proc_ss = os.path.join(pserv, session)
 
-    if not os.path.exists(server_session):
+    if not os.path.exists(raw_ss):
         ValueError('Session {} does not exist on the server.'.format(session))
 
     # load session meta structure
-    mstruct = meta_session.import_meta_structure(server_session)
+    mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
 
     if not overwrite and os.path.exists(mstruct['mujoco_model']):
         warnings.warn('MuJoCo model exists, not converting. Specify overwrite key to overwrite.')

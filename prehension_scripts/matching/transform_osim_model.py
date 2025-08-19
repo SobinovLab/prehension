@@ -1,9 +1,9 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Preprocess pressure sensors data.
+Transforms an OpenSim model into a MuJoCo one. Once per monkey.
 
-Copyright (C) 2019-2024 Anton Sobinov, Caleb Raman
+Copyright (C) 2019-2025 Anton Sobinov
 https://github.com/BensmaiaLab/prehension
 
 This program is free software: you can redistribute it and/or modify
@@ -19,27 +19,32 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 import argparse
 import datetime
 import time
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.pressure_sensors import preprocess_pressure_sensors as ppps
+from prehension.matching.transform_osim_model import transform_osim_model
 
 
 if __name__ == '__main__':
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
-    parser = argparse.ArgumentParser(description='Creates meta information for a session.')
-    cmd_args.add_default_kwarguments(parser, {'server': current_preset['default_server']})
-    cmd_args.add_default_arguments(parser, ('sessions', 'temp', 'overwrite', 'trials', 'processes'))
+    parser = argparse.ArgumentParser(
+        description=('Generates a MuJoCo model from an OpenSim model.'))
+    cmd_args.add_default_arguments(
+        parser, ('session', 'overwrite'))
+    cmd_args.add_default_kwarguments(
+        parser, {'server': current_preset['default_server']})
 
     args = parser.parse_args(args=argv)
+
     start_time = time.time()
+    transform_osim_model(
+        current_preset['default_server'],
+        current_preset['processed_server'],
+        args.session, args.overwrite)
 
-    ppps.preprocess_pressure_sensors(current_preset, args.trials, args.temp, args.overwrite,
-                                     args.processes, sessions_sel=args.sessions)
-
-    print('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))
+    print('Program took {}.'.format(
+        datetime.timedelta(seconds=time.time() - start_time)))

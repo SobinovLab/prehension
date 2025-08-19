@@ -43,8 +43,11 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    find_static_thorax_position(args.server, args.sessions, args.trials, args.temp, args.processes,
-                                args.overwrite)
+    find_static_thorax_position(
+        current_preset['default_server'],
+        current_preset['processed_server'],
+        args.sessions, args.trials, args.temp, args.processes,
+        args.overwrite)
 
     rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

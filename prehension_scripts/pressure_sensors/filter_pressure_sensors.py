@@ -23,8 +23,6 @@ import argparse
 import datetime
 import time
 
-import matplotlib.pyplot as plt
-
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.pressure_sensors.filter_pressure_sensors import filter_pressure_sensors
@@ -45,16 +43,12 @@ if __name__ == '__main__':
 
     start_time = time.time()
     filter_pressure_sensors(
-        args.server,
-        args.sessions,
+        current_preset,
         args.trials,
         args.temp,
-        args.processes,
         args.overwrite,
-        args.make_plots,
-        current_preset,
+        args.processes,
+        sessions_sel=args.sessions,
     )
 
     rs('Program took {}.'.format(datetime.timedelta(seconds=time.time() - start_time)))
-
-    plt.show()

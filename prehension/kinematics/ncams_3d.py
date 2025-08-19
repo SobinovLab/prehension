@@ -1,9 +1,9 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Functions for transforming videos into 2D marker positions and then 3D using NCams with a DLC
-network.
-Tested to run in py 3.7 (calibration and triangulation) and 3.8 (dlc) environments.
+Functions for transforming videos into 2D marker positions and then 3D using NCams. DLC-relevant
+functions are in ncams_3d_dlc.py .
+
 Since NCams is an optional dependency, it is not automatically loaded. Needs NCams to be installed
 from https://github.com/CMGreenspon/NCams and deeplabcut.
 

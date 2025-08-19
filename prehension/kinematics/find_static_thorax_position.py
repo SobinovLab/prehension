@@ -43,7 +43,7 @@ def get_median_thorax_position(trial, thorax_dof_names, median_positions, i_tria
         median_positions[i_trial][i_dof] = np.nanmedian(dofs[dof_names.index(dof_name)])
 
 
-def find_static_thorax_position(server, sessions, trials_sel, temp, processes, overwrite):
+def find_static_thorax_position(rserv, pserv, sessions, trials_sel, temp, processes, overwrite):
     """Calculates and saves median base body position (thorax) in the OpenSim model.
 
     Arguments:
@@ -57,14 +57,14 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
         overwrite {bool} --- Overwrites the created files if they exist.
     """
     thorax_dof_names = THORAX_DOF_NAMES
-    logs.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -78,15 +78,16 @@ def find_static_thorax_position(server, sessions, trials_sel, temp, processes, o
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
-            mstruct, mdof, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, mdof, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))

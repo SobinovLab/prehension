@@ -1,4 +1,25 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Makes a mask of active sensels and a session's MuJoCo model based on the general MuJoCo model and
+sensel maps.
+
+Copyright (C) 2019-2025 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import itertools
 import os
 import warnings
@@ -7,15 +28,15 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import tqdm
 
-from .. import io_tools
+from ..tools import io
 from .. import meta_session
 from .. import tools
-from ..tools import rs, ws
+from ..tools.logs import rs, ws
 
 
 def make_trial_mask(filename):
     # load pressure sensors
-    ps_times, ps_matrices = io_tools.import_matrices(filename)
+    ps_times, ps_matrices = io.import_matrices(filename)
     ps_matrices = np.array(ps_matrices)
 
     ps_mask = np.sum(np.abs(ps_matrices), axis=0, dtype=bool)
@@ -56,7 +77,7 @@ def make_session_mask(mstruct, msession, trials_sel, mask_filenames, overwrite):
         rs('Pressure sensor {} has {} active sensels.'.format(ps_name, np.sum(ps_mask)))
         o_filename = mask_filenames[ps_name]
         if overwrite or not os.path.exists(o_filename):
-            io_tools.export_one_csv_matrix(o_filename, ps_mask.astype(int))
+            io.export_one_csv_matrix(o_filename, ps_mask.astype(int))
         else:
             ws('Pressure sensor {} mask file {} already exists.'.format(ps_name, o_filename))
 
@@ -249,13 +270,13 @@ def tessellate_sensors(mjc_model, out_model, sense_distance,
     if left_ps_mask_filename is None:
         left_ps_mask = None
     else:
-        left_ps_mask = np.array(io_tools.import_one_csv_matrix(left_ps_mask_filename)).astype(bool)
+        left_ps_mask = np.array(io.import_one_csv_matrix(left_ps_mask_filename)).astype(bool)
 
     if right_ps_mask_filename is None:
         right_ps_mask = None
     else:
         right_ps_mask = np.array(
-            io_tools.import_one_csv_matrix(right_ps_mask_filename)).astype(bool)
+            io.import_one_csv_matrix(right_ps_mask_filename)).astype(bool)
 
     contacts = tessellate_sensor(wb, left_ps, hand_geomnames, sense_distance,
                                  sense_box_rgba=left_color, mask=left_ps_mask,
@@ -293,7 +314,7 @@ def tessellate_sensors(mjc_model, out_model, sense_distance,
     tree.write(out_model, encoding='UTF-8', xml_declaration=True)
 
 
-def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite,
+def prepare_mujoco_model(rserv, pserv, sessions, trials_sel, temp, overwrite,
                          make_mask, tessellate, sense_distance):
     """Generates a mask of pressure sensors matrix that highlights activated sensels
     and tessellates model sensors based on it.
@@ -310,14 +331,14 @@ def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite,
             the execution, but low values are too short for relatively large bending bones like metacarpals
             and large muscle areas like thenar eminence. In meters.
     """
-    tools.logs.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -330,22 +351,23 @@ def prepare_mujoco_model(server, sessions, trials_sel, temp, overwrite,
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
-            mstruct, _, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
             continue
 
         # since it is solely used in this script, no need to have it in mstruct
-        mask_filenames = {ps_name: os.path.join(server_session, 'ps_{}_mask.csv'.format(ps_name))
+        mask_filenames = {ps_name: os.path.join(proc_ss, 'ps_{}_mask.csv'.format(ps_name))
                           for ps_name in mstruct['ps_dic'].keys()}
 
         if make_mask:
