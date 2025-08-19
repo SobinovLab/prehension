@@ -1,4 +1,24 @@
-#!python3.7
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Filters, resamples, and aligns pressure sensor and kinematic data to grasp onset.
+
+Copyright (C) 2019 Anton Sobinov
+https://github.com/BensmaiaLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import copy
 import os
 
@@ -8,11 +28,14 @@ import scipy
 import tqdm
 from reporting_pool import ReportingPool
 
-from .. import io_tools
+from ..tools import io
+from ..tools import opensim_io
 from .. import meta_session
 from .. import tools
-from ..tools import rs, ws
+from ..tools.logs import rs, ws
 
+
+# TODO read from mstruct
 JA_FREQUENCY = 50
 JA_TIME_PERIOD_MS = 1000 / JA_FREQUENCY
 
@@ -20,7 +43,7 @@ JA_TIME_PERIOD_MS = 1000 / JA_FREQUENCY
 # to be run in parallel
 def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     # load joint angles
-    f_dof_names, ja_times, dofs = io_tools.import_mot(trial.pre_kinematic_filename)
+    f_dof_names, ja_times, dofs = opensim_io.import_mot(trial.pre_kinematic_filename)
     ja_times = np.array(ja_times)
 
     # offset ja_times, ja are not offset to TTL yet
@@ -37,7 +60,7 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
             dof = ja_filter(dof)
 
         # put data into bounds
-        dof = tools.enforce_rom(dof, dof_info['range'])
+        dof = tools.filters.enforce_rom(dof, dof_info['range'])
 
         dofs2.append(dof)
         # used to find the correct row
@@ -51,7 +74,7 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     tmin = ja_times[0]
     tmax = ja_times[-1]
     for ps_filename in trial.get_pre_ps_filenames().values():
-        ps_times, ps_matrices = io_tools.import_matrices(ps_filename)
+        ps_times, ps_matrices = io.import_matrices(ps_filename)
 
         # range of time
         tmin = max((tmin, ps_times[0]))
@@ -63,12 +86,12 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     n_times = len(common_times)
 
     # trim to the common time period
-    time_slice = tools.get_slice_to_time_base(tmin, n_times, ja_times)
+    time_slice = tools.filters.get_slice_to_time_base(tmin, n_times, ja_times)
     dofs = dofs[:, time_slice]
     dofs_prefilter = copy.deepcopy(dofs)
     # downsample pressure sensors
     for i_ps, ps_times in enumerate(ps_times_tot):
-        ps_matrices_tot[i_ps] = tools.downsample_at_timeseries(
+        ps_matrices_tot[i_ps] = tools.filters.downsample_at_timeseries(
             ps_times, ps_matrices_tot[i_ps], common_times)
 
     # find the active period - from the first crossing of 5% to the last
@@ -77,8 +100,8 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
         ps_force_summed += np.sum(pmt, axis=(1, 2))
     ps_force_summed_thr = np.max(ps_force_summed) * 0.05
     ps_force_above_thr = ps_force_summed >= ps_force_summed_thr
-    ap_start = tools.find_first(ps_force_above_thr)
-    ap_end = tools.find_last(ps_force_above_thr) + 1  # end + 1
+    ap_start = tools.misc.find_first(ps_force_above_thr)
+    ap_end = tools.misc.find_last(ps_force_above_thr) + 1  # end + 1
     ap_mask = np.zeros(np.size(common_times)).astype(bool)
     ap_mask[ap_start:ap_end] = True
 
@@ -118,19 +141,19 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     dofs[ps_rot_i_3, ap_mask] = np.median(dofs[ps_rot_i_3, ap_mask])
 
     # Save processed ja data
-    io_tools.export_mot(trial.post_kinematic_filename_mot,
+    opensim_io.export_mot(trial.post_kinematic_filename_mot,
                               list(mdof.keys()), common_times, dofs)
 
     # export to CSV with rotational transformed to radians
     rots = np.array([dof_info['rot'] for dof_info in mdof.values()], dtype=bool)
     dofs[rots, :] = dofs[rots, :] / 180 * np.pi
     dofs_prefilter[rots, :] = dofs_prefilter[rots, :] / 180 * np.pi
-    io_tools.export_csv(trial.post_kinematic_filename_csv,
+    io.export_csv(trial.post_kinematic_filename_csv,
                               ['time'] + list(mdof.keys()), [common_times] + dofs.tolist())
 
     # save processed pressure sensor data
     for ps_filename, ps_matrices in zip(trial.post_ps_tsm_filenames.values(), ps_matrices_tot):
-        io_tools.export_tsm_matrix(ps_filename, common_times, ps_matrices, type='period')
+        io.export_tsm_matrix(ps_filename, common_times, ps_matrices, type='period')
 
     if make_plots:
         ps_dofs = [k for k in mdof.keys() if k[:3] == 'ps_' and k[-2:] != '_d']
@@ -161,7 +184,7 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
 
 
 def plot_some_dofs(label, times, dofs, dofs_prefilter, mdof, dof_names, figsize=(16, 9)):
-    xn_subplots, yn_subplots = tools.xy_numsubplots(len(dof_names))
+    xn_subplots, yn_subplots = tools.plotting.xy_numsubplots(len(dof_names))
 
     fig, axs = plt.subplots(xn_subplots, yn_subplots, sharex=True, figsize=figsize)
     axs = axs.flatten()
@@ -181,7 +204,7 @@ def plot_some_dofs(label, times, dofs, dofs_prefilter, mdof, dof_names, figsize=
                 ax.sharey(ax_rot)
         else:
             axs_tra.append(ax)
-    tools.match_yaxes_ranges(axs_tra)
+    tools.plotting.match_yaxes_ranges(axs_tra)
 
 
 def ja_filter(data):
@@ -199,27 +222,30 @@ def ja_filter(data):
     return data
 
 
-def process_and_align_data(server, sessions, trials_sel, temp, processes, overwrite, make_plots):
+def process_and_align_data(
+        rserv, pserv, sessions, trials_sel, temp, processes, overwrite, make_plots):
     """Filters, resamples, and aligns pressure sensor and kinematic data to grasp onset.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
-        trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
+        trials_sel {list of str} --- List of trials for processing. If empty, find all
+            unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         processes {int} --- Number of parallel processes in the pool.
         overwrite {bool} --- Overwrites the created files if they exist.
         preset {dict} --- Preset dictionary.
         make_plots {bool} --- Makes some inspection figures. Run with --processes 1.
     """
-    tools.logs.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -233,15 +259,16 @@ def process_and_align_data(server, sessions, trials_sel, temp, processes, overwr
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
-            mstruct, mdof, mobject, msession = meta_session.load_meta_information(server_session)
+            mstruct, mdof, mobject, msession = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))

@@ -5,7 +5,6 @@ import time
 
 import prehension
 from prehension import preset
-from prehension import tools
 from prehension.tools import cmd_args
 from prehension.matching.automatically_match import automatically_match
 from prehension.tools.logs import rs
