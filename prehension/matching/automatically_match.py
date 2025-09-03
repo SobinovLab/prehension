@@ -20,16 +20,17 @@ def match_trial(executable_filename, trial, model_filename, adjustment_filename,
     leps_ou = trial.matched_contacts_filenames['medial_sensor']
     rips_ou = trial.matched_contacts_filenames['lateral_sensor']
     tors_ou = trial.torques_filename
+    tors_nf_ou = trial.torques_nf_filename
 
     command = (
         '{executable_filename} -m "{model_filename}" {visualize}{skip_export}{quality_threshold}'
         '  '  # --vertical_thorax
-        '--ja_in "{ja_filename}" --torque_ou "{tors_ou}" '
+        '--ja_in "{ja_filename}" --torque_ou "{tors_ou}" --torque_nf_ou "{tors_nf_ou}" '
         '--leps_in "{leps_in}" --rips_in "{reps_in}" '
         '--leps_ou "{leps_ou}" --rips_ou "{rips_ou}"{adjustment_arg}{video_arg}{verbose}'.format(
             executable_filename=executable_filename,
             model_filename=model_filename,
-            ja_filename=ja_filename, tors_ou=tors_ou,
+            ja_filename=ja_filename, tors_ou=tors_ou, tors_nf_ou=tors_nf_ou,
             leps_in=leps_in, reps_in=reps_in,
             leps_ou=leps_ou, rips_ou=rips_ou,
             adjustment_arg=(' --adj "{}"'.format(adjustment_filename)
@@ -50,7 +51,7 @@ def match_trial(executable_filename, trial, model_filename, adjustment_filename,
 
 
 def automatically_match(
-        rserv, pserv, sessions, trials_sel, temp, processes, overwrite,
+        preset, sessions, trials_sel, temp, processes, overwrite,
         executable_filename, visualize, skip_export, write_video, quality_threshold, verbose):
     """Automatically matches sensels with hand segments using MuJoCo program.
 
@@ -72,6 +73,8 @@ def automatically_match(
             bad.
         verbose {bool} --- Enable verbose prints about program running.
     """
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
 
     tools.logs.setup_logging(temp, sessions_dir=pserv)
 
@@ -81,6 +84,8 @@ def automatically_match(
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(rserv)
+    elif sessions[0].lower() == 'good':
+        sessions = preset['good_sessions']
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -121,7 +126,7 @@ def automatically_match(
             if not trial.do_all_post_files_exist():
                 continue
             if not overwrite and not skip_export and (
-                    trial.do_matched_contacts_files_exist() and trial.does_torque_file_exist()):
+                    trial.do_matched_contacts_files_exist() and trial.do_torque_files_exist()):
                 continue
             # find adjustment filename
             adjustment_filename = None
@@ -144,6 +149,7 @@ def automatically_match(
 
         os.makedirs(mstruct['matched_contacts_dir'], exist_ok=True)
         os.makedirs(mstruct['torques_dir'], exist_ok=True)
+        os.makedirs(mstruct['torques_nf_dir'], exist_ok=True)
 
         if write_video:
             os.makedirs(mstruct['mujoco_videos_dir'], exist_ok=True)

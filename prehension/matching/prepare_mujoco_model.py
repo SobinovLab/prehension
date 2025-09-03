@@ -314,7 +314,7 @@ def tessellate_sensors(mjc_model, out_model, sense_distance,
     tree.write(out_model, encoding='UTF-8', xml_declaration=True)
 
 
-def prepare_mujoco_model(rserv, pserv, sessions, trials_sel, temp, overwrite,
+def prepare_mujoco_model(preset, sessions, trials_sel, temp, overwrite,
                          make_mask, tessellate, sense_distance):
     """Generates a mask of pressure sensors matrix that highlights activated sensels
     and tessellates model sensors based on it.
@@ -331,6 +331,9 @@ def prepare_mujoco_model(rserv, pserv, sessions, trials_sel, temp, overwrite,
             the execution, but low values are too short for relatively large bending bones like metacarpals
             and large muscle areas like thenar eminence. In meters.
     """
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
+
     tools.logs.setup_logging(temp, sessions_dir=pserv)
 
     if not os.path.exists(rserv):
@@ -339,6 +342,8 @@ def prepare_mujoco_model(rserv, pserv, sessions, trials_sel, temp, overwrite,
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(rserv)
+    elif sessions[0].lower() == 'good':
+        sessions = preset['good_sessions']
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')

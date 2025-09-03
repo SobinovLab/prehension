@@ -2295,19 +2295,19 @@ int set_kinematics(
 
 int set_kinematics(
     const std::vector<int>& dof_indices, 
-    const std::vector<mjtNum>& dof_angles, 
-    const std::vector<int>& ignore_dof_indices = {})
+    const std::vector<mjtNum>& dof_angles)
 {
     //std::vector<int>::iterator it;
     for (size_t i = 0; i < dof_indices.size(); i++)
     {
-        if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(), dof_indices[i]) == ignore_dof_indices.end())
-            d->qpos[dof_indices[i]] = dof_angles[i];
+      if (dof_indices[i] >= 0) {
+        d->qpos[dof_indices[i]] = dof_angles[i];
+
         // HACK FIX for pressure sensor
-        //if (dof_indices[i] == 12 || dof_indices[i] == 13)
+        // if (dof_indices[i] == 12 || dof_indices[i] == 13)
         //    d->qpos[dof_indices[i]] += 0.003;
-        if (dof_indices[i] == 12)
-            d->qpos[dof_indices[i]] *= -1;
+        if (dof_indices[i] == 12) d->qpos[dof_indices[i]] *= -1;
+      }
     }
     return 0;
 }
@@ -2326,12 +2326,12 @@ int set_all_kinematics(
     const int current_time_point,
     const std::vector<int>& dof_indices,
     const std::vector<std::vector<mjtNum>>& dof_angles_all,
-    const std::vector<mjtNum> time,
-    const std::vector<int>& ignore_dof_indices = {}) {
+    const std::vector<mjtNum>& time,
+    std::vector<mjtNum>& accel) {
 
     // estimate dt
     mjtNum dt = (
-        time[MIN(current_time_point + 1, dof_angles_all.size() - 1)] -
+        time[MIN(current_time_point + 1, time.size() - 1)] -
         time[MAX(current_time_point - 1, 0)]) / 2;
 
     // 3 points of position
@@ -2340,7 +2340,7 @@ int set_all_kinematics(
     std::vector<mjtNum> pos_left =
         dof_angles_all[MAX(current_time_point - 1, 0)];
     std::vector<mjtNum> pos_right =
-        dof_angles_all[MIN(current_time_point + 1, dof_angles_all.size()-1)];
+        dof_angles_all[MIN(current_time_point + 1, time.size() - 1)];
 
     // 2 points of velocity
     std::vector<mjtNum> vel_left = differential(pos_left, pos, dt);
@@ -2354,20 +2354,42 @@ int set_all_kinematics(
     // 1 point of acceleration
     std::vector<mjtNum> acc = differential(vel_left, vel_right, dt);
 
-    std::vector<int>::iterator it;
+    // store to return
+    accel.clear();
     for (size_t i = 0; i < dof_indices.size(); i++) {
-    if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(),
-                dof_indices[i]) == ignore_dof_indices.end())
+      if (dof_indices[i] >= 0) {
         d->qpos[dof_indices[i]] = pos[i];
         d->qvel[dof_indices[i]] = vel[i];
         d->qacc[dof_indices[i]] = acc[i];
 
-        // HACK FIX for pressure sensor - but do not care about the vel/acc for it
-        // if (dof_indices[i] == 12 || dof_indices[i] == 13)
+        // HACK FIX for pressure sensor - but do not care about the vel/acc for
+        // it if (dof_indices[i] == 12 || dof_indices[i] == 13)
         //    d->qpos[dof_indices[i]] += 0.003;
         if (dof_indices[i] == 12) d->qpos[dof_indices[i]] *= -1;
+      }
+      accel.push_back(acc[i]);
     }
+    
     return 0;
+}
+
+
+void add_acc(const std::vector<int>& dof_indices,
+             const std::vector<mjtNum>& accel) {
+  // for (size_t i = 0; i < dof_indices.size(); i++) {
+  //  if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(),
+  //           dof_indices[i]) == ignore_dof_indices.end()) {
+  //    d->qacc[dof_indices[i]] = accel[i] - d->qacc[dof_indices[i]];
+  //  }
+  //}
+  // for (size_t i_v = 0; i_v < m->nv; i_v++) {
+  //  d->qacc[i_v] = accel[i_v] - d->qacc[i_v];
+  //}
+  for (size_t i = 0; i < dof_indices.size(); i++) {
+    if (dof_indices[i] >= 0) {
+      d->qacc[dof_indices[i]] = accel[i] - d->qacc[dof_indices[i]];
+    }
+  }
 }
 
 
@@ -2528,21 +2550,66 @@ void export_contacts(std::string& filename, std::vector<std::vector<MyContact>>&
 
 
 //-------------------------------- externally applied forces ----------------------------
-void apply_external_forces(const std::vector<MyContact>& ps_hand_contacts) {
+void apply_external_forces(const std::vector<MyContact>& ps_hand_contacts, const int direction=1) {
+  int hand_body;
+  // the largest face of the box
+  const int axis = 2;
+  mjtNum torque[3], force[3], n_world[3], face_center[3], R2[9];
+  mjtNum *sz, *p, *body_pos;
+  mju_zero(torque, 3);
+  for (const MyContact& c : ps_hand_contacts) {
+    hand_body = m->geom_bodyid[c.hand_geomid];
+
+    // get the normal orientation of the geom
+    mju_copy(R2, d->geom_xmat + 9 * c.ps_geomid, 9);
+    R2[axis + 0] *= direction;
+    R2[axis + 3] *= direction;
+    R2[axis + 6] *= direction;
+    n_world[0] = R2[axis + 0];
+    n_world[1] = R2[axis + 3];
+    n_world[2] = R2[axis + 6];
+
+    // get the largest face center point
+    sz = m->geom_size + 3 * c.ps_geomid;
+    p = d->geom_xpos + 3 * c.ps_geomid;
+    face_center[0] = p[0] + sz[axis] * n_world[0];
+    face_center[1] = p[1] + sz[axis] * n_world[1];
+    face_center[2] = p[2] + sz[axis] * n_world[2];
+
+    body_pos = d->xpos + 3 * hand_body;
+
+    // force equals normal vector times c.force
+    mju_scl(force, n_world, c.force, 3);
+
+    //std::cout << c.force << " " << force[0] << " " << force[1] << " " << force[2]
+    //          << std::endl;
+
+    // apply
+    mj_applyFT(m, d, force, torque, face_center, hand_body, d->qfrc_applied);
+  }
+}
+
+void add_external_forces_visualization(
+    const std::vector<MyContact>& ps_hand_contacts,
+    const int direction = 1) {
   int body;
   // the largest face of the box
   const int axis = 2;
-  mjtNum torque[3], force[3], n_world[3], face_center[3];
-  mjtNum *sz, *p, *R;
+  mjtNum torque[3], force[3], n_world[3], face_center[3], geomsize[3], R2[9];
+  float geomrgba[4];
+  mjtNum *sz, *p;
   mju_zero(torque, 3);
   for (const MyContact& c : ps_hand_contacts) {
     body = m->geom_bodyid[c.hand_geomid];
 
     // get the normal orientation of the geom
-    R = d->geom_xmat + 9 * c.ps_geomid;
-    n_world[0] = R[axis + 0];
-    n_world[1] = R[axis + 3];
-    n_world[2] = R[axis + 6];
+    mju_copy(R2, d->geom_xmat + 9 * c.ps_geomid, 9);
+    R2[axis + 0] *= direction;
+    R2[axis + 3] *= direction;
+    R2[axis + 6] *= direction;
+    n_world[0] = R2[axis + 0];
+    n_world[1] = R2[axis + 3];
+    n_world[2] = R2[axis + 6];
 
     // get the largest face center point
     sz = m->geom_size + 3 * c.ps_geomid;
@@ -2554,21 +2621,36 @@ void apply_external_forces(const std::vector<MyContact>& ps_hand_contacts) {
     // force equals normal vector times c.force
     mju_scl(force, n_world, c.force, 3);
 
-    // apply
-    mj_applyFT(m, d, force, torque, face_center, body, d->qfrc_applied);
+    // VISUALIZE
+    mjvGeom* g = scn.geoms + scn.ngeom;
+
+    // size
+    geomsize[0] = 3;   // linewidth
+    geomsize[1] = 0;   // nothing?
+    geomsize[2] = c.force;  // line length
+
+    // rgba
+    geomrgba[0] = 0.8f;
+    geomrgba[1] = 0.0f;
+    geomrgba[2] = 0.0f;
+    geomrgba[3] = 0.8f;
+
+    mjv_initGeom(g, mjGEOM_LINE, geomsize, face_center, R2, geomrgba);
+
+    // add to geoms
+    scn.ngeom++;
   }
 }
 
 
 std::vector<mjtNum> get_actuating_torques(
-    const std::vector<int>& dof_indices,
-    const std::vector<int>& ignore_dof_indices = {}) {
+    const std::vector<int>& dof_indices) {
   std::vector<mjtNum> a(dof_indices.size(), 0.0);
-
+  //mjtNum* tmp = new mjtNum(m->nv);
+  //mj_mulJacTVec(m, d, tmp, d->xfrc_applied);  // external cartesian, should be 0s
   for (size_t i = 0; i < dof_indices.size(); i++) {
-    if (find(ignore_dof_indices.begin(), ignore_dof_indices.end(),
-             dof_indices[i]) == ignore_dof_indices.end())
-      a[i] = d->qfrc_inverse[dof_indices[i]];
+    if (dof_indices[i] >= 0)
+      a[i] = d->qfrc_inverse[dof_indices[i]] - d->qfrc_applied[dof_indices[i]]/* - tmp[dof_indices[i]]*/;
   }
   return a;
 }
@@ -2922,6 +3004,8 @@ int main(int argc, const char** argv)
     std::string ri_ps_file_o;
     // output torque filename
     std::string torque_file_o = "";
+    // output torque filename
+    std::string torque_nf_file_o = "";
     // optimization frame
     int optimization_frame = -1;
     // adjustment filename - for trial processing (as input) or optimization (as output)
@@ -2937,7 +3021,7 @@ int main(int argc, const char** argv)
     // don't save results to file
     bool skip_result_export = false;
     // do not move the thorax around
-    bool vertical_thorax = false;
+    bool vertical_thorax = true;
     // threshold for quality of the resulting matching (max portion unmatched)
     double quality_threshold = 0;
     // process inputs
@@ -3013,7 +3097,7 @@ int main(int argc, const char** argv)
                 ri_ps_file_o = argv[++i_arg];
             }
         }
-        // Right pressure sensor CSV filename.
+        // Torque output filename.
         else if (!strcmp(argv[i_arg], "--torque_ou")) {
           if (i_arg + 1 == argc || argv[i_arg + 1][0] == '-') {
             std::cout << "Output torque file argument "
@@ -3022,6 +3106,17 @@ int main(int argc, const char** argv)
             return -1;
           } else {
             torque_file_o = argv[++i_arg];
+          }
+        }
+        // Torque computed without external forces filename.
+        else if (!strcmp(argv[i_arg], "--torque_nf_ou")) {
+          if (i_arg + 1 == argc || argv[i_arg + 1][0] == '-') {
+            std::cout << "Output torque file argument "
+                         "specified, but not provided. Aborting."
+                      << std::endl;
+            return -1;
+          } else {
+            torque_nf_file_o = argv[++i_arg];
           }
         }
         // quality threshold for the found matching - portion of force that can remain unmatched
@@ -3082,10 +3177,11 @@ int main(int argc, const char** argv)
             std::cout << "  --rips_in <filename>	Path to the csv with pressure sensor measurements of the trial from the right sensor. Should be aligned and synchronized with joint angles (sampled at the same time points)." << std::endl;
             std::cout << "  --leps_ou <filename>	Where to save the matched between left sensor and hand segments. Needed if not in optimization mode." << std::endl;
             std::cout << "  --rips_ou <filename>	Where to save the matched between right sensor and hand segments. Needed if not in optimization mode." << std::endl;
-            std::cout << "  --quality_threshold <float>	If the unmatched force exceeds this portion of total force, the program will return -1." << std::endl;
-            std::cout << "  --frame <int>			Frame to run the optimization on. If not provided, just runs the trial to match contacts." << std::endl;
-            std::cout << "  --adj <filename>		Path to the file with adjustments to the positions of the sensors. Generated in optimization mode, can be used in matching mode. If not provided in the matching mode, no adjustments are added." << std::endl;
-            std::cout << "  --manual                In optimization mode, goes directly to free move stage, skipping the optimization routine." << std::endl;
+            std::cout << "  --quality_threshold <float>	 If the unmatched force exceeds this portion of total force, the program will return -1." << std::endl;
+            std::cout << "  --torque_ou <filename>  Filename for actuating torques."
+                      << std::endl;
+            std::cout << "  --torque_nf_ou <filename>  Filename for actuating torques computed without external forces."
+                      << std::endl;
             std::cout << "  --no_visuals            Suppresses opening the window and visualization of the simualtion." << std::endl;
             std::cout << "  --skip_export           Skip exporint whatever results and data were generated." << std::endl;
             std::cout << "  --vertical_thorax       Makes the thorax vertical (does not change from the default model position)." << std::endl;
@@ -3211,20 +3307,75 @@ int main(int argc, const char** argv)
     }
 
     // if want to stabilize thorax
-    const std::vector<std::string> base_jas{ "Thorax_rot1", "Thorax_rot2", "Thorax_rot3", "Thorax_tra1", "Thorax_tra2", "Thorax_tra3" };
+    const std::vector<std::string> base_jas{"Thorax_rot1",
+                                            "Thorax_rot2",
+                                            "Thorax_rot3",
+                                            "Thorax_tra1",
+                                            "Thorax_tra2",
+                                            "Thorax_tra3"};
+    const std::vector<std::string> ignore_acc_jas{"Thorax_rot1",
+                                            "Thorax_rot2",
+                                            "Thorax_rot3",
+                                            "Thorax_tra1",
+                                            "Thorax_tra2",
+                                            "Thorax_tra3",
+                                            "ra_sternoclavicular_r2_d",
+                                            "ra_sternoclavicular_r3_d",
+                                            "ra_unrotscap_r3_d",
+                                            "ra_unrotscap_r2_d",
+                                            "ra_acromioclavicular_r2_d",
+                                            "ra_acromioclavicular_r3_d",
+                                            "ra_acromioclavicular_r1_d",
+                                            "ra_unrothum_r1_d",
+                                            "ra_unrothum_r3_d",
+                                            "ra_unrothum_r2_d",
+                                            "ra_shoulder1_r2_d",
+                                            "ra_proximal_distal_r1_d",
+                                            "ra_proximal_distal_r3_d"};
     std::vector<int> base_ja_ids;
     if (vertical_thorax)
         for (auto bja : base_jas) {
             base_ja_ids.push_back(mj_name2id(m, mjOBJ_JOINT, bja.c_str()));
             //std::cout << bja << " " << base_ja_ids.back() << std::endl;
         }
+    std::vector<int> ignore_acc_ids;
+    for (auto bja : ignore_acc_jas) {
+      ignore_acc_ids.push_back(mj_name2id(m, mjOBJ_JOINT, bja.c_str()));
+      // std::cout << bja << " " << base_ja_ids.back() << std::endl;
+    }
     //const std::vector<std::string> other_ignore_jas{ "ps_halfwidth_tra", "ps_halfwidth_tra_d" };
     //for (auto oja : other_ignore_jas) {
     //    base_ja_ids.push_back(mj_name2id(m, mjOBJ_JOINT, oja.c_str()));
     //    //std::cout << bja << " " << base_ja_ids.back() << std::endl;
     //}
     //std::cout << "HERHEHRHEHREH" << base_ja_ids[0] << " " << base_ja_ids[1] << std::endl;
-
+    
+    // incorporate ignoring DOFs into the joint_indices
+    if (vertical_thorax) {
+      for (size_t i_dof = 0; i_dof < ja_indices.size(); i_dof++) {
+        if (find(base_ja_ids.begin(), base_ja_ids.end(), ja_indices[i_dof]) !=
+            base_ja_ids.end())
+          ja_indices[i_dof] = -1;
+      }
+    }
+    //// not used
+    //std::vector<int> acc_ids; 
+    //for (size_t i_dof = 0; i_dof < ja_indices.size(); i_dof++) {
+    //  if (find(ignore_acc_ids.begin(), ignore_acc_ids.end(),
+    //           ja_indices[i_dof]) == ignore_acc_ids.end())
+    //    acc_ids.push_back(ja_indices[i_dof]);
+    //  else
+    //    acc_ids.push_back(-1);
+    //}
+    //std::cout << "ignored indices:";
+    //for (const auto ji : base_ja_ids) std::cout << " " << ji;
+    //std::cout << std::endl;
+    //std::cout << "Joint Angle indices:";
+    //for (const auto ji : ja_indices) std::cout << " " << ji;
+    //std::cout << std::endl;
+    //std::cout << "Acc indices:";
+    //for (const auto ji : acc_ids) std::cout << " " << ji;
+    //std::cout << std::endl;
 
     // if want to return a warning (>0) or quit properly, but with an error value(<0)
     int return_value = 0;
@@ -3248,6 +3399,7 @@ int main(int argc, const char** argv)
     std::vector<std::vector<MyContact>> le_phc_storage;
 
     std::vector<std::vector<mjtNum>> actuating_torques_storage;
+    std::vector<std::vector<mjtNum>> actuating_torques_nf_storage;
 
     // for quality control
     mjtNum unmatchedForce = 0.;
@@ -3257,8 +3409,9 @@ int main(int argc, const char** argv)
     std::vector<mjtNum> times(ja_times);
     std::vector<int> point_status(times.size(), 0);
     int i_current_point = 0;
+    std::vector<mjtNum> accel;  // buffer for IK
 
-    // track the time - for matching task. TODO add an option to run faster than realtime - don't wait
+    // track the time - for matching task
     const double time_start = glfwGetTime();
     double current_time = time_start;
 
@@ -3286,316 +3439,193 @@ int main(int argc, const char** argv)
 
 
     //-------------------------- main loop
+    // apply adjustment file if it was loaded
+    if (!adjusted_dof_indices.empty()) {
+        for (size_t i_adof = 0; i_adof < adjusted_dof_indices.size(); i_adof++)
+            for (size_t i_time = 0; i_time < times.size(); i_time++)
+                joint_angles[i_time][adjusted_dof_indices[i_adof]] += adjustments[i_adof];
+    }
 
-    if (optimization_frame < 0) {  // MATCHING mode
-        // apply adjustment file if it was loaded
-        if (!adjusted_dof_indices.empty()) {
-            for (size_t i_adof = 0; i_adof < adjusted_dof_indices.size(); i_adof++)
-                for (size_t i_time = 0; i_time < times.size(); i_time++)
-                    joint_angles[i_time][adjusted_dof_indices[i_adof]] += adjustments[i_adof];
+    int disableflags = m->opt.disableflags;
+
+    // the simulation will never go faster then realtime, and will pass through all timesteps
+    while ((!visuals_enabled || !glfwWindowShouldClose(window)) && !settings.exitrequest && i_current_point < times.size())
+    {
+        bool write_frame = false;
+        // get current time with 0 start of experiment
+        current_time = glfwGetTime() - time_start;
+
+        // go as fast as possible when noone is looking
+        if (!visuals_enabled)
+            current_time = mjMAXVAL;
+
+        if (verbose)
+            std::cout << "Current time: " << current_time << " s.\t\t\r";
+
+        // identify next timepoint
+        if (settings.run && (current_time >= (times[i_current_point] - times[0]))) {
+            // enable contact etc
+            m->opt.disableflags = disableflags;
+            // process current timepoint
+            // only pos is needed to compute the contacts and relative locations
+            set_kinematics(ja_indices, joint_angles[i_current_point]);
+
+            // set coloration of the sensor
+            set_sensor_coloration(le_ps_matrix[i_current_point], le_ps_geoms);
+            set_sensor_coloration(ri_ps_matrix[i_current_point], ri_ps_geoms);
+
+            // compute stuff like contacts
+            mj_forward(m, d);
+
+            // get the distances
+            le_phc_storage.push_back(match_sensors_hand(
+                le_ps_matrix[i_current_point], le_ps_geoms, thumb_geoms, unmatchedForce, matchedForce));
+            ri_phc_storage.push_back(match_sensors_hand(
+                ri_ps_matrix[i_current_point], ri_ps_geoms, finger_geoms, unmatchedForce, matchedForce));
+
+            // modify flags for torques
+            m->opt.disableflags |=
+                mjDSBL_EQUALITY | mjDSBL_LIMIT | mjDSBL_CONTACT;
+
+            ////////// Torque 1
+            // set the desired pos, vel, acc - needed for the inverse
+            set_all_kinematics(i_current_point, ja_indices, joint_angles, times,
+                               accel);
+            // zero the forces
+            mju_zero(d->qfrc_applied, m->nv);
+
+            // refresh the cashes
+            mj_forward(m, d);
+            
+            // fill in the accelerations
+            set_all_kinematics(i_current_point, ja_indices, joint_angles, times,
+                               accel);
+
+            // apply the forces
+            // thumb
+            apply_external_forces(le_phc_storage.back(), -1);
+            // fingers
+            apply_external_forces(ri_phc_storage.back(), 1);
+
+            // compute the torques
+            mj_inverse(m, d);
+
+            // save the torques
+            actuating_torques_storage.push_back(
+                get_actuating_torques(ja_indices));
+
+            ////////// Torque 2 - without forces
+            // set the desired pos, vel, acc - needed for the inverse
+            set_all_kinematics(i_current_point, ja_indices, joint_angles, times,
+                               accel);
+            // remove the forces
+            mju_zero(d->qfrc_applied, m->nv);
+
+            // refresh the cashes
+            mj_forward(m, d);
+
+            // fill in the accelerations
+            set_all_kinematics(i_current_point, ja_indices, joint_angles, times,
+                               accel);
+
+            // compute the torques
+            mj_inverse(m, d);
+
+            // save the torques
+            actuating_torques_nf_storage.push_back(
+                get_actuating_torques(ja_indices));
+
+            // was this point successfully evaluated? - good foir debugging
+            point_status[i_current_point] = 1;
+            i_current_point++;
+
+            write_frame = true;
         }
 
-        // the simulation will never go faster then realtime, and will pass through all timesteps
-        while ((!visuals_enabled || !glfwWindowShouldClose(window)) && !settings.exitrequest && i_current_point < times.size())
-        {
-            bool write_frame = false;
-            // get current time with 0 start of experiment
-            current_time = glfwGetTime() - time_start;
+        // render
+        if (visuals_enabled) {
+            // handle events (calls all callbacks)
+            glfwPollEvents();
 
-            // go as fast as possible when noone is looking
-            if (!visuals_enabled)
-                current_time = mjMAXVAL;
+            // prepare to render
+            prepare();
 
-            if (verbose)
-                std::cout << "Current time: " << current_time << " s.\t\t\r";
-
-            // identify next timepoint
-            if (settings.run && (current_time >= (times[i_current_point] - times[0]))) {
-                // process current timepoint
-                // only pos is needed to compute the contacts and relative locations
-                set_kinematics(ja_indices, joint_angles[i_current_point], base_ja_ids);
-
-                // set coloration of the sensor
-                set_sensor_coloration(le_ps_matrix[i_current_point], le_ps_geoms);
-                set_sensor_coloration(ri_ps_matrix[i_current_point], ri_ps_geoms);
-
-                // compute stuff
-                mj_forward(m, d);
-
-                // get the distances
-                le_phc_storage.push_back(match_sensors_hand(le_ps_matrix[i_current_point], le_ps_geoms, thumb_geoms, unmatchedForce, matchedForce));
-                ri_phc_storage.push_back(match_sensors_hand(ri_ps_matrix[i_current_point], ri_ps_geoms, finger_geoms, unmatchedForce, matchedForce));
-
-                // set the desired pos, vel, acc - needed for the inverse
-                set_all_kinematics(i_current_point, ja_indices, joint_angles,
-                                   times, base_ja_ids);
-
-                // apply the forces
-                // TODO - possibly need to inverse one of the vectors
-                apply_external_forces(le_phc_storage.back());
-                apply_external_forces(ri_phc_storage.back());
-
-                // compute the torques
-                mj_inverse(m, d);
-
-                // save the torques
-                actuating_torques_storage.push_back(
-                    get_actuating_torques(ja_indices, base_ja_ids));
-
-                // was this point successfully evaluated? - good foir debugging
-                point_status[i_current_point] = 1;
-                i_current_point++;
-
-                write_frame = true;
-            }
+            // thumb
+            add_external_forces_visualization(le_phc_storage.back(), -1);
+            // fingers
+            add_external_forces_visualization(ri_phc_storage.back());
 
             // render
-            if (visuals_enabled) {
-                // handle events (calls all callbacks)
-                glfwPollEvents();
+            render(window);
+        }
 
-                // prepare to render
-                prepare();
+        if (video_filename.size() && write_frame) {  //GL_RGB
+            glReadPixels(0, 0, frame_width, frame_height, GL_RGB, GL_UNSIGNED_BYTE, frame_pixels);
 
-                // render
-                render(window);
-            }
+            // Create an OpenCV Mat from the captured frame
+            cv::Mat frame(frame_height, frame_width, CV_8UC3, frame_pixels);
 
-            if (video_filename.size() && write_frame) {  //GL_RGB
-                glReadPixels(0, 0, frame_width, frame_height, GL_RGB, GL_UNSIGNED_BYTE, frame_pixels);
+            // Flip the frame vertically (if needed)
+            cv::flip(frame, frame, 0);
 
-                // Create an OpenCV Mat from the captured frame
-                cv::Mat frame(frame_height, frame_width, CV_8UC3, frame_pixels);
+            // OpenGl is RGB and OpenCV is BGR
+            cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
 
-                // Flip the frame vertically (if needed)
-                cv::flip(frame, frame, 0);
-
-                // OpenGl is RGB and OpenCV is BGR
-                cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
-
-                // Write the frame to the video
-                frameSavingBuffer->add(Frame(
-                    frame.clone(),
-                    0,
-                    0,
-                    i_current_point
-                ));
-
-            }
+            // Write the frame to the video
+            frameSavingBuffer->add(Frame(
+                frame.clone(),
+                0,
+                0,
+                i_current_point
+            ));
 
         }
 
-        // Release the video writer
-        if (video_filename.size()) {
-            frameSavingBuffer->stop_request = true;
-            frameSavingBuffer->stop_wait();
-            // Cleanup
-            delete[] frame_pixels;
-        }
-
-        if (verbose)
-            std::cout << std::endl;
-
-        // export the data
-        if (i_current_point == times.size() && !skip_result_export) {
-            export_contacts(le_ps_file_o, le_phc_storage, le_geom_to_id, geom_to_name);
-            if (verbose)
-                std::cout << "Exported left pressure sensor contact matches to " << le_ps_file_o << std::endl;
-            export_contacts(ri_ps_file_o, ri_phc_storage, ri_geom_to_id, geom_to_name);
-            if (verbose)
-                std::cout << "Exported right pressure sensor contact matches to " << ri_ps_file_o << std::endl;
-            // torques
-            if (!torque_file_o.empty()) {
-              IOFunctions::export_timed_csv(torque_file_o, times, ja_names,
-                                            actuating_torques_storage);
-              if (verbose)
-                std::cout << "Exported actuating torques to " << torque_file_o
-                          << std::endl;
-            }
-        }
-
-        if (quality_threshold > 0 && (unmatchedForce > (unmatchedForce + matchedForce) * quality_threshold)) {
-            if (verbose)
-                std::cout << "Unmatched force " << unmatchedForce << " N exceeded maximum portion (" << quality_threshold << ") of total trial force " << unmatchedForce + matchedForce << " N." << std::endl;
-            return_value = -1;
-        }
-        if (verbose)
-            std::cout << "Unmatched force " << unmatchedForce << " N, matched force " << matchedForce << " N, " << " total trial force " << unmatchedForce + matchedForce << " N." << std::endl;
     }
-    else {  // OPTIMIZATION mode
-        // DEPRECATED and no longer used/needed
-        if (!visuals_enabled) {
-            std::cout << "OPTIMIZATION mode is not supported without visualization. Aborting." << std::endl;
-            return -11;
-        }
-        // init
+
+    // Release the video writer
+    if (video_filename.size()) {
+        frameSavingBuffer->stop_request = true;
+        frameSavingBuffer->stop_wait();
+        // Cleanup
+        delete[] frame_pixels;
+    }
+
+    if (verbose)
+        std::cout << std::endl;
+
+    // export the data
+    if (i_current_point == times.size() && !skip_result_export) {
+        export_contacts(le_ps_file_o, le_phc_storage, le_geom_to_id, geom_to_name);
         if (verbose)
-            std::cout << "Starting optimization of frame #" << optimization_frame << "." << std::endl;
-        int nlopt_ver_major, nlopt_ver_minor, nlopt_ver_bugfix;
-        nlopt_version(&nlopt_ver_major, &nlopt_ver_minor, &nlopt_ver_bugfix);
+            std::cout << "Exported left pressure sensor contact matches to " << le_ps_file_o << std::endl;
+        export_contacts(ri_ps_file_o, ri_phc_storage, ri_geom_to_id, geom_to_name);
         if (verbose)
-            std::cout << "Using nlopt version " << nlopt_ver_major << "." << nlopt_ver_minor << "." << nlopt_ver_bugfix << std::endl;
-
-        // set posture
-        set_kinematics(ja_indices, joint_angles[optimization_frame]);
-        // set coloration of the sensor
-        set_sensor_coloration(le_ps_matrix[optimization_frame], le_ps_geoms);
-        set_sensor_coloration(ri_ps_matrix[optimization_frame], ri_ps_geoms);
-
-        // generate shared resources
-        // These have to match
-        const int dims = 6;  // laaaazy
-        const std::vector<std::string> dof_suffixes = { "tra1", "tra2", "tra3", "rot1", "rot2" , "rot3" };
-        //std::cout << std::scientific;
-        ofd_global->le_ps_geoms = &le_ps_geoms;
-        ofd_global->ri_ps_geoms = &ri_ps_geoms;
-        ofd_global->le_ps_matrix = &(le_ps_matrix[optimization_frame]);
-        ofd_global->ri_ps_matrix = &(ri_ps_matrix[optimization_frame]);
-        ofd_global->hand_geoms = &hand_geoms;
-        ofd_global->thumb_geoms = &thumb_geoms;
-        ofd_global->finger_geoms = &finger_geoms;
-        // get ps joint ids
-        const std::vector<std::string> ps_prefixes = { "ps" };
-        ofd_global->fitting_dof_indices = get_ps_dof_indices(
-            ps_prefixes, dof_suffixes, ja_indices, ja_names,
-            joint_angles[optimization_frame], ofd_global->fitting_initial_pos);
-
-        // shared resources
-        double d_buf;
-        ofd_global->dim = dims;
-        // make bounds
-        double* lb = new double[dims];
-        double* ub = new double[dims];
-        double* x = new double[dims];
-        double* bounds_hw = new double[dims];
-        x_step = new double[dims];
-        for (size_t i_dim = 0; i_dim < dims; i_dim++)
-        {
-            lb[i_dim] = -HUGE_VAL;
-            ub[i_dim] = HUGE_VAL;
-            x[i_dim] = 0;
-            bounds_hw[i_dim] = 0.05; // narrow bounds to +-5 cm
-            x_step[i_dim] = 0.001;  // 1 mm
-        }
-        for (size_t i_dim = 3; i_dim < dims; i_dim++) {
-            bounds_hw[i_dim] = mjPI / 16;  // the rotational ones to +- pi/16 ~ 11.25 deg
-            x_step[i_dim] = mjPI / 90;  // 2 deg
-        }
-        // recalculate bounds so that the starting point is ZERO and limits satisfy both sensor DOFs
-        for (int i_ps = 0; i_ps < ps_prefixes.size(); i_ps++)
-        {
-            for (size_t i_dof = 0; i_dof < dims; i_dof++)
-            {
-                // model range relative to the starting point
-                d_buf = (m->jnt_range[2 * ofd_global->fitting_dof_indices[i_ps][i_dof]] - 
-                    ofd_global->fitting_initial_pos[i_ps][i_dof]);
-                lb[i_dof] = mjMAX(lb[i_dof], d_buf);
-
-                d_buf = (m->jnt_range[2 * ofd_global->fitting_dof_indices[i_ps][i_dof] + 1] - 
-                    ofd_global->fitting_initial_pos[i_ps][i_dof]);
-                ub[i_dof] = mjMIN(ub[i_dof], d_buf);
-            }
-        }
-        if (verbose) {
-            std::cout << "Found bounds: " << std::endl;
-            for (size_t i_dof = 0; i_dof < dims; i_dof++)
-            {
-                std::cout << "\t" << dof_suffixes[i_dof] << ": [" << lb[i_dof] << ", " << ub[i_dof] << "] x0:";
-                for (size_t i_fip = 0; i_fip < ofd_global->fitting_initial_pos.size(); i_fip++) {
-                    std::cout << " [" << ofd_global->fitting_dof_indices[i_fip][i_dof] << "] ";
-                    std::cout << ofd_global->fitting_initial_pos[i_fip][i_dof];
-                }
-                std::cout << std::endl;
-            }
-        }
-
-        // narrow bounds to +-5 cm
-        if (verbose)
-            std::cout << "Narrowed bounds: " << std::endl;
-        for (size_t i_dof = 0; i_dof < dims; i_dof++)
-        {
-            lb[i_dof] = mjMAX(lb[i_dof], x[i_dof] - bounds_hw[i_dof]);
-            ub[i_dof] = mjMIN(ub[i_dof], x[i_dof] + bounds_hw[i_dof]);
+            std::cout << "Exported right pressure sensor contact matches to " << ri_ps_file_o << std::endl;
+        // torques
+        if (!torque_file_o.empty()) {
+            IOFunctions::export_timed_csv(torque_file_o, times, ja_names,
+                                        actuating_torques_storage);
             if (verbose)
-                std::cout << "\t" << dof_suffixes[i_dof] << ": [" << lb[i_dof] << ", " << ub[i_dof] << "]" << std::endl;
+            std::cout << "Exported actuating torques to " << torque_file_o
+                        << std::endl;
         }
-
-        // if the adjustments were loaded, change the starting optimization point
-        if (!adjusted_dof_indices.empty()) {
-            for (size_t i_adof = 0; i_adof < adjusted_dof_indices.size(); i_adof++) 
-                for (size_t i_fdof = 0; i_fdof < ofd_global->fitting_dof_indices[0].size(); i_fdof++)
-                    if (ofd_global->fitting_dof_indices[0][i_fdof] == ja_indices[adjusted_dof_indices[i_adof]])
-                        x[i_fdof] = adjustments[i_adof];
-        }
-
-        // transfer to the structure
-        ofd_global->lb = lb;
-        ofd_global->ub = ub;
-        ofd_global->x = x;
-
-        // start optimization thread
-        if (skip_to_manual) {
-            if (verbose)
-                std::cout << "Skipping to manual control..." << std::endl;
-            // call once to fill the buffers
-            objective_function(dims, x, NULL, (void*)ofd_global);
-        }
-        else {
-            std::thread optthread(optimize_thread_function);
-
-            // do visualization
-            while (!glfwWindowShouldClose(window) && !settings.exitrequest) {
-                visualize_call();
-
-                mtx.lock();
-                if (settings.done_optimizing) {
-                    mtx.unlock();
-                    break;
-                }
-                mtx.unlock();
-
-            }
-
-            optthread.join();
-        }
-
-        if (ofd_global->fvals.empty()) {
-            std::cout << "Stored evals are empty. Exiting." << std::endl;
-            return -8;
-        }
-
-        // analyze the logs
-        size_t i_min = 0;
-        for (size_t i_eval = 0; i_eval < ofd_global->fvals.size(); i_eval++)
-            if (ofd_global->fvals[i_eval] < ofd_global->fvals[i_min])
-                i_min = i_eval;
-        if (verbose) {
-            std::cout << "Minimum of the logs was on eval #" << i_min + 1 << " with f(" << ofd_global->xs[i_min][0];
-                for (int i_x = 1; i_x < dims; i_x++)
-                    std::cout << ", " << ofd_global->xs[i_min][i_x];
-            std::cout << ") = " << ofd_global->fvals[i_min] << std::endl;
-        }
-
-        // export optimal found result
-        if (!skip_to_manual && !skip_result_export) {
-            export_current_adjustment(ofd_global->xs[i_min]);
-            IOFunctions::export_optimization_logs(
-                adjustment_file.substr(0, adjustment_file.size()-4) + "_optlog.csv", 
-                m, ofd_global->fitting_dof_indices, ofd_global->xs, ofd_global->fvals);
-        }
-
-        // assume best posture enable GUI moves
-        x_final = new double[dims];
-        for (int i_dim = 0; i_dim < dims; i_dim++) {
-            x_final[i_dim] = ofd_global->xs[i_min][i_dim];
-        }
-        n_x_final = dims;
-        assume_posture_and_print_cost();
-
-        while (!glfwWindowShouldClose(window) && !settings.exitrequest) {
-            visualize_call();
+        if (!torque_nf_file_o.empty()) {
+          IOFunctions::export_timed_csv(torque_nf_file_o, times, ja_names,
+                                        actuating_torques_nf_storage);
+          if (verbose)
+            std::cout << "Exported actuating no-force torques to " << torque_nf_file_o
+                      << std::endl;
         }
     }
+
+    if (quality_threshold > 0 && (unmatchedForce > (unmatchedForce + matchedForce) * quality_threshold)) {
+        if (verbose)
+            std::cout << "Unmatched force " << unmatchedForce << " N exceeded maximum portion (" << quality_threshold << ") of total trial force " << unmatchedForce + matchedForce << " N." << std::endl;
+        return_value = -1;
+    }
+    if (verbose)
+        std::cout << "Unmatched force " << unmatchedForce << " N, matched force " << matchedForce << " N, " << " total trial force " << unmatchedForce + matchedForce << " N." << std::endl;
 
     // done
     if (verbose)

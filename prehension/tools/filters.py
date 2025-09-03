@@ -77,9 +77,11 @@ def get_slice_to_time_base(tmin, n_times, times):
     return slice(start, start + n_times)
 
 
-def enforce_rom(dof, rng):
-    dof[dof < rng[0]] = rng[0]
-    dof[dof > rng[1]] = rng[1]
+def enforce_rom(dof, rng, padding=0):
+    rng_min = rng[0] + padding * (rng[1] - rng[0])
+    rng_max = rng[1] - padding * (rng[1] - rng[0])
+    dof[dof < rng_min] = rng_min
+    dof[dof > rng_max] = rng_max
     return dof
 
 

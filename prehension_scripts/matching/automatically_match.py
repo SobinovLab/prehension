@@ -61,8 +61,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     automatically_match(
-        current_preset['default_server'],
-        current_preset['processed_server'],
+        current_preset,
         args.sessions, args.trials, args.temp, args.processes,
         args.overwrite,
         args.executable_filename,

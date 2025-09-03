@@ -140,16 +140,21 @@ def transform_trial(trial, mdof, ja_filter, object_def, make_plots=False):
     dofs[ps_rot_i_2, ap_mask] = np.median(dofs[ps_rot_i_2, ap_mask])
     dofs[ps_rot_i_3, ap_mask] = np.median(dofs[ps_rot_i_3, ap_mask])
 
+    # # TODO remove - potentially not needed
+    # # push DOFs deeper within its ROM
+    # for i_dof, dof_info in enumerate(mdof.values()):
+    #     dofs[i_dof] = tools.filters.enforce_rom(dofs[i_dof], dof_info['range'], padding=0.01)
+
     # Save processed ja data
     opensim_io.export_mot(trial.post_kinematic_filename_mot,
-                              list(mdof.keys()), common_times, dofs)
+                          list(mdof.keys()), common_times, dofs)
 
     # export to CSV with rotational transformed to radians
     rots = np.array([dof_info['rot'] for dof_info in mdof.values()], dtype=bool)
     dofs[rots, :] = dofs[rots, :] / 180 * np.pi
     dofs_prefilter[rots, :] = dofs_prefilter[rots, :] / 180 * np.pi
     io.export_csv(trial.post_kinematic_filename_csv,
-                              ['time'] + list(mdof.keys()), [common_times] + dofs.tolist())
+                  ['time'] + list(mdof.keys()), [common_times] + dofs.tolist())
 
     # save processed pressure sensor data
     for ps_filename, ps_matrices in zip(trial.post_ps_tsm_filenames.values(), ps_matrices_tot):
@@ -223,7 +228,7 @@ def ja_filter(data):
 
 
 def process_and_align_data(
-        rserv, pserv, sessions, trials_sel, temp, processes, overwrite, make_plots):
+        preset, sessions, trials_sel, temp, processes, overwrite, make_plots):
     """Filters, resamples, and aligns pressure sensor and kinematic data to grasp onset.
 
     Arguments:
@@ -238,6 +243,8 @@ def process_and_align_data(
         preset {dict} --- Preset dictionary.
         make_plots {bool} --- Makes some inspection figures. Run with --processes 1.
     """
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
     tools.logs.setup_logging(temp, sessions_dir=pserv)
 
     if not os.path.exists(rserv):
@@ -246,6 +253,8 @@ def process_and_align_data(
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(rserv)
+    elif sessions[0].lower() == 'good':
+        sessions = preset['good_sessions']
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')

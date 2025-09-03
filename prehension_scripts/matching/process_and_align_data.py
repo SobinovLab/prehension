@@ -45,8 +45,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     process_and_align_data(
-        current_preset['default_server'],
-        current_preset['processed_server'],
+        current_preset,
         args.sessions, args.trials, args.temp, args.processes,
         args.overwrite, args.make_plots)
 

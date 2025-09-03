@@ -215,6 +215,9 @@ class TrialInfo():
         # actuating torques
         self.torques_filename = os.path.join(
             mstruct['torques_dir'], trial_name + '.csv')
+        # actuating torques without external forces
+        self.torques_nf_filename = os.path.join(
+            mstruct['torques_nf_dir'], trial_name + '.csv')
 
         # digit forces - compiled from matched_contacts
         self.digit_forces_filename = os.path.join(
@@ -480,6 +483,12 @@ class TrialInfo():
     # TORQUES
     def does_torque_file_exist(self):
         return os.path.exists(self.torques_filename)
+
+    def does_torque_nf_file_exist(self):
+        return os.path.exists(self.torques_nf_filename)
+
+    def do_torque_files_exist(self):
+        return self.does_torque_file_exist() and self.does_torque_nf_file_exist()
 
     # MANUALLY LABELLED FORCES
     def does_manually_labelled_file_exists(self):

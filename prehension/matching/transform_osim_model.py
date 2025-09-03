@@ -62,7 +62,8 @@ def convert_osim_model(osim_model, geometry_folder, output_folder):
     # geom texture
     converter4.mujoco_dic["asset"]["texture"][1] = {
         "@name": "texgeom", "@type": "cube", "@builtin": "flat",
-        "@width": "100", "@height": "100", "@rgb1": "0.816 0.706 0.663", "@rgb2": "0.816 0.706 0.663",
+        "@width": "100", "@height": "100",
+        "@rgb1": "0.816 0.706 0.663", "@rgb2": "0.816 0.706 0.663",
         "@mark": "cross", "@markrgb": "1 1 1",
     }
     # default coloring
@@ -71,6 +72,10 @@ def convert_osim_model(osim_model, geometry_folder, output_folder):
         "@margin": "0.001",
         "@solref": ".02 1", "@solimp": ".8 .8 .01",
         "@material": "geom"}
+
+    # default joint
+    converter4.mujoco_dic['default']['joint']['@damping'] = '0.01'
+    converter4.mujoco_dic['default']['joint']['@armature'] = '0'
 
     converter4.convert(osim_model, output_folder, geometry_folder, False)
 
