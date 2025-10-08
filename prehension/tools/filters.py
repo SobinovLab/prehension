@@ -23,9 +23,43 @@ import warnings
 import numpy as np
 import scipy
 
+from . import misc
 
+
+########### Slices
+def get_slice_to_time_base(tmin, n_times, times):
+    '''Returns a slice with n_times length that starts at tmin in n_times. '''
+    # tmin must be within [times[0], times[1]] period
+    # otherwise it will throw an exception
+    start = next(x for x, val in enumerate(times) if val >= tmin)
+    return slice(start, start + n_times)
+
+
+def get_slice_around_point(times, point, b_tp, a_tp):
+    '''Returns a slice that matches the period [point-b_tp;point+a_tp] in times.'''
+    np_times = np.array(times)
+    fr = misc.find_first((np_times - (point - b_tp)) >= 0)
+    to = misc.find_last((np_times - (point + a_tp)) <= 0)
+    return slice(int(fr), int(to))
+
+
+def enforce_rom(dof, rng, padding=0):
+    '''Enforces that the values in 'dof' are within the range specified by 'rng'.
+
+    Padding moves them further away from the edge.
+    '''
+    rng_min = rng[0] + padding * (rng[1] - rng[0])
+    rng_max = rng[1] - padding * (rng[1] - rng[0])
+    dof[dof < rng_min] = rng_min
+    dof[dof > rng_max] = rng_max
+    return dof
+
+
+########### General filters and resampling
 def downsample_at_timeseries(times, data, times_new):
-    '''times_new has to have a much lower frequency. Neither have to be uniform.
+    '''Downsamples data (for example, pressure sensors) to a different set of times.
+
+    times_new has to have a much lower frequency. Neither have to be uniform.
     times_new cannot be wider than times'''
     times = np.array(times)
     data = np.array(data)
@@ -52,9 +86,12 @@ def downsample_at_timeseries(times, data, times_new):
     return np.array(data_new)
 
 
-# TODO instead of decimate use time-based median filter bc sensor times are not consistent
 def downsample(ps_times, data, ja_period):
-    '''Downsamples pressure sensor data to joint angle frequency'''
+    '''Downsamples pressure sensor data (for example) to joint angle frequency
+
+    It is better to use the instead of time-based median filter bc sensor times are not consistent.
+    See downsample_at_timeseries function
+    '''
     ps_period = np.median(np.diff(ps_times))
 
     # downsample
@@ -68,29 +105,6 @@ def downsample(ps_times, data, ja_period):
         data = np.append(data, [data[-1]], axis=0)
 
     return ps_times_new, data
-
-
-def get_slice_to_time_base(tmin, n_times, times):
-    # tmin must be within [times[0], times[1]] period
-    # otherwise it will throw an exception
-    start = next(x for x, val in enumerate(times) if val >= tmin)
-    return slice(start, start + n_times)
-
-
-def enforce_rom(dof, rng, padding=0):
-    rng_min = rng[0] + padding * (rng[1] - rng[0])
-    rng_max = rng[1] - padding * (rng[1] - rng[0])
-    dof[dof < rng_min] = rng_min
-    dof[dof > rng_max] = rng_max
-    return dof
-
-
-def reduce_force_matrices(matrices, reduction=np.sum):
-    '''Consider replacing with np.sum(matrices, axis=(1, 2)) on numpy versions >= 1.7.0'''
-    red = []
-    for matrix in matrices:
-        red.append(reduction(matrix))
-    return red
 
 
 def nanmedianfilt(input_vector, kernel_width):
@@ -115,3 +129,12 @@ def nanmedianfilt(input_vector, kernel_width):
             output_vector[idx] = np.nanmedian(vals_to_filt)
 
     return output_vector
+
+
+############## Deprecated
+def reduce_force_matrices(matrices, reduction=np.sum):
+    '''Consider replacing with np.sum(matrices, axis=(1, 2)) on numpy versions >= 1.7.0'''
+    red = []
+    for matrix in matrices:
+        red.append(reduction(matrix))
+    return red

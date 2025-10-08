@@ -24,6 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+############ Export
 def savefig(dirname, filename):
     if dirname is None:
         return
@@ -33,19 +34,53 @@ def savefig(dirname, filename):
     plt.savefig(os.path.join(dirname, filename + '.pdf'))
 
 
+############# Drawing
 def actual_vline(ax, x, **kwargs):
+    '''Draws a vline covering the whole y-range, preserving the previous ylim.'''
     ymin, ymax = ax.get_ylim()
     ax.vlines(x, ymin, ymax, **kwargs)
     ax.set_ylim(ymin, ymax)
 
 
+def annotated_vbar(ax, x, title, ha='center', color='#F44336', linestyle='--', continue_axs=None):
+    '''Makes and annotates a vline, continues it onto other axes.'''
+    _, ymax = ax.get_ylim()
+    actual_vline(ax, x, color=color, linestyle=linestyle)
+    ax.annotate(
+        title, (x, ymax),
+        xycoords='data', ha=ha, va='bottom')
+    if continue_axs is not None:
+        for ax_ in continue_axs:
+            actual_vline(ax_, x, color=color, linestyle=linestyle)
+
+
+def annotated_vspan(ax, xmin, xmax, title,
+                    ha='center', color='#F44336', alpha=0.3, continue_axs=None):
+    '''Makes and annotates a vspan (shaded box), continues it onto other axes.'''
+    _, ymax = ax.get_ylim()
+    ax.axvspan(xmin, xmax, color=color, alpha=alpha)
+    ax.annotate(
+        title, ((xmax-xmin)/2, ymax),
+        xycoords='data', ha=ha, va='bottom')
+    if continue_axs is not None:
+        for ax_ in continue_axs:
+            ax_.axvspan(xmin, xmax, color=color, alpha=alpha)
+
+
+############# Arranging subplots
 def xy_numsubplots(numsubplots):
+    '''Calculates the number of columns/rows to fit numsubplots approximately in a square.'''
     yn_subplots = int(np.ceil(np.sqrt(numsubplots)))
     xn_subplots = int(np.ceil(numsubplots / yn_subplots))
     return xn_subplots, yn_subplots
 
 
+############# Ranges
 def match_yaxes_ranges(axs):
+    '''Makes the y-ranges of axes [y_max;y_min] match between axes.
+
+    Preserves the middle of the range.
+    '''
     max_yrange = -np.inf
     for ax in axs:
         ymin, ymax = ax.get_ylim()
@@ -63,6 +98,7 @@ def match_yaxes_ranges(axs):
 
 
 def share_ylim(axs):
+    '''Forces the axes to share the limit without using linkaxes.'''
     min_ylim = min([ax.get_ylim()[0] for ax in axs])
     max_ylim = max([ax.get_ylim()[1] for ax in axs])
 
