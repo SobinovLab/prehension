@@ -42,6 +42,13 @@ def actual_vline(ax, x, **kwargs):
     ax.set_ylim(ymin, ymax)
 
 
+def actual_hline(ax, x, **kwargs):
+    '''Draws a hline covering the whole x-range, preserving the previous xlim.'''
+    xmin, xmax = ax.get_xlim()
+    ax.hlines(x, xmin, xmax, **kwargs)
+    ax.set_xlim(xmin, xmax)
+
+
 def annotated_vbar(ax, x, title, ha='center', color='#F44336', linestyle='--', continue_axs=None):
     '''Makes and annotates a vline, continues it onto other axes.'''
     _, ymax = ax.get_ylim()
@@ -77,7 +84,7 @@ def xy_numsubplots(numsubplots):
 
 ############# Ranges
 def match_yaxes_ranges(axs):
-    '''Makes the y-ranges of axes [y_max;y_min] match between axes.
+    '''Makes the y-ranges (spans) of axes [y_max;y_min] match between axes.
 
     Preserves the middle of the range.
     '''
@@ -104,3 +111,11 @@ def share_ylim(axs):
 
     for ax in axs:
         ax.set_ylim([min_ylim, max_ylim])
+
+
+def symmetrize_y_axis(ax):
+    '''Makes the axes symmetrical around 0.'''
+    ymin, ymax = ax.get_ylim()
+    ymax = max(abs(ymin), abs(ymax))
+    ymin = -ymax
+    ax.set_ylim([ymin, ymax])
