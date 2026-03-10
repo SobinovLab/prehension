@@ -2646,11 +2646,14 @@ void add_external_forces_visualization(
 std::vector<mjtNum> get_actuating_torques(
     const std::vector<int>& dof_indices) {
   std::vector<mjtNum> a(dof_indices.size(), 0.0);
-  //mjtNum* tmp = new mjtNum(m->nv);
-  //mj_mulJacTVec(m, d, tmp, d->xfrc_applied);  // external cartesian, should be 0s
+  //// M*qacc
+  //mjtNum* tau_M = new mjtNum(m->nv);
+  //mj_mulM(m, d, tau_M, d->qacc);  
   for (size_t i = 0; i < dof_indices.size(); i++) {
     if (dof_indices[i] >= 0)
-      a[i] = d->qfrc_inverse[dof_indices[i]] - d->qfrc_applied[dof_indices[i]]/* - tmp[dof_indices[i]]*/;
+      // a[i] = d->qfrc_inverse[dof_indices[i]] -
+      // d->qfrc_applied[dof_indices[i]]/* - tmp[dof_indices[i]]*/;
+      a[i] = d->qfrc_inverse[dof_indices[i]] - d->qfrc_applied[dof_indices[i]];
   }
   return a;
 }

@@ -78,6 +78,7 @@ def load_forces(mstruct, trial):
         manual_digit_map = manual_digit_maps[ps_name]
         mask_based_diff_per_sensor[ps_name] = []
         unclaimed_force[ps_name] = []
+        print(trial.trial_number, ps_name, len(ps_times))
         for i_frame in range(len(ps_times)):
             # build auto mask
             auto_mask = (len(DIGITS) - 1) * np.ones(np.shape(manual_digit_map))
@@ -152,7 +153,7 @@ def calculate_differences(trial):
         trial.differences[k] = v['f'](trial)
 
 
-def compare_masked_forces(rserv, pserv, sessions, trials_sel, temp, find_good, make_plots,
+def compare_masked_forces(preset, sessions, trials_sel, temp, find_good, make_plots,
                           find_good_n):
     """Compare manually-labeled to the automatically-labeled forces using sensor masks.
 
@@ -167,6 +168,9 @@ def compare_masked_forces(rserv, pserv, sessions, trials_sel, temp, find_good, m
         make_plots {bool} --- Makes some inspection figures.
         find_good_n {bool} --- Default number of random good trials to select from a session.
     """
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
+
     logs.setup_logging(temp, sessions_dir=pserv)
 
     if not os.path.exists(rserv):
@@ -175,6 +179,8 @@ def compare_masked_forces(rserv, pserv, sessions, trials_sel, temp, find_good, m
 
     if len(sessions) == 0:
         sessions = meta_session.find_session_dirs(rserv)
+    elif sessions[0].lower() == 'good':
+        sessions = preset['good_sessions']
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')

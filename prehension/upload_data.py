@@ -31,26 +31,40 @@ from .tools.logs import rs, ws
 from .tools import filesystem
 
 # We want to upload the following dirs and folders
-GENERAL_DIRS = (
+GENERAL_RAW_DIRS = (
     'mujoco_models',
     'opensim_models',
 )
 
-GENERAL_FILES = ()
+GENERAL_RAW_FILES = ()
+
+GENERAL_PROC_DIRS = (
+    'mujoco_models',
+    'opensim_models',
+)
+
+GENERAL_PROC_FILES = ()
 
 # We want to upload the following dirs and folder PER session directory
-SESSION_DIRS = (
-    'aligned_joint_angles',
+SESSION_RAW_DIRS = (
     'behavior',
+    'neural_processed_nwb',
+)
+
+SESSION_RAW_FILES = (
+)
+
+
+SESSION_PROC_DIRS = (
+    'aligned_joint_angles',
     'digit_forces',
     'filtered_sensors',
     'markers_3D',
     'matched_contacts',
-    'neural_processed_nwb',
     'segment_forces',
 )
 
-SESSION_FILES = (
+SESSION_PROC_FILES = (
     'meta_dof.csv',
     'meta_object.csv',
     'meta_session.csv',
@@ -59,29 +73,31 @@ SESSION_FILES = (
 )
 
 
-def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
+def upload_data(current_preset, sessions, temp, target_dir, dry_run, overwrite):
     """Uploads the data from local server to server accessible to collaborators.
 
     Arguments:
         server {str} --- Folder where the sessions are located.
-        sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
+        sessions {list of str} --- List of directories for processing. If empty, find all
+            unprocessed directories.
         temp {str} --- Folder for local temporary storage.
         target_dir {str} --- Where to upload the data.
         dry_run {bool} --- Do not copy the data, only print out the files to be copied.
         overwrite {bool} --- Overwrites the created files if they exist.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    rserv = current_preset['default_server']
+    pserv = current_preset['processed_server']
+    logs.setup_logging(temp, sessions_dir=pserv)
 
-    if not os.path.exists(server):
-        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+    if not os.path.exists(rserv):
+        raise ValueError('Server directory {} does not exist or is inaccessible.'.format(rserv))
 
-    monkey_dir = os.path.basename(os.path.dirname(server))
+    monkey_dir = current_preset['share_upload_name']
     rs('Identified monkey directory {}.'.format(monkey_dir))
     target_dir = os.path.join(target_dir, monkey_dir)
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     # sort
     sessions.sort()
@@ -91,23 +107,34 @@ def upload_data(server, sessions, temp, target_dir, dry_run, overwrite):
     copy_function = filesystem.PrintCopyAccumulateSize(dry_run, 1)
 
     ## upload general monkey stuff like models
-    filesystem.copy_folder_contents(
-        server, target_dir,
-        dir_names=GENERAL_DIRS, file_names=GENERAL_FILES, copy_function=copy_function,
-        overwrite=overwrite, box=True)
+    if len(GENERAL_RAW_DIRS) > 0 or len(GENERAL_RAW_FILES) > 0:
+        filesystem.copy_folder_contents(
+            rserv, target_dir,
+            dir_names=GENERAL_RAW_DIRS, file_names=GENERAL_RAW_FILES, copy_function=copy_function,
+            overwrite=overwrite, box=True)
+    if len(GENERAL_PROC_DIRS) > 0 or len(GENERAL_PROC_FILES) > 0:
+        filesystem.copy_folder_contents(
+            pserv, target_dir,
+            dir_names=GENERAL_PROC_DIRS, file_names=GENERAL_PROC_FILES, copy_function=copy_function,
+            overwrite=overwrite, box=True)
 
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         filesystem.copy_folder_contents(
-            server_session, os.path.join(target_dir, session),
-            dir_names=SESSION_DIRS, file_names=SESSION_FILES, copy_function=copy_function,
+            raw_ss, os.path.join(target_dir, session),
+            dir_names=SESSION_RAW_DIRS, file_names=SESSION_RAW_FILES, copy_function=copy_function,
+            overwrite=overwrite, box=True)
+        filesystem.copy_folder_contents(
+            proc_ss, os.path.join(target_dir, session),
+            dir_names=SESSION_PROC_DIRS, file_names=SESSION_PROC_FILES, copy_function=copy_function,
             overwrite=overwrite, box=True)
 
     timedelta = str(datetime.timedelta(seconds=time.time() - start_time))

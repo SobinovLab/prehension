@@ -58,7 +58,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=("Outputs a csv of movement onset times "
                                                   " for each session"))
 
-    cmd_args.add_default_kwarguments(parser, {"server": current_preset["default_server"]})
     cmd_args.add_default_arguments(parser, ("sessions", "trials", "temp", "overwrite", "processes",
                                             "make_plots"))
 

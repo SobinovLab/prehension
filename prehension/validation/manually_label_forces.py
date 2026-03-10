@@ -259,11 +259,11 @@ class ForceLabellingInterface:
                         continue
                     self.total_auto_force_traces[name] = [np.sum(
                         self.ps_matrices[LPS_NAME][i_frame],
-                        where=tools.get_matched_contact_frame_mask(
+                        where=tools.forces.get_matched_contact_frame_mask(
                             d['exp'], self.matched_contacts[LPS_NAME][i_frame],
                             (self.nsenselsr, self.nsenselsr))) + np.sum(
                         self.ps_matrices[RPS_NAME][i_frame],
-                        where=tools.get_matched_contact_frame_mask(
+                        where=tools.forces.get_matched_contact_frame_mask(
                             d['exp'], self.matched_contacts[RPS_NAME][i_frame],
                             (self.nsenselsr, self.nsenselsr)))
                         for i_frame in range(len(self.ps_times))]
@@ -531,14 +531,14 @@ class ForceLabellingInterface:
                     continue
                 else:
                     color = ds['c'][600]
-                lpsdmask = tools.get_matched_contact_frame_mask(
+                lpsdmask = tools.forces.get_matched_contact_frame_mask(
                     ds['exp'], self.matched_contacts[LPS_NAME][self.i_frame],
                     (self.nsenselsr, self.nsenselsr))
                 lps_digit_color_mask[lpsdmask, 0] = color[0]
                 lps_digit_color_mask[lpsdmask, 1] = color[1]
                 lps_digit_color_mask[lpsdmask, 2] = color[2]
 
-                rpsdmask = tools.get_matched_contact_frame_mask(
+                rpsdmask = tools.forces.get_matched_contact_frame_mask(
                     ds['exp'], self.matched_contacts[RPS_NAME][self.i_frame],
                     (self.nsenselsr, self.nsenselsr))
                 rps_digit_color_mask[rpsdmask, 0] = color[0]
@@ -581,7 +581,7 @@ class ForceLabellingInterface:
     def plot_digit_portions(self):
         # can only be called after calculate_digit_portions
         for _ in range(len(self.ax_mf.lines)):
-            self.ax_mf.lines.pop(0)
+            self.ax_mf.lines[0].remove()
         for tft, ds in zip(self.total_force_traces, self.digit_selectors):
             self.ax_mf.plot(self.ps_times, tft, label=ds['name'], color=ds['c'][600])
 

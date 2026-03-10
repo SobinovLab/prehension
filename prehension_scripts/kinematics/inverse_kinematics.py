@@ -49,7 +49,8 @@ if __name__ == '__main__':
 
     start_time = time.time()
     inverse_kinematics(
-        args.server, args.sessions, args.trials, args.temp, args.processes,
+        current_preset,
+        args.sessions, args.trials, args.temp, args.processes,
         args.overwrite, args.base)
 
     rs('Program took {}.'.format(

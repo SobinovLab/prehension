@@ -153,6 +153,56 @@ def import_csv(filename, cast=float):
     return column_names, values
 
 
+def export_csv_vertical(filename, column_names, values):
+    '''Exports from a structure into a csv file. Orthogonal values structure to standard
+
+    Arguments:
+        filename {str} -- filename to write.
+        column_names {list of M str} -- list of all column names.
+        values {list [N][M]} -- list of all column values. First index corresponds to
+            row number.
+    '''
+    with open(filename, 'w', newline='') as f:
+        wrr = csv.writer(f)
+
+        wrr.writerow(column_names)
+
+        for vals in values:
+            wrr.writerow(vals)
+
+
+def import_csv_vertical(filename, cast=float):
+    '''Imports csv into a simple structure.
+
+    Arguments:
+        filename {str} -- filename to import.
+    Keyword Arguments:
+        cast {callable} -- class of variables to return. Defaults to float.
+    Returns a tuple of:
+        column_names {list of M str} -- list of all column names.
+        values {list [N][M] of cast type if possible, str otherwise} -- list of all column values.
+            First index corresponds to row number.
+    '''
+    with open(filename, 'r') as f:
+        rdr = csv.reader(f)
+
+        line = next(rdr)
+        column_names = [i.strip() for i in line]
+
+        values = []
+
+        for li in rdr:
+            values.append([])
+            for idof, vdof in enumerate(li):
+                try:
+                    v = cast(vdof)
+                except ValueError:
+                    v = vdof
+                values[-1].append(v)
+
+    return column_names, values
+
+
 def import_csv_as_dic(filename, cast=float):
     '''Imports csv into a simple structure. The column names are the dictionary keys.
 
@@ -164,6 +214,10 @@ def import_csv_as_dic(filename, cast=float):
         column_names: values {str: N of cast type if possible, str otherwise}
     '''
     return {cn: v for cn, v in zip(*import_csv(filename, cast=cast))}
+
+    
+def export_dic_to_csv(filename, dic):
+    export_csv_vertical(filename, dic.keys(), dic.values())
 
 
 def import_timed_csv(filename):

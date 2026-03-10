@@ -213,7 +213,8 @@ def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
         except OSError as why:
             errors.append((srcname, dstname, str(why)))
     try:
-        shutil.copystat(src, dst)
+        if os.path.exists(src):
+            shutil.copystat(src, dst)
     except OSError as why:
         # Copying file access times may fail on Windows
         if getattr(why, 'winerror', None) is None:

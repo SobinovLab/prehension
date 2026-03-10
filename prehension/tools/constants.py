@@ -126,6 +126,16 @@ DIGIT_MCP_DOFS = (
     'ra_mcp3_e_f', 'ra_mcp3_rd_ud',
     'ra_mcp4_e_f', 'ra_mcp4_ad_ab',
     'ra_mcp5_e_f', 'ra_mcp5_ad_ab')
+DIGIT_MCP_EF_DOFS = (
+    'ra_mcp2_e_f',
+    'ra_mcp3_e_f',
+    'ra_mcp4_e_f',
+    'ra_mcp5_e_f')
+DIGIT_MCP_ABAD_DOFS = (
+    'ra_mcp2_ad_ab',
+    'ra_mcp3_rd_ud',
+    'ra_mcp4_ad_ab',
+    'ra_mcp5_ad_ab')
 DISTAL_DOFS_PROX_TO_DISTAL = (
     'ra_wr_sup_pro', 'ra_wr_rd_ud', 'ra_wr_e_f',
     'ra_cmc1_f_e', 'ra_cmc1_opp', 'ra_cmc1_ad_ab',

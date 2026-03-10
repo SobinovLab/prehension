@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     compare_masked_forces(
-        current_preset['default_server'], current_preset['processed_server'],
+        current_preset,
         args.sessions, args.trials, args.temp, args.find_good,
         args.make_plots, args.find_good_n)
     print('Program took {}.'.format(

@@ -35,8 +35,6 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description=('Uploads the data from local server to server accessible to collaborators.'))
-    cmd_args.add_default_kwarguments(
-        parser, {'server': current_preset['default_server']})
     cmd_args.add_default_arguments(
         parser, ('sessions', 'temp', 'overwrite'))
 
@@ -49,12 +47,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--dry_run',
         action='store_true',
-        help='Do not copy the data, only print out the files to be copied.')
+        help='Do not copy the data, only print out the files to be copied and their size.')
 
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    upload_data(args.server, args.sessions, args.temp, args.target_dir, args.dry_run,
+    upload_data(current_preset,
+                args.sessions, args.temp, args.target_dir, args.dry_run,
                 args.overwrite)
     rs('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

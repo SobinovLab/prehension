@@ -406,7 +406,7 @@ def run_ik_f(ik_file, log_file):
     task.run()
 
 
-def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite, base):
+def inverse_kinematics(preset, sessions, trials_sel, temp, processes, overwrite, base):
     """Runs the inverse kinematics OpenSim tool.
 
     Arguments:
@@ -421,14 +421,19 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
         base {bool} --- Runs inverse kinematics on the most proximal markers
             that can be used to estimate the default static thorax position.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
 
-    if not os.path.exists(server):
+    logs.setup_logging(temp, sessions_dir=pserv)
+
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
+    elif sessions[0].lower() == 'good':
+        sessions = preset['good_sessions']
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -442,15 +447,16 @@ def inverse_kinematics(server, sessions, trials_sel, temp, processes, overwrite,
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
-            _, _, _, msession = meta_session.load_meta_information(server_session)
+            mstruct, _, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
