@@ -27,7 +27,7 @@ import time
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.kinematics.images_to_video import compress_session_cameras
+from prehension.tools.video import compress_session_cameras
 from prehension.tools.logs import rs
 
 
@@ -36,8 +36,6 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description=('Transforms images from a session into video.'))
-    cmd_args.add_default_kwarguments(
-        parser, {'server': current_preset['default_server']})
     cmd_args.add_default_arguments(
         parser, ('sessions', 'trials', 'temp', 'processes', 'overwrite'))
 
@@ -50,7 +48,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     compress_session_cameras(
-        args.server, args.sessions, args.trials, args.temp, args.processes,
+        current_preset, args.sessions, args.trials, args.temp, args.processes,
         args.overwrite, args.clean)
 
     rs('Program took {}.'.format(

@@ -238,6 +238,12 @@ class TrialInfo():
                 return False
         return True
 
+    def do_any_images_dirs_files_exist(self):
+        for d, f in zip(self.images_dirnames.values(), self.images_logs.values()):
+            if os.path.exists(d) and os.path.exists(f):
+                return True
+        return False
+
     # VIDEOS
     def do_videos_files_exist(self):
         if len(self.videos) == 0 or len(self.videos_logs) == 0:

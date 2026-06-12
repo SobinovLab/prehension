@@ -61,6 +61,9 @@ def new_make_video(frame_filenames, filename_ou, rate):
                 for r_i_ff in replace_i_ffs:
                     frame_filenames[r_i_ff] = frame_filenames[non_empty_i_ff]
 
+    if len(set(frame_filenames)) <= 1:
+        return
+
     ffconcat = ffmpegio.FFConcat()
     ffconcat.add_files(frame_filenames)
     with ffconcat:  # generates temporary ffconcat file
@@ -93,6 +96,12 @@ def make_video(trial, mstruct, clean):
     os.makedirs(dirname_ou, exist_ok=True)
 
     for camera_serial in camera_serials:
+        if os.path.exists(trial.images_logs[camera_serial]):
+            # copy log
+            shutil.copy2(trial.images_logs[camera_serial], trial.videos_logs[camera_serial])
+        else:
+            continue
+
         # make a video
         frame_filenames = filesystem.get_image_list(path=trial.images_dirnames[camera_serial])
         if len(frame_filenames) == 0:
@@ -105,14 +114,11 @@ def make_video(trial, mstruct, clean):
         #     fps=mstruct['fps'], output_folder=dirname_ou, logger=None)
         new_make_video(frame_filenames, trial.videos[camera_serial], mstruct['fps'])
 
-        # copy log
-        shutil.copy2(trial.images_logs[camera_serial], trial.videos_logs[camera_serial])
-
-        if False:  # clean:
+        if clean:
             shutil.rmtree(trial.images_dirnames[camera_serial])
 
 
-def compress_session_cameras(server, sessions, trials_sel, temp, processes, overwrite, clean):
+def compress_session_cameras(preset, sessions, trials_sel, temp, processes, overwrite, clean):
     """Transforms images from a session into video.
 
     Arguments:
@@ -126,7 +132,10 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
         overwrite {bool} --- Overwrites the created files if they exist.
         clean {bool} --- DANGER! Remove directories from the server that were converted into videos.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
+
+    logs.setup_logging(temp, sessions_dir=pserv)
 
     # To enable multiple videos encoding at the same time, use
     # https://github.com/keylase/nvidia-patch/tree/master
@@ -136,14 +145,14 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
     if clean:
         ws('Coding lock of "clean" function. If you do not know how to remove it, you should try'
            ' to use it.')
-        clean = False
+        clean = True
 
-    if not os.path.exists(server):
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -157,16 +166,17 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
             mstruct, _, _, msession = meta_session.load_meta_information(
-                server_session, only_successful_trials=False)
+                raw_ss, proc_ss, only_successful_trials=False)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))
@@ -177,7 +187,7 @@ def compress_session_cameras(server, sessions, trials_sel, temp, processes, over
         for trial in tqdm.tqdm(msession, ncols=100, desc='Finding trials'):
             if len(trials_sel) != 0 and trial.trial_number not in trials_sel:
                 continue
-            if not trial.do_images_dirs_files_exist():
+            if not trial.do_any_images_dirs_files_exist():  # if some cameras broke
                 continue
             if not overwrite and trial.do_videos_files_exist():
                 continue

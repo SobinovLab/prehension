@@ -424,6 +424,43 @@ class SpNumSuccessfulTrialsSession(SessionProcessedBase):
         return f'{numsucces:>{self.width()}}'
 
 
+class SpNumTrialsPerKinematicSession(SessionProcessedBase):
+    header = 'NPK'
+    _type = 'per_session_num_trials'
+    _legend = 'Number of successful trials per kinematic condition in the session.'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        numsucces = sum([trial.success for trial in sw.msession])
+        forces = []
+        for mo in sw.mobject.values():
+            forces.append(mo['def'].get('targetForce(N)', 0))
+        numforces = len(set(forces))
+        numkins = len(sw.mobject) / numforces
+        numperkin = int(round(numsucces / numkins))
+        return f'{numperkin:>{self.width()}}'
+
+
+class SpNumTrialsPerForceSession(SessionProcessedBase):
+    header = 'NPF'
+    _type = 'per_session_num_trials'
+    _legend = 'Number of successful trials per force condition in the session.'
+
+    def __init__(self):
+        super().__init__()
+
+    def _eval_per_session(self, sw, preset):
+        numsucces = sum([trial.success for trial in sw.msession])
+        forces = []
+        for mo in sw.mobject.values():
+            forces.append(mo['def'].get('targetForce(N)', 0))
+        numforces = len(set(forces))
+        numperforce = int(round(numsucces / numforces))
+        return f'{numperforce:>{self.width()}}'
+
+
 class SpOpensimModel(SessionProcessedBase):
     header = 'O'
     _type = 'per_session_one_symbol'
@@ -487,6 +524,7 @@ class SpTimepoints(SessionProcessedBase):
 DEFAULT_EVALUATORS = (
     SpMetaSession(), SpTimepoints(), SpGoodSession(),
     SpNumTrialsSession(), SpNumSuccessfulTrialsSession(),
+    SpNumTrialsPerKinematicSession(), SpNumTrialsPerForceSession(),
     SpTransformedSensors(), SpFilteredSensors(),
     SpMarkers2D(), SpMarkers3D(), SpOpensimModel(), SpJointAngles(),
     SpAlignedData(), SpMujocoModel(), SpMatchedContacts(),

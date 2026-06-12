@@ -25,6 +25,8 @@ import datetime
 import time
 import re
 from glob import glob
+import multiprocessing
+import collections
 
 from .logs import rs, ws
 
@@ -58,7 +60,7 @@ def print_copy(*args, **kwargs):
 
 
 class PrintCopyAccumulateSize():
-    """Calculates the sum of sizes of files passed as  """
+    """Calculates the sum of sizes of files passed as calls """
 
     def __init__(self, dry_run, verbose):
         self.size = 0
@@ -76,8 +78,104 @@ class PrintCopyAccumulateSize():
         return humanbytes(self.size)
 
 
+class PrintCopyAccumulateSizePR(PrintCopyAccumulateSize):
+    """Calculates the sum of sizes of files passed as calls.
+
+    Periodically reports on progress.
+    """
+
+    def __init__(self, dry_run, verbose, interval=1):
+        super(PrintCopyAccumulateSizePR, self).__init__(dry_run, verbose)
+
+        self.interval = interval
+        self.p_numfiles = multiprocessing.Value('Q', 0)
+        self.p_size = multiprocessing.Value('d', 0.0)
+        self.p_filename = multiprocessing.Array('c', 1024)
+        self.set_shared_string(self.p_filename, 'Start...')
+        self.stop_event = multiprocessing.Event()
+
+    def start_reporting(self):
+        self.p = multiprocessing.Process(
+            target=self.monitor_current_size_numelements,
+            args=(self.p_numfiles, self.p_size, self.p_filename, self.stop_event, self.interval))
+        self.p.start()
+
+    def stop_reporting(self):
+        self.stop_event.set()
+        self.p.join()
+
+    def __call__(self, *args, **kwargs):
+        super(PrintCopyAccumulateSizePR, self).__call__(*args, **kwargs)
+        with self.p_numfiles.get_lock():
+            self.p_numfiles.value += 1
+            self.p_size.value = self.size
+            self.set_shared_string(self.p_filename, args[0])
+
+    @staticmethod
+    def set_shared_string(shared_string, text):
+        data = text.encode("utf-8")
+        if len(data) >= len(shared_string):
+            data = data[:len(shared_string)-1]
+        with shared_string.get_lock():
+            shared_string[:len(data)] = data
+            shared_string[len(data)] = 0  # null terminator
+
+    @staticmethod
+    def get_shared_string(shared_string):
+        with shared_string.get_lock():
+            raw = bytes(shared_string[:])
+        return raw.split(b"\x00", 1)[0].decode("utf-8")
+
+    @staticmethod
+    def monitor_current_size_numelements(p_numfiles, p_size, p_filename, stop_event, interval):
+        """Periodically prints out information
+        """
+        history = collections.deque()   # stores (timestamp, total_size_bytes)
+        t0 = time.time()
+        ps0 = None
+        while not stop_event.is_set():
+            now = time.time()
+            with p_numfiles.get_lock():
+                nf = p_numfiles.value
+                ps = p_size.value
+
+            if ps0 is None:
+                ps0 = ps
+
+            history.append((now, ps))
+
+            # keep only the last 60 seconds
+            cutoff = now - 60
+            while len(history) > 1 and history[0][0] < cutoff:
+                history.popleft()
+
+            # estimate rolling copy speed over available history in the last minute
+            if len(history) >= 2:
+                dt = history[-1][0] - history[0][0]
+                dsize = history[-1][1] - history[0][1]
+                speed = dsize / dt if dt > 0 else 0
+                speed_str = f"{humanbytes(speed)}/s"
+            else:
+                speed_str = "NaN"
+
+            # whole-period average speed
+            dt_all = now - t0
+            dps_all = ps - ps0
+            speed_all = dps_all / dt_all if dt_all > 0 else 0
+            speed_all_str = f"{humanbytes(speed_all)}/s"
+
+            s = (
+                f'{nf} files, '
+                f'{humanbytes(ps)}, '
+                f'{speed_str} over 1 min, '
+                f'{speed_all_str} overall, '
+                f'last file: {PrintCopyAccumulateSizePR.get_shared_string(p_filename)}')
+            print(f'{s:<{shutil.get_terminal_size()[0]-2}}\r', end='')
+            stop_event.wait(interval)
+
+
 class PrintMoveAccumulateSize(PrintCopyAccumulateSize):
-    """Calculates the sum of sizes of files passed as
+    """Calculates the sum of sizes of files passed as calls
 
     Removes the files if the dst is newer, overwrites them if older.
     """
