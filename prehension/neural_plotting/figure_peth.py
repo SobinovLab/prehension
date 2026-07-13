@@ -155,7 +155,8 @@ def resolve_neuron_selection(unit_ids, neuron_ids):
 # Plotting
 # ---------------------------------------------------------------------------
 def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
-               group_column, before, after, bin_width, filter_sigma, save_dir):
+               group_column, before, after, bin_width, filter_sigma, save_dir,
+               individual_traces=False):
     """PETH traces aligned to align_key, colour-coded by group_column."""
     trials = [(t, get_timepoint(t, align_key)) for t in msession]
     trials = [(t, tp) for t, tp in trials if tp is not None]
@@ -204,21 +205,22 @@ def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
     sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
     xn, yn = plotting.xy_numsubplots(len(neuron_selection))
 
-    fig1, axs1 = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9))
-    axs1 = np.atleast_1d(axs1).flatten()
-    for i_n, ax in enumerate(axs1):
-        if i_n >= len(neuron_selection):
-            ax.axis('off')
-            continue
-        for i_t, color in enumerate(trial_colors):
-            ax.plot(bin_centers, frs[i_n, i_t, :], color=color, linewidth=0.7, alpha=0.7)
-        ax.axvline(0.0, color='k', linewidth=0.8, linestyle='--')
-        ax.set_title('unit {}'.format(neuron_labels[i_n]), fontsize=8)
-        ax.tick_params(labelsize=6)
-    fig1.suptitle('PETH per trial, aligned to {}, coloured by {}'.format(
-        align_key, group_column))
-    fig1.tight_layout(rect=(0, 0, 0.94, 0.96))
-    fig1.colorbar(sm, ax=axs1.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
+    if individual_traces:
+        fig1, axs1 = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9))
+        axs1 = np.atleast_1d(axs1).flatten()
+        for i_n, ax in enumerate(axs1):
+            if i_n >= len(neuron_selection):
+                ax.axis('off')
+                continue
+            for i_t, color in enumerate(trial_colors):
+                ax.plot(bin_centers, frs[i_n, i_t, :], color=color, linewidth=0.7, alpha=0.7)
+            ax.axvline(0.0, color='k', linewidth=0.8, linestyle='--')
+            ax.set_title('unit {}'.format(neuron_labels[i_n]), fontsize=8)
+            ax.tick_params(labelsize=6)
+        fig1.suptitle('PETH per trial, aligned to {}, coloured by {}'.format(
+            align_key, group_column))
+        fig1.tight_layout(rect=(0, 0, 0.94, 0.96))
+        fig1.colorbar(sm, ax=axs1.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
 
     fig2, axs2 = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9))
     axs2 = np.atleast_1d(axs2).flatten()
@@ -238,11 +240,13 @@ def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
     fig2.colorbar(sm, ax=axs2.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
 
     os.makedirs(save_dir, exist_ok=True)
-    f1 = os.path.join(save_dir, 'peth_traces_{}.png'.format(align_key))
+    if individual_traces:
+        f1 = os.path.join(save_dir, 'peth_traces_{}.png'.format(align_key))
+        fig1.savefig(f1, dpi=150, bbox_inches='tight')
+        rs('Saved {}'.format(f1))
     f2 = os.path.join(save_dir, 'peth_force_averages_{}.png'.format(align_key))
-    fig1.savefig(f1, dpi=150, bbox_inches='tight')
     fig2.savefig(f2, dpi=150, bbox_inches='tight')
-    rs('Saved {}\nSaved {}'.format(f1, f2))
+    rs('Saved {}'.format(f2))
 
 
 def plot_perievent_histograms(server, processed_server, session, probe_type,
