@@ -1,0 +1,194 @@
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Plot the neural TTL sync pulses (rising and falling edges) through time and,
+underneath, the behavioural trial windows (from the sent-sync-message log), to
+check and set the pulse<->trial alignment.
+
+The two are aligned by the first pulse and the first trial; a skip option shifts
+which pulse (skip >= 0) or trial (skip < 0) counts as the first, so an offset in
+the pulse/trial correspondence can be found by eye.
+
+Copyright (C) 2026 Anton Sobinov
+https://github.com/SobinovLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+import os
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from .. import meta_session
+from ..tools import io
+from ..tools.logs import rs, ws
+from ..neural_processing import config as npconfig
+from ..neural_processing import ttl_sync
+
+# target number of index labels per subplot (kept readable on long sessions)
+MAX_LABELS = 40
+
+
+# ---------------------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------------------
+def read_trial_sync_times(cfg):
+    """Read per-trial start/end sync-message times (s) from the behavioural log.
+
+    Uses the same sent-sync-message columns as create_meta:
+    'log_sent_start_sync_messages(ms)' for trial start and
+    'log_sent_end_sync_messages(ms)' for trial end.  Returns (trial_num, start_s,
+    end_s), sorted by trial number.
+    """
+    mstruct = meta_session.get_default_meta_structure()
+    meta_session.fill_meta_structure(mstruct, cfg.rserv, cfg.session)
+    if len(mstruct['auto_log']) == 0:
+        raise ValueError('Session {} has no auto (behavioural) log.'.format(cfg.session))
+
+    # concatenate all auto logs, mirroring create_meta.import_logs
+    col_names, values = io.import_csv(mstruct['auto_log'][0])
+    data = np.array(values).transpose()
+    for al in mstruct['auto_log'][1:]:
+        _, v = io.import_csv(al)
+        data = np.concatenate((data, np.array(v).transpose()), axis=0)
+
+    trial_num = data[:, col_names.index('trial_num')].astype(int)
+    start_s = data[:, col_names.index('log_sent_start_sync_messages(ms)')] / 1000.0
+    end_s = data[:, col_names.index('log_sent_end_sync_messages(ms)')] / 1000.0
+
+    order = np.argsort(trial_num)
+    return trial_num[order], start_s[order], end_s[order]
+
+
+# ---------------------------------------------------------------------------
+# Plotting helpers
+# ---------------------------------------------------------------------------
+def _interval_step(starts, stops):
+    """Build x/y arrays of a 0/1 step signal that is high during each interval."""
+    edges = [(float(s), 1) for s in starts]
+    edges += [(float(e), -1) for e in stops if np.isfinite(e)]
+    edges.sort(key=lambda p: (p[0], -p[1]))
+    if not edges:
+        return np.array([0.0]), np.array([0])
+
+    xs, ys, level = [edges[0][0]], [0], 0
+    for t, d in edges:
+        xs.append(t)
+        ys.append(level)
+        level = max(0, min(1, level + d))  # clamp for overlapping intervals
+        xs.append(t)
+        ys.append(level)
+    xs.append(edges[-1][0])
+    ys.append(level)
+    return np.array(xs), np.array(ys)
+
+
+def _plot_track(ax, starts, stops, indices, ylabel, up_label, down_label):
+    """Draw a 0/1 track high during each [start, stop], with index labels."""
+    starts = np.asarray(starts, dtype=float)
+    stops = np.asarray(stops, dtype=float)
+    xs, ys = _interval_step(starts, stops)
+    ax.plot(xs, ys, color='k', linewidth=1.0)
+    ax.plot(starts, np.ones_like(starts), '|', color='tab:green', markersize=10,
+            label=up_label)
+    finite_stops = stops[np.isfinite(stops)]
+    ax.plot(finite_stops, np.zeros_like(finite_stops), '|', color='tab:red',
+            markersize=10, label=down_label)
+    ax.axvline(0.0, color='tab:blue', linestyle='--', linewidth=0.8)
+    ax.set_ylim(-0.2, 1.4)
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(['low', 'high'])
+    ax.set_ylabel(ylabel)
+    ax.legend(loc='upper right', fontsize=8)
+
+    label_every = max(1, int(np.ceil(len(starts) / MAX_LABELS)))
+    for k, (s, idx) in enumerate(zip(starts, indices)):
+        if k % label_every == 0:
+            ax.annotate(str(idx), xy=(s, 1.0), xytext=(s, 1.12), ha='center',
+                        va='bottom', fontsize=7, color='tab:green', rotation=90)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=0):
+    """Plot TTL pulses over trial windows, aligned by the first pulse-trial.
+
+    Arguments:
+        server {str} --- Folder where the raw sessions are located.
+        processed_server {str} --- Folder where the processed data is located.
+        session {str} --- Session directory name.
+        probe_type {str} --- 'neuropixels' or 'vprobe'.
+        skip {int} --- Pulses to skip for alignment; if negative, that many trials
+            are skipped instead.  The reference (t=0) becomes rising[skip] and
+            trial_start[0] (skip >= 0) or rising[0] and trial_start[-skip] (skip < 0).
+    """
+    cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type)
+    cfg.ensure_work_folder()
+
+    # neural TTL edges (times only; no recording load needed)
+    edges = ttl_sync.extract_ttl_edge_times(cfg, verbose=True)
+    rising = (np.asarray(edges['rising_times_s'], dtype=float)
+              if edges['rising_times_s'] is not None else np.array([]))
+    falling = (np.asarray(edges['falling_times_s'], dtype=float)
+               if edges['falling_times_s'] is not None else np.array([]))
+
+    # behavioural trial windows
+    trial_num, start_s, end_s = read_trial_sync_times(cfg)
+    rs('{} TTL pulses; {} behavioural trials; skip={}.'.format(
+        len(rising), len(start_s), skip))
+    if len(rising) == 0 or len(start_s) == 0:
+        raise ValueError('Need at least one TTL pulse and one trial to align.')
+
+    # alignment reference: pulse[skip]<->trial[0] (skip>=0) or pulse[0]<->trial[-skip]
+    pulse_ref = skip if skip >= 0 else 0
+    trial_ref = 0 if skip >= 0 else -skip
+    if not 0 <= pulse_ref < len(rising):
+        raise ValueError('Pulse reference index {} out of range [0, {}).'.format(
+            pulse_ref, len(rising)))
+    if not 0 <= trial_ref < len(start_s):
+        raise ValueError('Trial reference index {} out of range [0, {}).'.format(
+            trial_ref, len(start_s)))
+    t0_pulse = rising[pulse_ref]
+    t0_trial = start_s[trial_ref]
+    if not np.isfinite(t0_trial) or t0_trial == 0:
+        ws('Reference trial {} has no start-sync time; alignment may be off.'.format(
+            trial_ref))
+
+    rising_a = rising - t0_pulse
+    falling_a = falling - t0_pulse
+
+    # keep only trials with valid start and end sync times (0 means not sent)
+    valid = (np.isfinite(start_s) & np.isfinite(end_s) & (start_s != 0) &
+             (end_s != 0) & (end_s >= start_s))
+    trial_idx = np.where(valid)[0]
+    start_a = start_s[valid] - t0_trial
+    end_a = end_s[valid] - t0_trial
+    if len(trial_idx) < len(start_s):
+        ws('Dropped {} trials without valid start/end sync times.'.format(
+            len(start_s) - len(trial_idx)))
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(16, 6))
+    _plot_track(ax1, rising_a, falling_a, np.arange(len(rising)), 'TTL pulses',
+                'rising', 'falling')
+    ax1.set_title('TTL pulses (n={}) vs trials (n={}); aligned by pulse {} <-> '
+                  'trial {} (skip={})'.format(len(rising), len(start_s), pulse_ref,
+                                              trial_ref, skip))
+    _plot_track(ax2, start_a, end_a, trial_idx, 'trials', 'trial start', 'trial end')
+    ax2.set_xlabel('time from alignment (s)')
+
+    fig.tight_layout()
+    out = os.path.join(cfg.work_folder, 'ttl_trial_alignment.png')
+    fig.savefig(out, dpi=150, bbox_inches='tight')
+    rs('Saved {}'.format(out))

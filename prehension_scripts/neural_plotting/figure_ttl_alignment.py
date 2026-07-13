@@ -1,0 +1,57 @@
+#!python3
+# -*- coding: utf-8 -*-
+"""
+Plot the neural TTL sync pulses over the behavioural trial windows for a session,
+aligned by the first pulse-trial, to find/set the pulse<->trial alignment.
+
+Copyright (C) 2026 Anton Sobinov
+https://github.com/SobinovLab/prehension
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+import argparse
+import datetime
+import time
+
+import matplotlib.pyplot as plt
+
+from prehension import preset
+from prehension.tools import cmd_args
+from prehension.neural_plotting.figure_ttl_alignment import plot_ttl_trial_alignment
+
+if __name__ == "__main__":
+    current_preset_name, current_preset, argv = preset.process_args_for_preset()
+
+    parser = argparse.ArgumentParser(
+        description="Plot TTL pulses over trial windows, aligned by the first pulse-trial.")
+    cmd_args.add_default_kwarguments(
+        parser, {"server": current_preset["default_server"],
+                 "processed_server": current_preset["processed_server"]})
+    cmd_args.add_default_arguments(parser, ("session",))
+    parser.add_argument(
+        "--probe_type", type=str, required=True, choices=["neuropixels", "vprobe"],
+        help="Probe type of the session.")
+    parser.add_argument(
+        "--skip", type=int, default=0,
+        help="Pulses to skip for alignment. If negative, that many trials are "
+             "skipped instead. Default: 0.")
+
+    args = parser.parse_args(args=argv)
+
+    start_time = time.time()
+    plot_ttl_trial_alignment(args.server, args.processed_server, args.session,
+                             args.probe_type, skip=args.skip)
+    print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
+
+    plt.show()
