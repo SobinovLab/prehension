@@ -56,6 +56,44 @@ def get_object_sets(sy_column_names, sy_data, object_def_columns):
     return u_objects, object_ids, odcs
 
 
+def _duplicate_trial_counts(trial_nums):
+    '''Given an array/list of trial numbers, return {trial_num: count} for every trial number that
+    appears more than once (in the order the numbers first appear).'''
+    trial_nums = np.asarray(trial_nums).astype(int)
+    counts = {}
+    for t in trial_nums:
+        counts[int(t)] = counts.get(int(t), 0) + 1
+    return {t: c for t, c in counts.items() if c > 1}
+
+
+def find_duplicate_trials(mstruct):
+    '''Read and concatenate the session's auto (behavioural) logs and report duplicate trial IDs.
+
+    Mirrors the log loading done in ``import_logs`` so detection is consistent, but is read-only
+    and creates nothing.
+
+    Args:
+        mstruct (dict): a meta structure with ``'auto_log'`` populated (a list of log paths).
+
+    Returns:
+        tuple(dict, int): ``(duplicates, n_total)`` where ``duplicates`` maps each ``trial_num``
+        that appears more than once to its number of occurrences, and ``n_total`` is the total
+        number of behavioural-log rows.
+    '''
+    if len(mstruct['auto_log']) == 0 or not os.path.exists(mstruct['auto_log'][0]):
+        raise ValueError('Auto log for this session does not exist.')
+
+    sy_column_names, sy_data = io.import_csv(mstruct['auto_log'][0])
+    sy_data = np.array(sy_data).transpose()
+    for al in mstruct['auto_log'][1:]:
+        _, sd = io.import_csv(al)
+        sd = np.array(sd).transpose()
+        sy_data = np.concatenate((sy_data, sd), axis=0)
+
+    trial_nums = sy_data[:, sy_column_names.index('trial_num')].astype(int)
+    return _duplicate_trial_counts(trial_nums), len(trial_nums)
+
+
 def import_logs(dirname, mstruct):
     # check file existence for meaningful error throw
     if not os.path.exists(mstruct['auto_log'][0]):
@@ -95,11 +133,14 @@ def import_logs(dirname, mstruct):
         sy_data = np.concatenate((sy_data, sd), axis=0)
 
     # check for duplication from logs
+    # duplicate trial IDs are NOT fatal: they are preserved as distinct trials and routed to the
+    # suffixed ('_1', ...) recordings later (see reorder_to_common_trials and TrialInfo).
     trial_nums = sy_data[:, sy_column_names.index('trial_num')].astype(int)
-    if len(set(trial_nums)) != len(trial_nums):
-        ws('Auto logs in {} have duplicating trials!'.format(dirname))
-        # NOT FATAL BECAUSE WE HANDLE LATER
-        # raise ValueError('Auto logs in {} have duplicating trials!'.format(dirname))
+    duplicates = _duplicate_trial_counts(trial_nums)
+    if duplicates:
+        ws('Auto logs in {} have duplicating trials (preserved and suffixed): {}'.format(
+            dirname,
+            ', '.join('{}x{}'.format(t, c) for t, c in sorted(duplicates.items()))))
 
     # cameras data
     if os.path.exists(sy_ja_file):
@@ -119,49 +160,51 @@ def import_logs(dirname, mstruct):
 def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja_data,
                              sy_ps_column_names, sy_ps_data):
     '''
-    This is equivalent to reorder_to_common_trials but instead of the common trials = (protocol U
-    camera) U sensor, we exclude the camera overlap if camera logs are empty
-    We also simplify checking for duplicate logs.
+    Restrict the protocol, camera, and pressure-sensor logs to the trials they have in common and
+    put every stream in the same, chronological (log appearance) order.
+
+    Duplicate trial IDs (the same ``trial_num`` recorded more than once, e.g. after a session
+    restart) are NOT dropped. Each row is tagged with an occurrence index ``dup_index`` (0 for the
+    first recording of a trial number, 1 for the second, ...), and trials are matched across streams
+    on the composite key ``(trial_num, dup_index)``. This keeps the k-th recording of a duplicated
+    ID aligned across streams and routes later occurrences to their suffixed ('_1', ...) files.
+
+    Ordering follows the protocol log's appearance order (i.e. recording order), NOT sorted by
+    trial number, so the positional neural TTL-pulse<->trial correspondence stays valid across
+    duplicates and multi-run sessions.
+
+    If the camera log is empty, the common set is (protocol AND pressure); if the pressure log is
+    empty, the common set is (protocol AND camera).
+
+    Returns:
+        tuple: ``(common_trials, common_dup_index, sy_data, sy_ja_data, sy_ps_data)`` where the
+        first two are row-aligned arrays of trial numbers and occurrence indices, and the three
+        data arrays are reordered/filtered to those same rows in the same order.
     '''
 
     # --- helpers --- #
-    def get_logs_and_check_duplicates(data, data_columns, log_label):
-        if 'trial_num' in data_columns:
+    def get_logs_with_occurrences(data, data_columns, log_label):
+        '''Keep every row (no dropping) and tag each with a 0-based occurrence index computed in
+        appearance order per trial number. Returns (data, trials, occ).'''
+        if len(data) > 0 and 'trial_num' in data_columns:
             trials = data[:, data_columns.index('trial_num')].astype(int)
 
-            last_occurrence = {}
-            duplicate_indices = {}
-
+            seen = {}
+            occ = np.empty(len(trials), dtype=int)
             for index, trial in enumerate(trials):
-                # If the trial number is already in the last_occurrence dictionary
-                # it means it's a duplicate
-                if trial in last_occurrence:
-                    # Store the current index as a duplicate index for this trial number
-                    duplicate_indices.setdefault(trial, []).append(index)
-                # Add entry to dict where key is the trial in question and value is the last valid
-                # index
-                last_occurrence[trial] = index
+                trial = int(trial)
+                occ[index] = seen.get(trial, 0)
+                seen[trial] = occ[index] + 1
 
-            # Include if we want more verbosity at some point
-            # for trial, indices in duplicate_indices.items():
-            #     ws(f"Excluding duplicate trials from {log_label}:
-            # \n{trial}, Duplicate indices: {indices}")
+            n_dup = sum(1 for c in seen.values() if c > 1)
+            if n_dup > 0:
+                ws('{} trial(s) in the {} log have duplicate recordings; '
+                   'preserving all occurrences.'.format(n_dup, log_label))
 
-            # Use list comprehension to filter rows based on the last occurrence of each trial
-            # number
-            filtered_data_indices = [last_occurrence[trial] for trial in np.unique(trials)]
-
-            if len(filtered_data_indices) != len(data):
-                ws(f'''Shortening log data (from {log_label})
-                    by {len(data) - len(filtered_data_indices)} to remove duplicates''')
-
-            data_filtered = np.array([data[index] for index in filtered_data_indices])
-            trials_filtered = [trials[index] for index in filtered_data_indices]
-
-            return data_filtered, trials_filtered
+            return data, trials, occ
 
         # Case where we don't have any incoming data (if no cam logs are found for example)
-        return np.array([]), np.array([])
+        return np.array([]), np.array([]), np.array([])
 
     def print_absent_trials(a_trials, b_trials, common, a_label, b_label):
         # In a but not b
@@ -189,56 +232,69 @@ def reorder_to_common_trials(sy_column_names, sy_data, sy_ja_column_names, sy_ja
             rs(f'No {a_label} trials are absent from {b_label}.')
 
     # --- Steps --- #
-    # 1. get protocol, camera, and pressure sensor data
-    # AND filter out duplicates
-    sy_data, protocol_trials = get_logs_and_check_duplicates(sy_data, sy_column_names, 'protocol')
-    sy_ja_data, ja_trials = get_logs_and_check_duplicates(sy_ja_data, sy_ja_column_names, 'camera')
-    sy_ps_data, ps_trials = get_logs_and_check_duplicates(sy_ps_data, sy_ps_column_names, 'ps')
+    # 1. get protocol, camera, and pressure sensor data WITH per-row occurrence indices
+    #    (nothing is dropped here; duplicates are preserved)
+    sy_data, protocol_trials, protocol_occ = get_logs_with_occurrences(
+        sy_data, sy_column_names, 'protocol')
+    sy_ja_data, ja_trials, ja_occ = get_logs_with_occurrences(
+        sy_ja_data, sy_ja_column_names, 'camera')
+    sy_ps_data, ps_trials, ps_occ = get_logs_with_occurrences(
+        sy_ps_data, sy_ps_column_names, 'ps')
 
-    # 2. if and only if ps_trials is not empty:
-    # -> get common between protocol and camera
-    # else: common_between protocol and camera is just protocol
+    # composite key (trial_num, occurrence) per row, keeping protocol appearance order
+    protocol_keys = list(zip(protocol_trials.tolist(), protocol_occ.tolist()))
+    ja_keys = list(zip(ja_trials.tolist(), ja_occ.tolist()))
+    ps_keys = list(zip(ps_trials.tolist(), ps_occ.tolist()))
+
+    # 2. intersect on the composite key, preserving protocol (recording) order.
+    # if and only if ja is not empty -> get common between protocol and camera first,
+    # else the common set is based on protocol alone.
     if len(ja_trials) > 0:
-        common_prot_cam = np.intersect1d(protocol_trials, ja_trials)
-        print_absent_trials(protocol_trials, ja_trials, common_prot_cam, 'protocol', 'camera')
-        assert len(common_prot_cam) > 0, (
+        ja_key_set = set(ja_keys)
+        common_keys = [k for k in protocol_keys if k in ja_key_set]
+        print_absent_trials(protocol_trials, ja_trials, [k[0] for k in common_keys],
+                            'protocol', 'camera')
+        assert len(common_keys) > 0, (
             f"Found {len(ja_trials)} camera logs but found zero common trials with protocol")
-
-        # Common between all (protocol, camera, ps)
-        common_trials_all = np.intersect1d(common_prot_cam, ps_trials)
-        matched_types = 'main protocol, camera recordings, and pressure sensors'
-
+        matched_types = 'main protocol and camera recordings'
     else:
         rs('No camera trials found, searching for pressure sensor logs to match to protocol'
            ' logs...')
-        # Common between protocol and ps only since we lack any camera logs
-        common_trials_all = np.intersect1d(protocol_trials, ps_trials)
-        matched_types = 'main protocol and pressure sensors'
+        common_keys = list(protocol_keys)
+        matched_types = 'main protocol'
 
-    print_absent_trials(protocol_trials, ps_trials, common_trials_all, 'protocol',
+    # then intersect with pressure sensors when we have any
+    if len(ps_trials) > 0:
+        ps_key_set = set(ps_keys)
+        common_keys = [k for k in common_keys if k in ps_key_set]
+        matched_types = matched_types + ' and pressure sensors'
+
+    print_absent_trials(protocol_trials, ps_trials, [k[0] for k in common_keys], 'protocol',
                         'pressure sensor')
 
-    common_trials_all.sort()
+    # NB: do NOT sort by trial number - preserve chronological (recording) order for the neural
+    # TTL-pulse<->trial correspondence.
+    common_trials = np.array([k[0] for k in common_keys], dtype=int)
+    common_dup_index = np.array([k[1] for k in common_keys], dtype=int)
 
     rs('{} trials are common to {}: {}'.format(
-        len(common_trials_all), matched_types, ', '.join(str(v) for v in common_trials_all)))
+        len(common_keys), matched_types,
+        ', '.join('{}{}'.format(t, '' if d == 0 else '_%d' % d) for t, d in common_keys)))
 
-    # recreate data based on the common trials
-    sy_data = sy_data[np.isin(protocol_trials, common_trials_all), :]
-    # resort them by the trial_number just in case
-    sy_data[sy_data[:, sy_column_names.index('trial_num')].argsort()]
+    # recreate each stream's data based on the common composite keys, in the common (protocol)
+    # order, so that all data structures refer to the same trials in the same order.
+    def gather(data, keys):
+        if len(data) == 0:
+            return data
+        key_to_row = {k: i for i, k in enumerate(keys)}
+        idx = [key_to_row[k] for k in common_keys]
+        return data[idx, :]
 
-    # Check that we actually have camera data to refine
-    if len(sy_ja_data) > 0:
-        sy_ja_data = sy_ja_data[np.isin(ja_trials, common_trials_all), :]
-        sy_ja_data[sy_ja_data[:, sy_ja_column_names.index('trial_num')].argsort()]
+    sy_data = gather(sy_data, protocol_keys)
+    sy_ja_data = gather(sy_ja_data, ja_keys)
+    sy_ps_data = gather(sy_ps_data, ps_keys)
 
-    # Check that we actually have pressure data to refine
-    if len(sy_ja_data) > 0:
-        sy_ps_data = sy_ps_data[np.isin(ps_trials, common_trials_all), :]
-        sy_ps_data[sy_ps_data[:, sy_ps_column_names.index('trial_num')].argsort()]
-
-    return common_trials_all, sy_data, sy_ja_data, sy_ps_data
+    return common_trials, common_dup_index, sy_data, sy_ja_data, sy_ps_data
 
 
 def export_roms_from_osim(osim_filename, o_filename, verbose=False):
@@ -396,7 +452,7 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
         # take subset of data that exists in all logs
         # now all data structure rows refer to the same trials in the same order
         # (nb) cannot merge them together because they have duplicate columns
-        common_trials, sy_data, sy_ja_data, sy_ps_data = reorder_to_common_trials(
+        common_trials, common_dup_index, sy_data, sy_ja_data, sy_ps_data = reorder_to_common_trials(
             sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names,
             sy_ps_data)
 
@@ -469,6 +525,7 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
         # export the meta session
         meta_session_filename = os.path.join(processed_ss, 'meta_session.csv')
         column_names = ['trial_number',
+                        'trial_dup_index',
                         'success',
                         'object_id',
                         'sync_period_length',
@@ -479,6 +536,7 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
                         'ttl_to_reward',
                         'ttl_to_ja_start']
         values = [common_trials,
+                  common_dup_index,
                   rewarded_trials,
                   object_ids,
                   sync_period_length,

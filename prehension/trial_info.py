@@ -37,9 +37,21 @@ class TrialInfo():
             for k, v in other_info.items():
                 setattr(self, k, v)
 
+        # occurrence index for trials that share a trial_number (duplicate recordings).
+        # 0 -> first recording (bare filenames); 1 -> second recording ('_1' suffix); etc.
+        # Defaults to 0 for backward compatibility with meta_session.csv files lacking the column.
+        dup_index = 0
+        if other_info is not None and other_info.get('trial_dup_index', None) not in (None, ''):
+            dup_index = int(float(other_info['trial_dup_index']))
+        self.dup_index = dup_index
+
 
     def generate_filenames(self, mstruct):
-        trial_name = mstruct['kin_trialname_template'].format(trial_number=self.trial_number)
+        # duplicate recordings of the same trial_number are stored with an '_1', '_2', ... suffix
+        dup_suffix = '' if self.dup_index == 0 else '_{}'.format(self.dup_index)
+
+        trial_name = mstruct['kin_trialname_template'].format(
+            trial_number=self.trial_number) + dup_suffix
         self.trial_name = trial_name
 
         # recorded images from all cameras
@@ -151,7 +163,7 @@ class TrialInfo():
 
         for ps_name, ps_serial in mstruct['ps_dic'].items():
             ps_trial_name = mstruct['ps_trialname_template'].format(
-                trial_number=self.trial_number, ps_serial=ps_serial)
+                trial_number=self.trial_number, ps_serial=ps_serial) + dup_suffix
 
             self.raw_ps_filenames[ps_name] = os.path.join(
                 mstruct['raw_ps_dir'], ps_trial_name + '.fsx')

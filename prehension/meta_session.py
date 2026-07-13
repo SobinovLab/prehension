@@ -447,24 +447,44 @@ def import_adjustment_trials(dirname):
     return {k: v for k, v in zip(trial_numbers, adjustment_trials)}
 
 
-def find_trial(msession, trial_number):
+def find_trial(msession, trial_number, dup_index=None):
+    '''Find a trial by its number. When ``dup_index`` is given, also match the occurrence index so
+    duplicate recordings of the same trial_number can be disambiguated; otherwise the first match is
+    returned (backward compatible).'''
     trial = None
     for t in msession:
         if t.trial_number == trial_number:
+            if dup_index is not None and getattr(t, 'dup_index', 0) != dup_index:
+                continue
             trial = t
             break
     return trial
 
 
-def get_trial_log_info(mstruct, trial_number, column_names):
+def get_trial_log_info(mstruct, trial_number, column_names, dup_index=0):
     if not isinstance(column_names, (list, tuple)):
         column_names = [column_names]
 
+    # concatenate all auto logs (column-major), mirroring create_meta.import_logs, so the
+    # occurrence indexing below is consistent with the meta generation (duplicates often arise
+    # from concatenated logs).
     sy_column_names, sy_data = import_csv(mstruct['auto_log'][0])
-    # sy_data = np.array(sy_data).transpose()
+    sy_data = [list(col) for col in sy_data]
+    for al in mstruct['auto_log'][1:]:
+        _, sd = import_csv(al)
+        for ci in range(len(sy_data)):
+            sy_data[ci].extend(sd[ci])
 
-    # TODO check if the trial not in the list
-    row = sy_data[sy_column_names.index('trial_num')].index(trial_number)
+    # select the row for the requested trial number, honouring the occurrence index so duplicate
+    # recordings of the same trial_number resolve to the correct (0-based) occurrence.
+    trial_col = sy_data[sy_column_names.index('trial_num')]
+    matches = [i for i, v in enumerate(trial_col) if v == trial_number]
+    if len(matches) == 0:
+        raise ValueError('Trial {} not found in auto log.'.format(trial_number))
+    if dup_index >= len(matches):
+        raise ValueError('Trial {} occurrence {} not found in auto log (only {} present).'.format(
+            trial_number, dup_index, len(matches)))
+    row = matches[dup_index]
 
     column_ids = [sy_column_names.index(cn) for cn in column_names]
 

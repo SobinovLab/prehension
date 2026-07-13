@@ -94,8 +94,21 @@ def load_timepoints_into_msession(msession, mstruct):
     tp_dic = io.import_csv_as_dic(mstruct['timepoint_csv_filename'])
     trial_number_col = tp_dic['trial_number']
     del tp_dic['trial_number']
+    # optional occurrence index to disambiguate duplicate recordings of the same trial_number
+    dup_col = tp_dic.pop('trial_dup_index', None)
     for trial in msession:
-        trial_row = trial_number_col.index(trial.trial_number)
+        if dup_col is not None:
+            trial_row = None
+            for i, tn in enumerate(trial_number_col):
+                if (int(float(tn)) == trial.trial_number and
+                        int(float(dup_col[i])) == trial.dup_index):
+                    trial_row = i
+                    break
+            if trial_row is None:
+                raise ValueError('Trial {} (occurrence {}) not found in timepoints.'.format(
+                    trial.trial_number, trial.dup_index))
+        else:
+            trial_row = trial_number_col.index(trial.trial_number)
         trial.timepoints = {k: v[trial_row] for k, v in tp_dic.items()}
 
 
@@ -256,11 +269,18 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         cfg.rserv, cfg.pserv)
     load_timepoints_into_msession(msession, mstruct)
 
-    # neural + TTL windows from the NWB
+    # neural + TTL windows from the NWB.
+    # The pulses carry no trial IDs: pulse i is paired to trial i strictly by position, so
+    # msession MUST be in recording (chronological) order - which create_meta now guarantees,
+    # including for duplicate-recording trials. With duplicates preserved, the counts should match.
     spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
     if len(events_time) != len(msession):
-        ws('{} TTL pulses but {} behavioural trials; aligning by index up to '
-           'the shorter.'.format(len(events_time), len(msession)))
+        ws('WARNING: {} TTL pulses but {} behavioural trials. Since pulses are matched to trials '
+           'positionally, a count mismatch means every trial after the discrepancy is likely '
+           'misaligned. This is no longer explained by dropped duplicate trials (those are now '
+           'preserved), so it indicates a genuinely missed/extra pulse or an ordering problem - '
+           'inspect with figure_ttl_alignment before trusting the alignment. Aligning by index up '
+           'to the shorter.'.format(len(events_time), len(msession)))
 
     session_spikes = get_trial_data_spike(spikes, events_time)
     num_neurons = len(unit_ids)

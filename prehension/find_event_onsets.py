@@ -1096,9 +1096,13 @@ def find_event_onsets(rserv,
                     timepoints = []
                     for pr, trial in zip(pool_results, trials):
                         if pr is None:
-                            timepoints.append(create_timepoints_dict(trial.trial_number))
+                            tp = create_timepoints_dict(trial.trial_number)
                         else:
-                            timepoints.append(pr[0])
+                            tp = pr[0]
+                        # record the occurrence index so duplicate-recording trials can be matched
+                        # back to the correct row (see figure_peth.load_timepoints_into_msession)
+                        tp['trial_dup_index'] = trial.dup_index
+                        timepoints.append(tp)
 
                     df = pandas.DataFrame(timepoints, columns=timepoints[0].keys())
                     # Write to csv only if the whole session was processed
@@ -1120,7 +1124,7 @@ def find_event_onsets(rserv,
         print(f"Success:\t {portion_success:.2%} trials")
 
         for column in df.columns:
-            if column == "trial_number":
+            if column in ("trial_number", "trial_dup_index"):
                 continue
             non_nan_count = df[column].notna().sum()
             percentage_non_nan = non_nan_count / len(df)
@@ -1131,7 +1135,8 @@ def find_event_onsets(rserv,
         # Heatmap
         if make_plots and (store_plots or show_plots):
             # Create a heatmap showing missing values across all trials in the session
-            df2 = df.iloc[:, 1:]
+            df2 = df.drop(columns=[c for c in ("trial_number", "trial_dup_index")
+                                   if c in df.columns])
             binary_array = ~df2.isnull()
 
             # Create a colormap with two distinct colors

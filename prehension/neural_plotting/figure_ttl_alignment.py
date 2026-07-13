@@ -48,8 +48,11 @@ def read_trial_sync_times(cfg):
 
     Uses the same sent-sync-message columns as create_meta:
     'log_sent_start_sync_messages(ms)' for trial start and
-    'log_sent_end_sync_messages(ms)' for trial end.  Returns (trial_num, start_s,
-    end_s), sorted by trial number.
+    'log_sent_end_sync_messages(ms)' for trial end.  Returns
+    (trial_num, dup_index, start_s, end_s) in behavioural-log appearance (recording)
+    order - NOT sorted by trial number - so the rows line up positionally with the
+    TTL pulses. ``dup_index`` is the 0-based occurrence index of each row within its
+    trial number (>0 for duplicate recordings).
     """
     mstruct = meta_session.import_meta_structure(
         os.path.join(cfg.pserv, 'meta_structure.json'),
@@ -68,8 +71,16 @@ def read_trial_sync_times(cfg):
     start_s = data[:, col_names.index('log_sent_start_sync_messages(ms)')] / 1000.0
     end_s = data[:, col_names.index('log_sent_end_sync_messages(ms)')] / 1000.0
 
-    order = np.argsort(trial_num)
-    return trial_num[order], start_s[order], end_s[order]
+    # occurrence index per row within its trial number, in appearance (recording) order
+    seen = {}
+    dup_index = np.empty(len(trial_num), dtype=int)
+    for i, t in enumerate(trial_num):
+        t = int(t)
+        dup_index[i] = seen.get(t, 0)
+        seen[t] = dup_index[i] + 1
+
+    # preserve recording order (do NOT sort by trial number) so rows align with TTL pulses
+    return trial_num, dup_index, start_s, end_s
 
 
 # ---------------------------------------------------------------------------
@@ -145,8 +156,8 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
     falling = (np.asarray(edges['falling_times_s'], dtype=float)
                if edges['falling_times_s'] is not None else np.array([]))
 
-    # behavioural trial windows
-    trial_num, start_s, end_s = read_trial_sync_times(cfg)
+    # behavioural trial windows (in recording order, aligned positionally with the pulses)
+    trial_num, dup_index, start_s, end_s = read_trial_sync_times(cfg)
     rs('{} TTL pulses; {} behavioural trials; skip={}.'.format(
         len(rising), len(start_s), skip))
     if len(rising) == 0 or len(start_s) == 0:
@@ -186,7 +197,10 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
     ax1.set_title('TTL pulses (n={}) vs trials (n={}); aligned by pulse {} <-> '
                   'trial {} (skip={})'.format(len(rising), len(start_s), pulse_ref,
                                               trial_ref, skip))
-    _plot_track(ax2, start_a, end_a, trial_idx, 'trials', 'trial start', 'trial end')
+    # label trials by their composite id (trial number + '_1', ... for duplicate recordings)
+    trial_labels = ['{}{}'.format(trial_num[i], '' if dup_index[i] == 0 else '_%d' % dup_index[i])
+                    for i in trial_idx]
+    _plot_track(ax2, start_a, end_a, trial_labels, 'trials', 'trial start', 'trial end')
     ax2.set_xlabel('time from alignment (s)')
 
     fig.tight_layout()
