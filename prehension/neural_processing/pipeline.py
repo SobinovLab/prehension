@@ -46,10 +46,11 @@ def run_necessary(server, processed_server, sessions, temp,
                   overwrite=False):
     """Run the necessary chain to produce neural.nwb for one or more sessions.
 
-    Sessions that already have processed neural data (a neural.nwb exists) are skipped unless
-    overwrite is True. The probe type is read per session from its meta_structure ('neural'
-    field), so mixed-probe session lists are fine. A failure in one session is reported and the
-    remaining sessions still run.
+    Each step (preprocessing, spike sorting, NWB export) is skipped when its output already
+    exists, unless overwrite is True; this lets a partially-processed session resume from where
+    it stopped. The probe type is read per session from its meta_structure ('neural' field), so
+    mixed-probe session lists are fine. A failure in one session is reported and the remaining
+    sessions still run.
 
     Arguments:
         server {str} --- Folder where the raw sessions are located.
@@ -83,19 +84,29 @@ def run_necessary(server, processed_server, sessions, temp,
         cfg = config.NeuralConfig(server, processed_server, session, probe_type,
                                   nwb_units=nwb_units, sorter=sorter, n_jobs=processes)
 
-        # skip sessions whose neural data has already been processed
-        if os.path.exists(cfg.nwb_path) and not overwrite:
-            rs('Session {} already processed ({} exists); skipping. Use --overwrite to '
-               'reprocess.'.format(session, cfg.nwb_path))
-            continue
-
         cfg.ensure_work_folder()
         rs('Session {} ({}) -> {}'.format(session, probe_type, cfg.work_folder))
 
+        # each step is skipped if its output already exists, unless overwrite is set. This lets a
+        # partially-processed session resume from where it stopped. Later steps read prior outputs
+        # from disk (see config.load_preprocessed / load_sorting), so reusing them is safe.
+        sub = cfg.subfolders()
+        steps = [
+            ('preprocessing', sub['preprocessed'],
+             lambda: preprocessing.preprocess_recording(cfg)),   # load + preprocess (probe-specific)
+            ('spike sorting', sub['sorter'],
+             lambda: spike_sorting.run_spike_sorting(cfg)),
+            ('NWB export', cfg.nwb_path,
+             lambda: export_nwb.export_nwb(cfg)),
+        ]
+
         try:
-            preprocessing.preprocess_recording(cfg)   # load + preprocess (probe-specific)
-            spike_sorting.run_spike_sorting(cfg)
-            export_nwb.export_nwb(cfg)
+            for step_name, output_path, step_fn in steps:
+                if not overwrite and os.path.exists(output_path):
+                    rs('  {} already done ({}); skipping. Use --overwrite to redo.'.format(
+                        step_name, output_path))
+                    continue
+                step_fn()
         except Exception as e:
             ws('Neural processing failed for session {}: {}'.format(session, repr(e)))
             failed_sessions.append(session)

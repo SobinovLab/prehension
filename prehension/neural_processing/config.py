@@ -15,6 +15,16 @@ per-dataset V-probe wiring lives in this local config file.  A NeuralConfig
 instance carries the resolved values for one session and is passed to the step
 functions.
 
+Setup recommendations:
+# Conda packages:
+conda create -n prehension_si -c conda-forge python=3.11 pynwb hdmf numpy scipy pandas matplotlib pyarrow h5py
+conda activate prehension_si
+
+# Pip packages
+# sorter(s) and the behavioural module (pip; Kilosort4 needs a CUDA GPU):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+pip install --upgrade kilosort spikeinterface probeinterface
+
 Copyright (C) 2026 Anton Sobinov
 https://github.com/SobinovLab/prehension
 
