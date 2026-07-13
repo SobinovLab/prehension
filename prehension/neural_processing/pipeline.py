@@ -27,8 +27,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
+
 from .. import tools
-from ..tools.logs import rs
+from .. import meta_session
+from ..tools.logs import rs, ws
 from . import config
 from . import io_streams
 from . import preprocessing
@@ -38,31 +41,71 @@ from . import export_phy
 from . import export_nwb
 
 
-def run_necessary(server, processed_server, session, probe_type, temp,
-                  nwb_units='all', sorter=config.SORTER_NAME, processes=config.N_JOBS):
-    """Run the necessary chain to produce neural.nwb for one session.
+def run_necessary(server, processed_server, sessions, temp,
+                  nwb_units='all', sorter=config.SORTER_NAME, processes=config.N_JOBS,
+                  overwrite=False):
+    """Run the necessary chain to produce neural.nwb for one or more sessions.
+
+    Sessions that already have processed neural data (a neural.nwb exists) are skipped unless
+    overwrite is True. The probe type is read per session from its meta_structure ('neural'
+    field), so mixed-probe session lists are fine. A failure in one session is reported and the
+    remaining sessions still run.
 
     Arguments:
         server {str} --- Folder where the raw sessions are located.
         processed_server {str} --- Folder where the processed data is located.
-        session {str} --- Session directory name.
-        probe_type {str} --- 'neuropixels' or 'vprobe'.
+        sessions {list[str]} --- Session directory names to process. If empty, all sessions
+            found on the server are processed.
         temp {str} --- Folder for local temporary storage (logging).
         nwb_units {str} --- Units written to the NWB: 'all' or 'curated'.
         sorter {str} --- SpikeInterface sorter name.
         processes {int} --- Number of parallel jobs for SpikeInterface.
+        overwrite {bool} --- Reprocess and overwrite sessions that already have neural.nwb.
     """
     tools.logs.setup_logging(temp, sessions_dir=server)
-    cfg = config.NeuralConfig(server, processed_server, session, probe_type,
-                              nwb_units=nwb_units, sorter=sorter, n_jobs=processes)
-    cfg.ensure_work_folder()
-    rs('Session {} ({}) -> {}'.format(session, probe_type, cfg.work_folder))
 
-    preprocessing.preprocess_recording(cfg)   # load + preprocess (probe-specific)
-    spike_sorting.run_spike_sorting(cfg)
-    export_nwb.export_nwb(cfg)
+    if sessions:
+        found_sessions = [s for s in sessions if os.path.isdir(os.path.join(server, s))]
+    else:
+        found_sessions = meta_session.find_session_dirs(server)
+    rs('Found {} session(s) to consider: {}'.format(
+        len(found_sessions), ', '.join(found_sessions)))
 
-    rs('Necessary pipeline finished for session {}.'.format(session))
+    failed_sessions = []
+    for session in found_sessions:
+        # probe type comes from the session meta_structure; sessions without neural data are skipped
+        try:
+            probe_type = config.probe_type_from_meta(server, processed_server, session)
+        except ValueError as e:
+            ws('Skipping session {}: {}'.format(session, e))
+            continue
+
+        cfg = config.NeuralConfig(server, processed_server, session, probe_type,
+                                  nwb_units=nwb_units, sorter=sorter, n_jobs=processes)
+
+        # skip sessions whose neural data has already been processed
+        if os.path.exists(cfg.nwb_path) and not overwrite:
+            rs('Session {} already processed ({} exists); skipping. Use --overwrite to '
+               'reprocess.'.format(session, cfg.nwb_path))
+            continue
+
+        cfg.ensure_work_folder()
+        rs('Session {} ({}) -> {}'.format(session, probe_type, cfg.work_folder))
+
+        try:
+            preprocessing.preprocess_recording(cfg)   # load + preprocess (probe-specific)
+            spike_sorting.run_spike_sorting(cfg)
+            export_nwb.export_nwb(cfg)
+        except Exception as e:
+            ws('Neural processing failed for session {}: {}'.format(session, repr(e)))
+            failed_sessions.append(session)
+            continue
+
+        rs('Necessary pipeline finished for session {}.'.format(session))
+
+    if failed_sessions:
+        ws('Neural processing failed for {} of {} session(s): {}'.format(
+            len(failed_sessions), len(found_sessions), ', '.join(failed_sessions)))
 
 
 def run_diagnostics(server, processed_server, session, probe_type, temp,

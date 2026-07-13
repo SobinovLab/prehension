@@ -26,18 +26,19 @@ import time
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.neural_processing import config
 from prehension.neural_processing.pipeline import run_necessary
 
 if __name__ == "__main__":
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
 
     parser = argparse.ArgumentParser(
-        description="Produce the minimal neural NWB (load, preprocess, sort, export).")
+        description="Produce the minimal neural NWB (load, preprocess, sort, export) for one or "
+                    "more sessions. The probe type is read per session from its meta_structure. "
+                    "Sessions already processed are skipped unless --overwrite is given.")
     cmd_args.add_default_kwarguments(
         parser, {"server": current_preset["default_server"],
                  "processed_server": current_preset["processed_server"]})
-    cmd_args.add_default_arguments(parser, ("session", "temp", "processes"))
+    cmd_args.add_default_arguments(parser, ("sessions", "temp", "processes", "overwrite"))
     parser.add_argument(
         "--nwb_units", type=str, default="all", choices=["all", "curated"],
         help="Units written to the NWB. Default: all.")
@@ -47,11 +48,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args(args=argv)
 
-    # probe type is read from the session meta_structure ('neural' field), not the command line
-    probe_type = config.probe_type_from_meta(args.server, args.processed_server, args.session)
-
     start_time = time.time()
-    run_necessary(args.server, args.processed_server, args.session, probe_type,
+    run_necessary(args.server, args.processed_server, args.sessions,
                   args.temp, nwb_units=args.nwb_units, sorter=args.sorter,
-                  processes=args.processes)
+                  processes=args.processes, overwrite=args.overwrite)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
