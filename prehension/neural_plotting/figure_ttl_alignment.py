@@ -51,8 +51,9 @@ def read_trial_sync_times(cfg):
     'log_sent_end_sync_messages(ms)' for trial end.  Returns (trial_num, start_s,
     end_s), sorted by trial number.
     """
-    mstruct = meta_session.get_default_meta_structure()
-    meta_session.fill_meta_structure(mstruct, cfg.rserv, cfg.session)
+    mstruct = meta_session.import_meta_structure(
+        os.path.join(cfg.pserv, 'meta_structure.json'),
+        raw_dir=cfg.rserv, proc_dir=cfg.pserv)
     if len(mstruct['auto_log']) == 0:
         raise ValueError('Session {} has no auto (behavioural) log.'.format(cfg.session))
 
