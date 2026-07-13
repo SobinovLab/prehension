@@ -6,10 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prehension"
 version = "0.0.2"
 authors = [
-  { name="Anton R Sobinov", email="an.sobinov@gmail.com" },
-  { name="Charles M Greenspon"},
-  { name="Caleb A Raman" },
-  { name="Milan Rybar" },
+  { name="Anton R Sobinov", email="an.sobinov@gmail.com" }
 ]
 description = "Tools for processing and extracting kinematic and kinetic data from prehension experiments."
 readme = "README.md"
@@ -60,4 +57,4 @@ ncams = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/BensmaiaLab/prehension"
+Homepage = "https://github.com/SobinovLab/prehension"

@@ -4,7 +4,7 @@
 Creates IK and Scaling files for OpenSim based on a period of trial.
 
 Copyright (C) 2023-2024 Anton Sobinov, Caleb Raman
-https://github.com/BensmaiaLab/prehension
+https://github.com/SobinovLab/prehension
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

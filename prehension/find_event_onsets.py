@@ -4,7 +4,7 @@
 Finds events based on forces and kinematics if available and aligns them to the neural data.
 
 Copyright (C) 2023-2024 Caleb Raman, Anton Sobinov
-https://github.com/BensmaiaLab/prehension
+https://github.com/SobinovLab/prehension
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

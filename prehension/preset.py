@@ -5,7 +5,7 @@ Loading minimal configuration of a specific dataset, like the location of the se
 load presets from a prehension_presets module if that is installed.
 
 Copyright (C) 2019-2024 Anton Sobinov
-https://github.com/BensmaiaLab/prehension
+https://github.com/SobinovLab/prehension
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

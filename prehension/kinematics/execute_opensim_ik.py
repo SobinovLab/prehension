@@ -6,7 +6,7 @@ Execute an OpenSim inverse kinematic routine. Used by mark_base.
 TODO Check if OpenSim can run in Python3.11, or use a compiled exe file.
 
 Copyright (C) 2019-2024 Anton Sobinov
-https://github.com/BensmaiaLab/prehension
+https://github.com/SobinovLab/prehension
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
