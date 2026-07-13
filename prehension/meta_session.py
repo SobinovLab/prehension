@@ -106,6 +106,9 @@ def get_default_meta_structure():
         'ncams_config': '',  # session-specific
         'calibration': 'calibration',  # local calibration directory
         'hand': 'right',
+        # type of neural recording present in the session, filled by fill_meta_structure:
+        # '' (no neural data), 'vprobe', or 'neuropixel'
+        'neural': '',
         'fps': 50,  # fill in
         'ps_markers': {
             'medial_sensor': ('o_sensor_tb', 'o_sensor_tf', 'o_sensor_bb', 'o_sensor_bf'),
@@ -198,6 +201,18 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
                 continue
             _cameras_dict[serial] = camera
     mstruct['cameras'] = _cameras_dict
+
+    # identify the type of neural recording present (Open Ephys continuous folder name).
+    # Used by the neural processing/plotting scripts instead of a command-line probe type.
+    mstruct['neural'] = ''
+    neural_dir = os.path.join(raw_ss, 'neural')
+    if os.path.isdir(neural_dir):
+        continuous = os.path.join(neural_dir, '*', 'Record Node *', 'experiment1',
+                                  'recording1', 'continuous')
+        if glob.glob(os.path.join(continuous, 'Acquisition_Board*')):
+            mstruct['neural'] = 'vprobe'
+        elif glob.glob(os.path.join(continuous, 'Neuropix*')):
+            mstruct['neural'] = 'neuropixel'
 
 
 def normjoinpath(dirname, p):

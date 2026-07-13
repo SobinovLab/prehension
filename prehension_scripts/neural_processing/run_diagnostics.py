@@ -27,6 +27,7 @@ import time
 
 from prehension import preset
 from prehension.tools import cmd_args
+from prehension.neural_processing import config
 from prehension.neural_processing.pipeline import run_diagnostics
 
 if __name__ == "__main__":
@@ -38,9 +39,6 @@ if __name__ == "__main__":
         parser, {"server": current_preset["default_server"],
                  "processed_server": current_preset["processed_server"]})
     cmd_args.add_default_arguments(parser, ("session", "temp", "processes"))
-    parser.add_argument(
-        "--probe_type", type=str, required=True, choices=["neuropixels", "vprobe"],
-        help="Probe type of the session.")
     parser.add_argument(
         "--sorter", type=str, default="kilosort4",
         help="SpikeInterface sorter name. Default: kilosort4.")
@@ -56,8 +54,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args(args=argv)
 
+    # probe type is read from the session meta_structure ('neural' field), not the command line
+    probe_type = config.probe_type_from_meta(args.server, args.processed_server, args.session)
+
     start_time = time.time()
-    run_diagnostics(args.server, args.processed_server, args.session, args.probe_type,
+    run_diagnostics(args.server, args.processed_server, args.session, probe_type,
                     args.temp, all_units=args.all_units, curate=args.curate,
                     inspect=args.inspect, sorter=args.sorter, processes=args.processes)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

@@ -71,6 +71,43 @@ PROBE_DEFAULTS = {
     },
 }
 
+# Mapping from the meta_structure 'neural' field (written by fill_meta_structure) to a probe_type
+# key understood by PROBE_DEFAULTS / NeuralConfig.
+NEURAL_TO_PROBE_TYPE = {
+    'vprobe': 'vprobe',
+    'neuropixel': 'neuropixels',
+    'neuropixels': 'neuropixels',
+}
+
+
+def probe_type_from_meta(server, processed_server, session):
+    """Resolve a session's probe_type from its meta_structure.json 'neural' field.
+
+    The field is written by meta_session.fill_meta_structure during create_meta and is one of
+    '' (no neural data), 'vprobe', or 'neuropixel'. Returns a probe_type key of PROBE_DEFAULTS
+    ('vprobe' or 'neuropixels'). Raises ValueError if meta is missing or has no neural type.
+    """
+    meta_path = os.path.join(processed_server, session, 'meta_structure.json')
+    if not os.path.exists(meta_path):
+        raise ValueError(
+            'meta_structure.json not found for session {} at {}. Run create_meta first.'.format(
+                session, meta_path))
+    with open(meta_path, 'r') as f:
+        mstruct = json.load(f)
+
+    neural = (mstruct.get('neural') or '').strip()
+    if neural == '':
+        raise ValueError(
+            'No neural recording type recorded in meta_structure for session {} (the "neural" '
+            'field is empty). Re-run create_meta on a session that has a neural/ folder.'.format(
+                session))
+    if neural not in NEURAL_TO_PROBE_TYPE:
+        raise ValueError(
+            'Unknown neural recording type {!r} in meta_structure for session {}. Expected one '
+            'of {}.'.format(neural, session, list(NEURAL_TO_PROBE_TYPE)))
+    return NEURAL_TO_PROBE_TYPE[neural]
+
+
 # ---------------------------------------------------------------------------
 # V-probe geometry and wiring (only used when probe_type == 'vprobe')
 # ---------------------------------------------------------------------------

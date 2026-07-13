@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
+from prehension.neural_processing import config
 from prehension.neural_plotting.figure_peth import plot_perievent_histograms
 
 if __name__ == "__main__":
@@ -41,9 +42,6 @@ if __name__ == "__main__":
                  "processed_server": current_preset["processed_server"]})
     cmd_args.add_default_arguments(parser, ("session",))
     parser.add_argument(
-        "--probe_type", type=str, required=True, choices=["neuropixels", "vprobe"],
-        help="Probe type of the session.")
-    parser.add_argument(
         "--units", type=str, default=None, nargs="*", metavar="UNIT_ID",
         help="Unit ids to plot. If empty, plot all units.")
     parser.add_argument(
@@ -55,9 +53,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args(args=argv)
 
+    # probe type is read from the session meta_structure ('neural' field), not the command line
+    probe_type = config.probe_type_from_meta(args.server, args.processed_server, args.session)
+
     start_time = time.time()
     plot_perievent_histograms(
-        args.server, args.processed_server, args.session, args.probe_type,
+        args.server, args.processed_server, args.session, probe_type,
         neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
