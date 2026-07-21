@@ -39,12 +39,25 @@ from ..tools.logs import rs, ws
 
 
 def _select_sorting(cfg):
-    """Choose the sorting per cfg.nwb_units ('all' or 'curated')."""
+    """Choose the sorting per cfg.nwb_units.
+
+    'noise_excluded' (default): Phy export with 'noise' clusters dropped when a
+        phy export exists; otherwise all sorted units (with a warning).  This
+        matches the v_probes plotting flow (curate in Phy -> exclude noise).
+    'curated': quality-triaged units (Phy noise-excluded, else analyzer_curated).
+    'all': raw sorter output, no exclusion.
+    """
     import spikeinterface.full as si
 
+    phy = cfg.subfolders()['phy']
+    has_phy = os.path.exists(os.path.join(phy, 'params.py'))
+
+    if cfg.nwb_units == 'all':
+        rs('Units: all sorted units (no exclusion).')
+        return config.load_sorting(cfg)
+
     if cfg.nwb_units == 'curated':
-        phy = cfg.subfolders()['phy']
-        if os.path.exists(os.path.join(phy, 'params.py')):
+        if has_phy:
             rs('Units: curated (Phy, noise excluded).')
             return si.read_phy(str(phy), exclude_cluster_groups=['noise'])
         curated = cfg.subfolders()['analyzer_curated']
@@ -53,8 +66,16 @@ def _select_sorting(cfg):
             return si.load_sorting_analyzer(str(curated)).sorting
         ws("nwb_units='curated' but no phy/analyzer_curated found; "
            'using all sorted units.')
-    else:
-        rs('Units: all sorted units.')
+        return config.load_sorting(cfg)
+
+    # default: 'noise_excluded'
+    if cfg.nwb_units != 'noise_excluded':
+        ws("Unknown nwb_units={!r}; treating as 'noise_excluded'.".format(cfg.nwb_units))
+    if has_phy:
+        rs('Units: noise-excluded (Phy, noise clusters dropped).')
+        return si.read_phy(str(phy), exclude_cluster_groups=['noise'])
+    ws('Units: no Phy export found; using all sorted units. Run export_to_phy and '
+       'label noise clusters to exclude them from the product.')
     return config.load_sorting(cfg)
 
 
@@ -73,6 +94,52 @@ def _add_electrodes(nwbfile, cfg, rec):
         print('Added {} electrodes.'.format(rec.get_num_channels()))
     except Exception as e:
         ws('Skipping electrodes table (schema mismatch): {}'.format(e))
+
+
+def _build_windows(rising, falling):
+    """Build (starts, stops) arrays (s) from rising/falling edge time arrays.
+
+    stop[i] is falling[i] when available (clamped to >= start), else start[i].
+    """
+    if rising is None or len(rising) == 0:
+        return np.array([], dtype=float), np.array([], dtype=float)
+    starts = np.asarray(rising, dtype=float)
+    if falling is None or len(falling) == 0:
+        stops = starts.copy()
+    else:
+        falling = np.asarray(falling, dtype=float)
+        stops = np.array([falling[i] if i < len(falling) else starts[i]
+                          for i in range(len(starts))], dtype=float)
+    return starts, np.maximum(stops, starts)
+
+
+def _spikes_in_windows(all_spike_times, starts, stops):
+    """Count spikes (across all units) falling inside any [start, stop] window."""
+    if len(starts) == 0 or len(all_spike_times) == 0:
+        return 0
+    st = np.sort(np.asarray(all_spike_times, dtype=float))
+    lo = np.searchsorted(st, starts, side='left')
+    hi = np.searchsorted(st, stops, side='right')
+    return int(np.sum(hi - lo))
+
+
+def _choose_ttl_windows(ttl, all_spike_times):
+    """Pick the TTL origin that places the most spikes inside the pulse windows.
+
+    Candidates: 'synced' (edges zeroed to the sorted segment's first sample) and
+    'raw' (the SpikeInterface event time field). Returns (starts, stops, origin,
+    n_synced, n_raw). Prefers 'synced' on ties when it is available.
+    """
+    synced_start, synced_stop = _build_windows(
+        ttl.get('rising_times_s_synced'), ttl.get('falling_times_s_synced'))
+    raw_start, raw_stop = _build_windows(
+        ttl.get('rising_times_s'), ttl.get('falling_times_s'))
+    n_synced = _spikes_in_windows(all_spike_times, synced_start, synced_stop)
+    n_raw = _spikes_in_windows(all_spike_times, raw_start, raw_stop)
+
+    if len(synced_start) and n_synced >= n_raw:
+        return synced_start, synced_stop, 'synced', n_synced, n_raw
+    return raw_start, raw_stop, 'raw', n_synced, n_raw
 
 
 def export_nwb(cfg):
@@ -98,27 +165,36 @@ def export_nwb(cfg):
 
     _add_electrodes(nwbfile, cfg, rec_pre)
 
-    # Units.
+    # Units (spike times in seconds, zeroed to the sorted segment start).
+    unit_spike_times = {
+        uid: np.asarray(sorting.get_unit_spike_train(unit_id=uid), dtype=float) / fs
+        for uid in sorting.get_unit_ids()}
     nwbfile.add_unit_column(name='unit_id', description='original sorter unit id')
-    for uid in sorting.get_unit_ids():
-        st = np.asarray(sorting.get_unit_spike_train(unit_id=uid), dtype=float) / fs
+    for uid, st in unit_spike_times.items():
         nwbfile.add_unit(spike_times=st, unit_id=str(uid))
-    print('Added {} units.'.format(len(sorting.get_unit_ids())))
+    print('Added {} units.'.format(len(unit_spike_times)))
 
-    # TTL sync as TimeIntervals (start=rising, stop=falling).
-    rising = ttl['rising_times_s']
-    falling = ttl['falling_times_s']
-    n = 0 if rising is None else len(rising)
+    all_spikes = (np.concatenate(list(unit_spike_times.values()))
+                  if unit_spike_times else np.array([], dtype=float))
+
+    # TTL sync as TimeIntervals (start=rising, stop=falling). Choose the edge
+    # origin that best overlaps the spikes so pulses share the spike timebase.
+    starts, stops, origin, n_synced, n_raw = _choose_ttl_windows(ttl, all_spikes)
+    rs('TTL origin: {} ({} spikes in windows; alternative {}).'.format(
+        origin, n_synced if origin == 'synced' else n_raw,
+        n_raw if origin == 'synced' else n_synced))
+    if len(all_spikes) and max(n_synced, n_raw) == 0:
+        ws('No spikes fall inside any TTL pulse window under either origin; check '
+           'TTL extraction and the sorted segment before trusting the alignment.')
+
     ttl_ti = TimeIntervals(
         name='ttl_pulses',
         description='TTL sync pulses; start_time=rising edge, stop_time=falling edge')
-    for i in range(n):
-        start = float(rising[i])
-        stop = float(falling[i]) if falling is not None and i < len(falling) else start
-        ttl_ti.add_row(start_time=start, stop_time=max(stop, start))
+    for i in range(len(starts)):
+        ttl_ti.add_row(start_time=float(starts[i]), stop_time=float(stops[i]))
     nwbfile.add_time_intervals(ttl_ti)
-    print('Added ttl_pulses with {} pulses (channel {}, segment {}).'.format(
-        n, ttl['channel'], ttl['segment']))
+    print('Added ttl_pulses with {} pulses (channel {}, segment {}, origin {}).'.format(
+        len(starts), ttl['channel'], ttl['segment'], origin))
 
     path = cfg.nwb_path
     if os.path.exists(path):

@@ -175,16 +175,23 @@ class NeuralConfig():
         processed_server {str} --- Folder where the processed data is located.
         session {str} --- Session directory name.
         probe_type {str} --- 'neuropixels' or 'vprobe'.
-        nwb_units {str} --- Units written to the NWB: 'all' or 'curated'.
+        nwb_units {str} --- Units written to the NWB: 'noise_excluded' (default;
+            drops Phy 'noise' clusters when a phy export exists, else all units),
+            'curated' (quality-triaged), or 'all' (raw sorter output).
         sorter {str} --- SpikeInterface sorter name.
         n_jobs {int} --- Number of parallel jobs for SpikeInterface.
         stream_id {str} --- Optional continuous stream id override.
         stream_name {str} --- Optional continuous stream name override.
         ttl_event_channel {str} --- Optional TTL event channel override.
+        ttl_event_segment {int} --- Optional TTL event segment override.  Leave
+            None to require the TTL events to come from the sorted segment
+            (recording_index); set explicitly only when the TTLs legitimately
+            live in a different segment than the one being sorted.
     """
     def __init__(self, server, processed_server, session, probe_type,
-                 nwb_units='all', sorter=SORTER_NAME, n_jobs=N_JOBS,
-                 stream_id=None, stream_name=None, ttl_event_channel=None):
+                 nwb_units='noise_excluded', sorter=SORTER_NAME, n_jobs=N_JOBS,
+                 stream_id=None, stream_name=None, ttl_event_channel=None,
+                 ttl_event_segment=None):
         if probe_type not in PROBE_DEFAULTS:
             raise ValueError('Unknown probe_type {!r} (expected {}).'.format(
                 probe_type, list(PROBE_DEFAULTS)))
@@ -201,6 +208,7 @@ class NeuralConfig():
         self.stream_id = stream_id
         self.stream_name = stream_name
         self.ttl_event_channel = ttl_event_channel
+        self.ttl_event_segment = ttl_event_segment
         self.common_reference_operator = COMMON_REFERENCE_OPERATOR
         self.common_reference_type = COMMON_REFERENCE_TYPE
         self.curation_query = CURATION_QUERY

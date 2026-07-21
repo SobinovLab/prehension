@@ -88,6 +88,59 @@ def event_times_to_recording_frames(recording, event_times_s, segment_index=0):
     return frames.astype(np.int64)
 
 
+def _resolve_ttl_segment(cfg, events, ttl_ch, verbose=False):
+    """Pick the event segment, enforcing agreement with the sorted segment.
+
+    Prefers an explicit cfg.ttl_event_segment.  Otherwise the TTL events must
+    live in segment == cfg.recording_index (the segment that was sorted); if the
+    events are only found in a different segment this raises, because reading
+    TTLs from another segment would put spikes and pulses on different clocks.
+    """
+    counts = config.event_segment_counts(events, ttl_ch)
+    if verbose:
+        print('Events per segment:', counts)
+
+    if cfg.ttl_event_segment is not None:
+        return int(cfg.ttl_event_segment)
+
+    found_segment, _ = config.find_event_segment(cfg, events, ttl_ch)
+    if found_segment != cfg.recording_index:
+        raise ValueError(
+            'TTL events for channel {} were found in segment {}, but the sorted '
+            'segment is recording_index={} (no events there). Reading TTLs from a '
+            'different segment would align spikes and pulses on different clocks. '
+            'If this is intended, construct NeuralConfig(..., ttl_event_segment={}).'
+            .format(ttl_ch, found_segment, cfg.recording_index, found_segment))
+    return int(cfg.recording_index)
+
+
+def sorted_segment_first_sample(cfg):
+    """First continuous sample_number of the sorted segment (recording_index).
+
+    The SpikeInterface event 'time' field is on the acquisition-board clock, but
+    sorted spike frames are zeroed to the first sample of the sorted segment.
+    Subtracting this offset -- ``(sample_index - first_sample) / fs`` -- puts TTL
+    edges on the same origin as the spikes, matching the correction the v_probe
+    figure applies (``timestamp - sample_numbers[0] / fs``).  Returns None if it
+    cannot be read (the caller then keeps the raw event time field).
+    """
+    try:
+        from open_ephys.analysis import Session
+    except Exception as e:  # noqa: BLE001
+        ws('open_ephys not importable to read the segment sample offset ({}); '
+           'TTL times fall back to the raw event time field.'.format(e))
+        return None
+    try:
+        session = Session(str(cfg.oe_folder))
+        rec = session.recordnodes[0].recordings[cfg.recording_index]
+        return int(rec.continuous[0].sample_numbers[0])
+    except Exception as e:  # noqa: BLE001
+        ws('Could not read first sample_number for recording_index={} ({}); '
+           'TTL times fall back to the raw event time field.'.format(
+               cfg.recording_index, e))
+        return None
+
+
 def extract_ttl_edge_times(cfg, verbose=False):
     """Read TTL rising/falling edge times (s) without loading the recording.
 
@@ -100,14 +153,9 @@ def extract_ttl_edge_times(cfg, verbose=False):
     """
     events = config.load_events(cfg)
     ttl_ch = config.resolve_ttl_channel(cfg, events)
-    if verbose:
-        print('Events per segment:', config.event_segment_counts(events, ttl_ch))
-    ttl_segment, _ = config.find_event_segment(cfg, events, ttl_ch)
+    ttl_segment = _resolve_ttl_segment(cfg, events, ttl_ch, verbose=verbose)
     if verbose:
         print('TTL channel={}; segment_index={}'.format(ttl_ch, ttl_segment))
-        if ttl_segment != cfg.recording_index:
-            ws('Event segment {} != recording_index {}; confirm the events belong '
-               'to the sorted recording.'.format(ttl_segment, cfg.recording_index))
 
     ev = events.get_events(channel_id=ttl_ch, segment_index=ttl_segment)
     rising_s, falling_s, rising_si, falling_si = _extract_edges(ev)
@@ -137,11 +185,40 @@ def extract_ttl_events(cfg, recording=None):
 
     if recording is None:
         recording, _, _ = io_streams.load_recording(cfg, with_sync=True)
+    fs = recording.get_sampling_frequency()
     rising_frames = event_times_to_recording_frames(recording, rising_s, 0)
     falling_frames = event_times_to_recording_frames(recording, falling_s, 0)
 
+    # Origin-corrected candidate times: zero the edges to the sorted segment's
+    # first sample so they share an origin with the spike frames (spike_frame/fs).
+    # export_nwb picks whichever origin (this or the raw event time) places more
+    # spikes inside the pulse windows, which self-corrects for whether the SI
+    # event 'time' field is already relative to the segment start.
+    first_sample = sorted_segment_first_sample(cfg)
+    rising_si = edges['rising_event_sample_indices']
+    falling_si = edges['falling_event_sample_indices']
+
+    def _from_samples(si_idx):
+        if si_idx is None or first_sample is None:
+            return None
+        return (np.asarray(si_idx, dtype=float) - first_sample) / fs
+
+    rising_times_s_synced = _from_samples(rising_si)
+    falling_times_s_synced = _from_samples(falling_si)
+    # Epoch/duration edges carry no falling sample index; apply the same constant
+    # rising-edge offset to the raw falling times.
+    if (falling_times_s_synced is None and rising_times_s_synced is not None
+            and falling_s is not None and rising_s is not None
+            and len(rising_s) == len(rising_times_s_synced) and len(rising_s) > 0):
+        offset = float(np.median(np.asarray(rising_times_s_synced, dtype=float)
+                                 - np.asarray(rising_s, dtype=float)))
+        falling_times_s_synced = np.asarray(falling_s, dtype=float) + offset
+
     return dict(channel=edges['channel'], segment=edges['segment'],
+                first_sample=first_sample, fs=float(fs),
                 rising_times_s=rising_s, falling_times_s=falling_s,
+                rising_times_s_synced=rising_times_s_synced,
+                falling_times_s_synced=falling_times_s_synced,
                 rising_frames=rising_frames, falling_frames=falling_frames,
-                rising_event_sample_indices=edges['rising_event_sample_indices'],
-                falling_event_sample_indices=edges['falling_event_sample_indices'])
+                rising_event_sample_indices=rising_si,
+                falling_event_sample_indices=falling_si)

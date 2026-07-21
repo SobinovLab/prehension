@@ -28,6 +28,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import traceback
 
 from .. import tools
 from .. import meta_session
@@ -42,8 +43,8 @@ from . import export_nwb
 
 
 def run_necessary(server, processed_server, sessions, temp,
-                  nwb_units='all', sorter=config.SORTER_NAME, processes=config.N_JOBS,
-                  overwrite=False):
+                  nwb_units='noise_excluded', sorter=config.SORTER_NAME,
+                  processes=config.N_JOBS, overwrite=False):
     """Run the necessary chain to produce neural.nwb for one or more sessions.
 
     Each step (preprocessing, spike sorting, NWB export) is skipped when its output already
@@ -58,7 +59,8 @@ def run_necessary(server, processed_server, sessions, temp,
         sessions {list[str]} --- Session directory names to process. If empty, all sessions
             found on the server are processed.
         temp {str} --- Folder for local temporary storage (logging).
-        nwb_units {str} --- Units written to the NWB: 'all' or 'curated'.
+        nwb_units {str} --- Units written to the NWB: 'noise_excluded' (default),
+            'curated', or 'all'. See NeuralConfig / export_nwb._select_sorting.
         sorter {str} --- SpikeInterface sorter name.
         processes {int} --- Number of parallel jobs for SpikeInterface.
         overwrite {bool} --- Reprocess and overwrite sessions that already have neural.nwb.
@@ -109,6 +111,7 @@ def run_necessary(server, processed_server, sessions, temp,
                 step_fn()
         except Exception as e:
             ws('Neural processing failed for session {}: {}'.format(session, repr(e)))
+            ws(traceback.format_exc())
             failed_sessions.append(session)
             continue
 

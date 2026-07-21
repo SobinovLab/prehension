@@ -279,12 +279,13 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     # including for duplicate-recording trials. With duplicates preserved, the counts should match.
     spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
     if len(events_time) != len(msession):
-        ws('WARNING: {} TTL pulses but {} behavioural trials. Since pulses are matched to trials '
-           'positionally, a count mismatch means every trial after the discrepancy is likely '
-           'misaligned. This is no longer explained by dropped duplicate trials (those are now '
-           'preserved), so it indicates a genuinely missed/extra pulse or an ordering problem - '
-           'inspect with figure_ttl_alignment before trusting the alignment. Aligning by index up '
-           'to the shorter.'.format(len(events_time), len(msession)))
+        raise ValueError(
+            '{} TTL pulses but {} behavioural trials. Pulses are matched to trials strictly by '
+            'position, so a count mismatch misaligns every trial after the discrepancy and '
+            'flattens the PETH. Duplicate-recording trials are now preserved, so this indicates a '
+            'genuinely missed/extra pulse or an ordering problem. Inspect with figure_ttl_alignment '
+            'and fix the pulse<->trial correspondence before plotting.'.format(
+                len(events_time), len(msession)))
 
     session_spikes = get_trial_data_spike(spikes, events_time)
     num_neurons = len(unit_ids)

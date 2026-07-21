@@ -40,8 +40,10 @@ if __name__ == "__main__":
                  "processed_server": current_preset["processed_server"]})
     cmd_args.add_default_arguments(parser, ("sessions", "temp", "processes", "overwrite"))
     parser.add_argument(
-        "--nwb_units", type=str, default="all", choices=["all", "curated"],
-        help="Units written to the NWB. Default: all.")
+        "--nwb_units", type=str, default="noise_excluded",
+        choices=["noise_excluded", "curated", "all"],
+        help="Units written to the NWB. Default: noise_excluded (drops Phy 'noise' "
+             "clusters when a phy export exists, else all units).")
     parser.add_argument(
         "--sorter", type=str, default="kilosort4",
         help="SpikeInterface sorter name. Default: kilosort4.")
