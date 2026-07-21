@@ -6,7 +6,13 @@ export_nwb --- the product.
 Writes a minimal NWB (work/neural.nwb) holding only the neural structure plus the
 TTL sync needed to align spikes to each trial: a Units table (spike_times in
 seconds, + original unit_id), electrodes / probe geometry (best-effort), and a
-TimeIntervals 'ttl_pulses' (start=rising, stop=falling edge per pulse).
+TimeIntervals 'ttl_pulses' (per-trial [start, stop] windows).
+
+Spikes and TTL windows are produced exactly as neural_plotting.figure_peth2 does:
+units come from the sorter output (_select_sorting), and the TTL windows are read
+directly from the Open Ephys events and zeroed to the sorted recording start
+(_read_oe_ttl_windows == figure_peth2.read_oe_event).  This lets figure_peth3 --
+which reads this NWB -- reproduce the figure_peth2 figure.
 
 No behavioural/trial metadata (trial numbers, forces, timepoints, success) and no
 diagnostics (quality metrics, waveforms) are embedded.  Downstream code pairs
@@ -34,7 +40,6 @@ from uuid import uuid4
 import numpy as np
 
 from . import config
-from . import ttl_sync
 from ..tools.logs import rs, ws
 
 
@@ -143,50 +148,38 @@ def _add_electrodes(nwbfile, cfg, rec):
         ws('Skipping electrodes table (schema mismatch): {}'.format(e))
 
 
-def _build_windows(rising, falling):
-    """Build (starts, stops) arrays (s) from rising/falling edge time arrays.
+def _read_oe_ttl_windows(cfg, fs):
+    """Per-trial TTL [start, stop] windows read directly from the Open Ephys events.
 
-    stop[i] is falling[i] when available (clamped to >= start), else start[i].
+    Identical to neural_plotting.figure_peth2.read_oe_event: consecutive events are
+    paired into [start, stop] windows, zeroed to the sorted recording's first
+    sample (sample_offset) so they share the spike timebase.  probe_type
+    'neuropixels' reads the 'ProbeA-AP' event stream via sample_number; 'vprobe'
+    reads all events via their timestamps.  Returns (starts, stops) arrays (s).
     """
-    if rising is None or len(rising) == 0:
-        return np.array([], dtype=float), np.array([], dtype=float)
-    starts = np.asarray(rising, dtype=float)
-    if falling is None or len(falling) == 0:
-        stops = starts.copy()
+    from open_ephys.analysis import Session
+
+    probe = 'np' if cfg.probe_type == 'neuropixels' else 'v'
+    session = Session(str(cfg.oe_folder))
+    recording = session.recordnodes[0].recordings[cfg.recording_index]
+    events = recording.events
+    sample_offset = recording.continuous[0].sample_numbers[0]
+    time_offset = sample_offset / fs
+
+    starts, stops = [], []
+    if probe == 'np':
+        events_ap = events[events.stream_name == 'ProbeA-AP']
+        for i in range(0, len(events_ap) - 1, 2):
+            starts.append((events_ap.iloc[i]['sample_number'] - sample_offset) / fs)
+            stops.append((events_ap.iloc[i + 1]['sample_number'] - sample_offset) / fs)
     else:
-        falling = np.asarray(falling, dtype=float)
-        stops = np.array([falling[i] if i < len(falling) else starts[i]
-                          for i in range(len(starts))], dtype=float)
-    return starts, np.maximum(stops, starts)
+        for i in range(0, len(events) - 1, 2):
+            starts.append(events.iloc[i]['timestamp'] - time_offset)
+            stops.append(events.iloc[i + 1]['timestamp'] - time_offset)
 
-
-def _spikes_in_windows(all_spike_times, starts, stops):
-    """Count spikes (across all units) falling inside any [start, stop] window."""
-    if len(starts) == 0 or len(all_spike_times) == 0:
-        return 0
-    st = np.sort(np.asarray(all_spike_times, dtype=float))
-    lo = np.searchsorted(st, starts, side='left')
-    hi = np.searchsorted(st, stops, side='right')
-    return int(np.sum(hi - lo))
-
-
-def _choose_ttl_windows(ttl, all_spike_times):
-    """Pick the TTL origin that places the most spikes inside the pulse windows.
-
-    Candidates: 'synced' (edges zeroed to the sorted segment's first sample) and
-    'raw' (the SpikeInterface event time field). Returns (starts, stops, origin,
-    n_synced, n_raw). Prefers 'synced' on ties when it is available.
-    """
-    synced_start, synced_stop = _build_windows(
-        ttl.get('rising_times_s_synced'), ttl.get('falling_times_s_synced'))
-    raw_start, raw_stop = _build_windows(
-        ttl.get('rising_times_s'), ttl.get('falling_times_s'))
-    n_synced = _spikes_in_windows(all_spike_times, synced_start, synced_stop)
-    n_raw = _spikes_in_windows(all_spike_times, raw_start, raw_stop)
-
-    if len(synced_start) and n_synced >= n_raw:
-        return synced_start, synced_stop, 'synced', n_synced, n_raw
-    return raw_start, raw_stop, 'raw', n_synced, n_raw
+    starts = np.asarray(starts, dtype=float)
+    stops = np.maximum(np.asarray(stops, dtype=float), starts)
+    return starts, stops
 
 
 def export_nwb(cfg):
@@ -201,9 +194,6 @@ def export_nwb(cfg):
     sorting = _select_sorting(cfg)
     fs = sorting.get_sampling_frequency()
 
-    # TTL sync (times in seconds); the preprocessed rec is enough for the calc.
-    ttl = ttl_sync.extract_ttl_events(cfg, recording=rec_pre)
-
     nwbfile = NWBFile(
         session_description='{} spike sorting, {}'.format(cfg.probe_type, cfg.session),
         identifier=str(uuid4()),
@@ -212,36 +202,27 @@ def export_nwb(cfg):
 
     _add_electrodes(nwbfile, cfg, rec_pre)
 
-    # Units (spike times in seconds, zeroed to the sorted segment start).
-    unit_spike_times = {
-        uid: np.asarray(sorting.get_unit_spike_train(unit_id=uid), dtype=float) / fs
-        for uid in sorting.get_unit_ids()}
+    # Units (spike times in seconds, zeroed to the sorted segment start) -- from
+    # _select_sorting, exactly as figure_peth2.get_neural_spikes.
     nwbfile.add_unit_column(name='unit_id', description='original sorter unit id')
-    for uid, st in unit_spike_times.items():
+    n_units = 0
+    for uid in sorting.get_unit_ids():
+        st = np.asarray(sorting.get_unit_spike_train(unit_id=uid), dtype=float) / fs
         nwbfile.add_unit(spike_times=st, unit_id=str(uid))
-    print('Added {} units.'.format(len(unit_spike_times)))
+        n_units += 1
+    print('Added {} units.'.format(n_units))
 
-    all_spikes = (np.concatenate(list(unit_spike_times.values()))
-                  if unit_spike_times else np.array([], dtype=float))
-
-    # TTL sync as TimeIntervals (start=rising, stop=falling). Choose the edge
-    # origin that best overlaps the spikes so pulses share the spike timebase.
-    starts, stops, origin, n_synced, n_raw = _choose_ttl_windows(ttl, all_spikes)
-    rs('TTL origin: {} ({} spikes in windows; alternative {}).'.format(
-        origin, n_synced if origin == 'synced' else n_raw,
-        n_raw if origin == 'synced' else n_synced))
-    if len(all_spikes) and max(n_synced, n_raw) == 0:
-        ws('No spikes fall inside any TTL pulse window under either origin; check '
-           'TTL extraction and the sorted segment before trusting the alignment.')
-
+    # TTL windows read directly from the Open Ephys events, exactly as
+    # figure_peth2.read_oe_event -> figure_peth3 reproduces that figure.
+    starts, stops = _read_oe_ttl_windows(cfg, fs)
     ttl_ti = TimeIntervals(
         name='ttl_pulses',
-        description='TTL sync pulses; start_time=rising edge, stop_time=falling edge')
+        description='Per-trial TTL windows; start_time=window start, stop_time=window end, '
+                    'zeroed to the sorted recording start (see figure_peth2.read_oe_event)')
     for i in range(len(starts)):
         ttl_ti.add_row(start_time=float(starts[i]), stop_time=float(stops[i]))
     nwbfile.add_time_intervals(ttl_ti)
-    print('Added ttl_pulses with {} pulses (channel {}, segment {}, origin {}).'.format(
-        len(starts), ttl['channel'], ttl['segment'], origin))
+    print('Added ttl_pulses with {} pulses.'.format(len(starts)))
 
     path = cfg.nwb_path
     if os.path.exists(path):
