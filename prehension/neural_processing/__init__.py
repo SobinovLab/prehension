@@ -4,9 +4,10 @@
 # neural submodules (which lazily import spikeinterface) are imported.
 import warnings
 
+# should not matter on Windows, but it is mighty annoying
 warnings.filterwarnings(
     "ignore",
-    message="Found Intel OpenMP.*",
+    message=r"\s*Found Intel OpenMP.*",
     category=RuntimeWarning,
     module="threadpoolctl",
 )
