@@ -50,6 +50,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--group_column", type=str, default="targetForce(N)",
         help="Object property to colour-code by. Default: targetForce(N).")
+    parser.add_argument(
+        "--skip_ttl", type=int, default=0, metavar="N",
+        help="Drop the first N TTL pulses before pairing pulse i to trial i "
+             "(spurious leading sync/setup pulses). Default: 0.")
 
     args = parser.parse_args(args=argv)
 
@@ -59,7 +63,8 @@ if __name__ == "__main__":
     start_time = time.time()
     plot_perievent_histograms(
         args.server, args.processed_server, args.session, probe_type,
-        neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column)
+        neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column,
+        skip_ttl=args.skip_ttl)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

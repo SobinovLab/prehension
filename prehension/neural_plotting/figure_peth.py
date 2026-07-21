@@ -252,7 +252,8 @@ def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
 def plot_perievent_histograms(server, processed_server, session, probe_type,
                               neuron_ids=None, align_timepoint=ALIGN_TIMEPOINT,
                               group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
-                              bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA):
+                              bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
+                              skip_ttl=0):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -265,6 +266,9 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         group_column {str} --- Object property to colour-code by.
         before, after {float} --- Window (s) around the alignment timepoint.
         bin_width, filter_sigma {float} --- Binning and smoothing (s).
+        skip_ttl {int} --- Drop this many leading TTL pulses before pairing pulse
+            i to trial i (for spurious sync/setup pulses recorded before the first
+            behavioural trial). Default 0.
     """
     cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type)
 
@@ -278,6 +282,15 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     # msession MUST be in recording (chronological) order - which create_meta now guarantees,
     # including for duplicate-recording trials. With duplicates preserved, the counts should match.
     spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
+    if skip_ttl:
+        if skip_ttl < 0:
+            raise ValueError('skip_ttl must be >= 0, got {}.'.format(skip_ttl))
+        if skip_ttl >= len(events_time):
+            raise ValueError('skip_ttl={} but only {} TTL pulse(s) available.'.format(
+                skip_ttl, len(events_time)))
+        rs('Skipping the first {} TTL pulse(s): {} -> {}.'.format(
+            skip_ttl, len(events_time), len(events_time) - skip_ttl))
+        events_time = events_time[skip_ttl:]
     if len(events_time) != len(msession):
         raise ValueError(
             '{} TTL pulses but {} behavioural trials. Pulses are matched to trials strictly by '
