@@ -38,6 +38,53 @@ from . import ttl_sync
 from ..tools.logs import rs, ws
 
 
+def _sorting_from_phy(cfg, exclude_groups=('noise',)):
+    """Load a Phy-curated sorting, dropping clusters whose group is in exclude_groups.
+
+    Reimplements si.read_phy()'s noise-exclusion using the exported numpy arrays
+    (spike_times.npy / spike_clusters.npy) plus cluster_group.tsv (falling back to
+    the Kilosort auto labels in cluster_KSLabel.tsv).  si.read_phy() itself raises
+    "assignment destination is read-only" in this SpikeInterface version: when the
+    export contains an 'si_unit_id' column (which export_to_phy writes) it takes
+    that column's read-only pandas '.values' and mutates it in place
+    (phykilosortextractors.py: ``unit_ids[i] = new_si_id``).  Unit ids here are the
+    Phy cluster ids, so they match what was curated in Phy.
+    """
+    import numpy as np
+    import pandas as pd
+    import spikeinterface.full as si
+
+    phy = cfg.subfolders()['phy']
+    spike_frames = np.load(os.path.join(phy, 'spike_times.npy')).squeeze().astype('int64')
+    spike_clusters = np.load(os.path.join(phy, 'spike_clusters.npy')).squeeze().astype('int64')
+
+    # Cluster group labels: manually-curated cluster_group.tsv wins over the
+    # Kilosort auto labels in cluster_KSLabel.tsv.
+    groups = {}
+    for fname, col in (('cluster_group.tsv', 'group'),
+                       ('cluster_KSLabel.tsv', 'KSLabel')):
+        path = os.path.join(phy, fname)
+        if not os.path.exists(path):
+            continue
+        df = pd.read_csv(path, sep='\t')
+        if 'cluster_id' in df.columns and col in df.columns:
+            for cid, grp in zip(df['cluster_id'].values, df[col].values):
+                groups.setdefault(int(cid), str(grp))
+
+    exclude = {str(g).lower() for g in exclude_groups}
+    drop_ids = [cid for cid, grp in groups.items() if grp.lower() in exclude]
+
+    keep = ~np.isin(spike_clusters, drop_ids)
+    spike_frames = spike_frames[keep]
+    spike_clusters = spike_clusters[keep]
+
+    fs = config.load_sorting(cfg).get_sampling_frequency()
+    sorting = si.NumpySorting.from_samples_and_labels(spike_frames, spike_clusters, float(fs))
+    rs('Phy: dropped {} cluster(s) in {}; {} units kept.'.format(
+        len(drop_ids), sorted(exclude), len(sorting.get_unit_ids())))
+    return sorting
+
+
 def _select_sorting(cfg):
     """Choose the sorting per cfg.nwb_units.
 
@@ -59,7 +106,7 @@ def _select_sorting(cfg):
     if cfg.nwb_units == 'curated':
         if has_phy:
             rs('Units: curated (Phy, noise excluded).')
-            return si.read_phy(str(phy), exclude_cluster_groups=['noise'])
+            return _sorting_from_phy(cfg, exclude_groups=('noise',))
         curated = cfg.subfolders()['analyzer_curated']
         if os.path.exists(curated):
             rs('Units: curated (analyzer_curated).')
@@ -73,7 +120,7 @@ def _select_sorting(cfg):
         ws("Unknown nwb_units={!r}; treating as 'noise_excluded'.".format(cfg.nwb_units))
     if has_phy:
         rs('Units: noise-excluded (Phy, noise clusters dropped).')
-        return si.read_phy(str(phy), exclude_cluster_groups=['noise'])
+        return _sorting_from_phy(cfg, exclude_groups=('noise',))
     ws('Units: no Phy export found; using all sorted units. Run export_to_phy and '
        'label noise clusters to exclude them from the product.')
     return config.load_sorting(cfg)

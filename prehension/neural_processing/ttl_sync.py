@@ -124,21 +124,10 @@ def sorted_segment_first_sample(cfg):
     figure applies (``timestamp - sample_numbers[0] / fs``).  Returns None if it
     cannot be read (the caller then keeps the raw event time field).
     """
-    try:
-        from open_ephys.analysis import Session
-    except Exception as e:  # noqa: BLE001
-        ws('open_ephys not importable to read the segment sample offset ({}); '
-           'TTL times fall back to the raw event time field.'.format(e))
-        return None
-    try:
-        session = Session(str(cfg.oe_folder))
-        rec = session.recordnodes[0].recordings[cfg.recording_index]
-        return int(rec.continuous[0].sample_numbers[0])
-    except Exception as e:  # noqa: BLE001
-        ws('Could not read first sample_number for recording_index={} ({}); '
-           'TTL times fall back to the raw event time field.'.format(
-               cfg.recording_index, e))
-        return None
+    from open_ephys.analysis import Session
+    session = Session(str(cfg.oe_folder))
+    rec = session.recordnodes[0].recordings[cfg.recording_index]
+    return int(rec.continuous[0].sample_numbers[0])
 
 
 def extract_ttl_edge_times(cfg, verbose=False):
