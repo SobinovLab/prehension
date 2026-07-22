@@ -39,8 +39,10 @@ def add_default_arguments(parser, arguments):
         parser.add_argument(
             '--sessions',
             type=str, default=[], nargs='*', metavar='SESSION',
-            help='List of directories for processing. If empty, find all unprocessed directories. '
-            'Empty by default.')
+            help='List of session directories to process. If empty, find all unprocessed '
+            'directories (empty by default). A token may also be a selector '
+            '"region:<value>" or "burr_hole:<value>" (case-insensitive) that expands, via '
+            'resolve_sessions(), to every session whose meta_neural.json matches.')
 
     if 'trials' in arguments:
         parser.add_argument(
@@ -126,3 +128,78 @@ def add_default_kwarguments(parser, kwarguments):
     '''
     for k, v in kwarguments.items():
         add_default_kwargument(parser, k, v)
+
+
+# Selector keys accepted in a --sessions token ('key:value'); the value is matched
+# case-insensitively against the given field of the session's meta_neural.json.
+_SESSION_SELECTOR_KEYS = {
+    'region': 'region',
+    'burr_hole': 'burr_hole',
+    'burrhole': 'burr_hole',
+}
+
+
+def resolve_sessions(sessions, processed_server):
+    '''Expand 'region:'/'burr_hole:' selectors in a --sessions list.
+
+    Each token in ``sessions`` is either a literal session directory name or a
+    selector 'region:<value>' or 'burr_hole:<value>'.  A selector expands to every
+    session that has a meta_neural.json whose matching field equals <value>
+    (capitalization-invariant).  Literal names and all selector matches are merged,
+    order-preserving and de-duplicated; multiple selectors are OR'd (union).  An
+    empty list is returned unchanged (downstream treats empty as "all sessions").
+
+    Needed modules are imported lazily so importing cmd_args stays cheap and free of
+    heavy / circular dependencies.
+    '''
+    if not sessions:
+        return sessions
+
+    selectors, literals = [], []
+    for tok in sessions:
+        if ':' in tok:
+            key, _, val = tok.partition(':')
+            mapped = _SESSION_SELECTOR_KEYS.get(key.strip().lower())
+            if mapped is not None:
+                selectors.append((mapped, val.strip()))
+                continue
+        literals.append(tok)
+
+    if not selectors:
+        return sessions
+
+    # lazy imports (avoid heavy / circular deps at module import time)
+    from .. import meta_session
+    from ..neural_processing import config as npconfig
+    from .logs import rs, ws
+
+    matched = []
+    for session in meta_session.find_session_dirs(processed_server):
+        try:
+            meta = npconfig.load_meta_neural(processed_server, session)
+        except ValueError:
+            continue  # no meta_neural.json for this session
+        for field, val in selectors:
+            mv = meta.get(field, None)
+            if mv is not None and str(mv).strip().lower() == val.lower():
+                matched.append(session)
+                break
+
+    label = ['{}:{}'.format(k, v) for k, v in selectors]
+    if not matched:
+        ws('No sessions with a meta_neural.json matched {}.'.format(label))
+
+    out, seen = [], set()
+    for s in literals + matched:
+        if s not in seen:
+            seen.add(s)
+            out.append(s)
+    if not out:
+        # selectors were given but nothing matched: do NOT fall back to "all
+        # sessions" (empty list), which would silently process everything.
+        raise ValueError(
+            'No sessions matched selectors {} (and none given literally); refusing '
+            'to fall back to all sessions.'.format(label))
+    rs('Resolved --sessions selectors {} -> {} session(s): {}'.format(
+        label, len(out), ', '.join(out)))
+    return out

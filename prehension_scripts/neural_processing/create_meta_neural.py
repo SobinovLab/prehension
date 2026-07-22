@@ -51,7 +51,8 @@ if __name__ == "__main__":
     cmd_args.add_default_arguments(parser, ("sessions", "temp"))
 
     args = parser.parse_args(args=argv)
+    sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
 
     start_time = time.time()
-    create_meta_neural(args.server, args.processed_server, args.sessions, args.temp)
+    create_meta_neural(args.server, args.processed_server, sessions, args.temp)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

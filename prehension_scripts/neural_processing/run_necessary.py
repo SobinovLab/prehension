@@ -54,9 +54,10 @@ if __name__ == "__main__":
              "Default: probe default (vprobe Recording1, neuropixels Recording2).")
 
     args = parser.parse_args(args=argv)
+    sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
 
     start_time = time.time()
-    run_necessary(args.server, args.processed_server, args.sessions,
+    run_necessary(args.server, args.processed_server, sessions,
                   args.temp, nwb_units=args.nwb_units, sorter=args.sorter,
                   processes=args.processes, overwrite=args.overwrite,
                   recording=args.recording)

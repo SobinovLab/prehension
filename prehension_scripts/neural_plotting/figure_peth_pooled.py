@@ -56,10 +56,11 @@ if __name__ == "__main__":
         help="Plot only each session's meta_neural.json 'good_neurons' (else all units).")
 
     args = parser.parse_args(args=argv)
+    sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
 
     start_time = time.time()
     plot_perievent_histograms_pooled(
-        args.server, args.processed_server, args.sessions,
+        args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
         only_good=args.only_good)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
