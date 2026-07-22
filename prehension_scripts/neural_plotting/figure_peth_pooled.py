@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
+from prehension.neural_plotting.figure_peth import BEFORE, AFTER
 from prehension.neural_plotting.figure_peth_pooled import plot_perievent_histograms_pooled
 
 if __name__ == "__main__":
@@ -52,6 +53,12 @@ if __name__ == "__main__":
         "--group_column", type=str, default="targetForce(N)",
         help="Object property to colour-code by. Default: targetForce(N).")
     parser.add_argument(
+        "--before", type=float, default=BEFORE, metavar="SECONDS",
+        help="Seconds before the alignment event to plot. Default: {}.".format(BEFORE))
+    parser.add_argument(
+        "--after", type=float, default=AFTER, metavar="SECONDS",
+        help="Seconds after the alignment event to plot. Default: {}.".format(AFTER))
+    parser.add_argument(
         "--only_good", action="store_true",
         help="Plot only each session's meta_neural.json 'good_neurons' (else all units).")
 
@@ -62,7 +69,7 @@ if __name__ == "__main__":
     plot_perievent_histograms_pooled(
         args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
-        only_good=args.only_good)
+        before=args.before, after=args.after, only_good=args.only_good)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()
