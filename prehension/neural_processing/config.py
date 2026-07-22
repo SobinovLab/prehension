@@ -217,6 +217,7 @@ def default_meta_neural(probe_type):
         'burr_hole': '',
         'depth_um': '',
         'notes': '',
+        'good_neurons': [],   # unit ids to plot when figure_peth is run with --only_good
         'recording': d['recording_index'] + 1,   # 1-based Open Ephys recording number
         'skip_ttl': 0,
         'sorter': SORTER_NAME,

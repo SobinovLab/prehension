@@ -60,6 +60,10 @@ if __name__ == "__main__":
         help="Open Ephys recording within experiment1, 1-based (Recording1, "
              "Recording2, ...); accepts 2 or 'Recording2'. The NWB is per-session "
              "so this does not change what is read. Default: probe default.")
+    parser.add_argument(
+        "--only_good", action="store_true",
+        help="Plot only the unit ids listed in meta_neural.json 'good_neurons' "
+             "(ignored if --units is given).")
 
     args = parser.parse_args(args=argv)
 
@@ -70,7 +74,7 @@ if __name__ == "__main__":
     plot_perievent_histograms(
         args.server, args.processed_server, args.session, probe_type,
         neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column,
-        skip_ttl=args.skip_ttl, recording=args.recording)
+        skip_ttl=args.skip_ttl, recording=args.recording, only_good=args.only_good)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

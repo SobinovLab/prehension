@@ -253,7 +253,7 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               neuron_ids=None, align_timepoint=ALIGN_TIMEPOINT,
                               group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
-                              skip_ttl=None, recording=None):
+                              skip_ttl=None, recording=None, only_good=False):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -262,6 +262,8 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         session {str} --- Session directory name.
         probe_type {str} --- 'neuropixels' or 'vprobe'.
         neuron_ids {list} --- Unit ids to plot; None/empty -> all units.
+        only_good {bool} --- When True and neuron_ids is empty, plot the unit ids
+            listed in meta_neural.json 'good_neurons'.
         align_timepoint {str} --- Trial timepoint to align to.
         group_column {str} --- Object property to colour-code by.
         before, after {float} --- Window (s) around the alignment timepoint.
@@ -280,6 +282,16 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                                 recording=recording)
     # skip_ttl: CLI kwarg > meta_neural.json 'skip_ttl' > 0
     skip_ttl = npconfig.resolve_meta_arg(skip_ttl, cfg.meta_neural, 'skip_ttl', 0)
+
+    # --only_good: restrict to the good_neurons listed in meta_neural.json
+    if only_good and not neuron_ids:
+        neuron_ids = cfg.meta_neural.get('good_neurons') or []
+        if not neuron_ids:
+            raise ValueError(
+                "only_good=True but meta_neural.json 'good_neurons' is empty; fill it "
+                "in {} first.".format(npconfig.meta_neural_path(processed_server, session)))
+        rs('only_good: plotting {} unit(s) from meta_neural.json good_neurons.'.format(
+            len(neuron_ids)))
 
     # behavioural meta
     mstruct, _, mobject, msession = meta_session.load_meta_information(
