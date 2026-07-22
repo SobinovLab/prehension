@@ -253,7 +253,7 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               neuron_ids=None, align_timepoint=ALIGN_TIMEPOINT,
                               group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
-                              skip_ttl=0, recording=None):
+                              skip_ttl=None, recording=None):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -270,7 +270,7 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             pairing. Positive: drop this many leading TTL pulses (spurious
             sync/setup pulses before the first trial) so pulse skip_ttl pairs to
             trial 0. Negative: drop this many leading behavioural trials so pulse 0
-            pairs to trial |skip_ttl|. Default 0.
+            pairs to trial |skip_ttl|. None -> meta_neural.json 'skip_ttl' then 0.
         recording {int|str} --- Open Ephys recording within experiment1, 1-based
             (Recording1, Recording2, ...), passed to NeuralConfig. The NWB is
             per-session, so this does not change what is read; kept for a uniform
@@ -278,6 +278,8 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     """
     cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
                                 recording=recording)
+    # skip_ttl: CLI kwarg > meta_neural.json 'skip_ttl' > 0
+    skip_ttl = npconfig.resolve_meta_arg(skip_ttl, cfg.meta_neural, 'skip_ttl', 0)
 
     # behavioural meta
     mstruct, _, mobject, msession = meta_session.load_meta_information(

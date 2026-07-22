@@ -157,7 +157,7 @@ def _missing_pulse_mask(trial_starts, rising, tol=TTL_MATCH_TOL_S):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=0,
+def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=None,
                              recording=None):
     """Plot TTL pulses over trial windows, aligned by the first pulse-trial.
 
@@ -169,6 +169,7 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
         skip {int} --- Pulses to skip for alignment; if negative, that many trials
             are skipped instead.  The reference (t=0) becomes rising[skip] and
             trial_start[0] (skip >= 0) or rising[0] and trial_start[-skip] (skip < 0).
+            None -> meta_neural.json 'skip_ttl' then 0.
         recording {int|str} --- Open Ephys recording within experiment1 to read,
             1-based (Recording1, Recording2, ...); selects which recording's TTL
             events are read. None -> probe default.
@@ -176,6 +177,8 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
     cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
                                 recording=recording)
     cfg.ensure_work_folder()
+    # skip: CLI kwarg > meta_neural.json 'skip_ttl' > 0
+    skip = npconfig.resolve_meta_arg(skip, cfg.meta_neural, 'skip_ttl', 0)
 
     # neural TTL edges (times only; no recording load needed)
     edges = ttl_sync.extract_ttl_edge_times(cfg, verbose=True)

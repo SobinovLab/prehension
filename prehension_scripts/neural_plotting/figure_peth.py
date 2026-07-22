@@ -51,10 +51,10 @@ if __name__ == "__main__":
         "--group_column", type=str, default="targetForce(N)",
         help="Object property to colour-code by. Default: targetForce(N).")
     parser.add_argument(
-        "--skip_ttl", type=int, default=0, metavar="N",
+        "--skip_ttl", type=int, default=None, metavar="N",
         help="Positional pulse<->trial alignment offset. Positive N drops the "
              "first N TTL pulses; negative N drops the first |N| behavioural "
-             "trials. Default: 0.")
+             "trials. Default: from meta_neural.json (then 0).")
     parser.add_argument(
         "--recording", type=str, default=None, metavar="N",
         help="Open Ephys recording within experiment1, 1-based (Recording1, "

@@ -42,8 +42,55 @@ from . import export_phy
 from . import export_nwb
 
 
+def create_meta_neural(server, processed_server, sessions, temp):
+    """Create per-session meta_neural.json (run before run_necessary).
+
+    Writes processed_server/<session>/meta_neural.json with defaults for the
+    session's probe type (resolved from meta_structure).  Created once: an
+    existing file is left unchanged (there is no overwrite).  Sessions without
+    neural data are skipped.  Edit region/burr_hole/depth_um/recording/etc. in the
+    file before running run_necessary; the neural steps read their defaults from it.
+
+    Arguments:
+        server {str} --- Folder where the raw sessions are located.
+        processed_server {str} --- Folder where the processed data is located.
+        sessions {list[str]} --- Session directory names; empty -> all sessions.
+        temp {str} --- Folder for local temporary storage (logging).
+    """
+    tools.logs.setup_logging(temp, sessions_dir=server)
+
+    if sessions:
+        found_sessions = [s for s in sessions if os.path.isdir(os.path.join(server, s))]
+    else:
+        found_sessions = meta_session.find_session_dirs(server)
+    rs('create_meta_neural: {} session(s) to consider: {}'.format(
+        len(found_sessions), ', '.join(found_sessions)))
+
+    for session in found_sessions:
+        # only sessions whose raw folder actually contains a neural/ folder
+        raw_neural_dir = os.path.join(server, session, 'neural')
+        if not os.path.isdir(raw_neural_dir):
+            ws('Skipping session {}: no raw neural folder at {}.'.format(
+                session, raw_neural_dir))
+            continue
+
+        # probe type comes from meta_structure; sessions without neural data are skipped
+        try:
+            probe_type = config.probe_type_from_meta(server, processed_server, session)
+        except ValueError as e:
+            ws('Skipping session {}: {}'.format(session, e))
+            continue
+
+        path = config.meta_neural_path(processed_server, session)
+        if os.path.exists(path):
+            rs('  {}: meta_neural.json already exists; leaving it unchanged.'.format(session))
+            continue
+        config.save_json(config.default_meta_neural(probe_type), path)
+        rs('  {}: wrote {}'.format(session, path))
+
+
 def run_necessary(server, processed_server, sessions, temp,
-                  nwb_units='noise_excluded', sorter=config.SORTER_NAME,
+                  nwb_units=None, sorter=None,
                   processes=config.N_JOBS, overwrite=False, recording=None):
     """Run the necessary chain to produce neural.nwb for one or more sessions.
 
@@ -59,9 +106,9 @@ def run_necessary(server, processed_server, sessions, temp,
         sessions {list[str]} --- Session directory names to process. If empty, all sessions
             found on the server are processed.
         temp {str} --- Folder for local temporary storage (logging).
-        nwb_units {str} --- Units written to the NWB: 'noise_excluded' (default),
-            'curated', or 'all'. See NeuralConfig / export_nwb._select_sorting.
-        sorter {str} --- SpikeInterface sorter name.
+        nwb_units {str} --- Units written to the NWB ('noise_excluded'/'curated'/'all');
+            None -> meta_neural.json then 'noise_excluded'.
+        sorter {str} --- SpikeInterface sorter name; None -> meta_neural.json then kilosort4.
         processes {int} --- Number of parallel jobs for SpikeInterface.
         overwrite {bool} --- Reprocess and overwrite sessions that already have neural.nwb.
         recording {int|str} --- Open Ephys recording within experiment1 to process,
@@ -79,16 +126,16 @@ def run_necessary(server, processed_server, sessions, temp,
 
     failed_sessions = []
     for session in found_sessions:
-        # probe type comes from the session meta_structure; sessions without neural data are skipped
+        # probe type from meta_structure; the config also loads meta_neural.json.
+        # A missing meta_structure OR meta_neural raises ValueError -> skip session.
         try:
             probe_type = config.probe_type_from_meta(server, processed_server, session)
+            cfg = config.NeuralConfig(server, processed_server, session, probe_type,
+                                      nwb_units=nwb_units, sorter=sorter, n_jobs=processes,
+                                      recording=recording)
         except ValueError as e:
             ws('Skipping session {}: {}'.format(session, e))
             continue
-
-        cfg = config.NeuralConfig(server, processed_server, session, probe_type,
-                                  nwb_units=nwb_units, sorter=sorter, n_jobs=processes,
-                                  recording=recording)
 
         cfg.ensure_work_folder()
         rs('Session {} ({}) -> {}'.format(session, probe_type, cfg.work_folder))
@@ -128,7 +175,7 @@ def run_necessary(server, processed_server, sessions, temp,
 
 def run_diagnostics(server, processed_server, session, probe_type, temp,
                     all_units=False, curate=False, inspect=False,
-                    sorter=config.SORTER_NAME, processes=config.N_JOBS,
+                    sorter=None, processes=config.N_JOBS,
                     recording=None):
     """Run optional diagnostics + curation for one session.
 

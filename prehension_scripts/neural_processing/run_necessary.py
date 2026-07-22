@@ -40,13 +40,13 @@ if __name__ == "__main__":
                  "processed_server": current_preset["processed_server"]})
     cmd_args.add_default_arguments(parser, ("sessions", "temp", "processes", "overwrite"))
     parser.add_argument(
-        "--nwb_units", type=str, default="noise_excluded",
+        "--nwb_units", type=str, default=None,
         choices=["noise_excluded", "curated", "all"],
-        help="Units written to the NWB. Default: noise_excluded (drops Phy 'noise' "
-             "clusters when a phy export exists, else all units).")
+        help="Units written to the NWB. Default: from meta_neural.json (then "
+             "noise_excluded).")
     parser.add_argument(
-        "--sorter", type=str, default="kilosort4",
-        help="SpikeInterface sorter name. Default: kilosort4.")
+        "--sorter", type=str, default=None,
+        help="SpikeInterface sorter name. Default: from meta_neural.json (then kilosort4).")
     parser.add_argument(
         "--recording", type=str, default=None, metavar="N",
         help="Open Ephys recording within experiment1 to process, 1-based "

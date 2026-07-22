@@ -191,6 +191,79 @@ def parse_recording_index(recording):
     return number - 1
 
 
+META_NEURAL_NAME = 'meta_neural.json'
+
+
+def meta_neural_path(processed_server, session):
+    return os.path.join(processed_server, session, META_NEURAL_NAME)
+
+
+def default_meta_neural(probe_type):
+    """Default meta_neural dict for a probe type, from the module constants.
+
+    Captures the full per-session neural config so a session's meta_neural.json is
+    a complete, editable snapshot: annotations (region/burr_hole/depth_um/notes),
+    the CLI-backed args (recording/skip_ttl/sorter/nwb_units), the shared
+    processing constants, and the resolved PROBE_DEFAULTS.  The V-probe geometry /
+    wiring block is added only for probe_type == 'vprobe'.
+    """
+    if probe_type not in PROBE_DEFAULTS:
+        raise ValueError('Unknown probe_type {!r} (expected {}).'.format(
+            probe_type, list(PROBE_DEFAULTS)))
+    d = PROBE_DEFAULTS[probe_type]
+    meta = {
+        'probe_type': probe_type,
+        'region': '',
+        'burr_hole': '',
+        'depth_um': '',
+        'notes': '',
+        'recording': d['recording_index'] + 1,   # 1-based Open Ephys recording number
+        'skip_ttl': 0,
+        'sorter': SORTER_NAME,
+        'nwb_units': 'noise_excluded',
+        'block_index': BLOCK_INDEX,
+        'common_reference_operator': COMMON_REFERENCE_OPERATOR,
+        'common_reference_type': COMMON_REFERENCE_TYPE,
+        'curation_query': CURATION_QUERY,
+        'highpass_freq_min': d['highpass_freq_min'],
+        'use_phase_shift': d['use_phase_shift'],
+        'sparse': d['sparse'],
+        'expected_n_channels': d['expected_n_channels'],
+    }
+    if probe_type == 'vprobe':
+        meta.update({
+            'geometry': GEOMETRY,
+            'contact_pitch_um': CONTACT_PITCH_UM,
+            'horizontal_pitch_um': HORIZONTAL_PITCH_UM,
+            'contact_radius_um': CONTACT_RADIUS_UM,
+            'contact_channel_names': list(CONTACT_CHANNEL_NAMES),
+        })
+    return meta
+
+
+def load_meta_neural(processed_server, session):
+    """Read a session's meta_neural.json (required; created by create_meta_neural).
+
+    Raises ValueError if the file is missing so the neural steps refuse to run
+    before create_meta_neural has produced it.
+    """
+    path = meta_neural_path(processed_server, session)
+    if not os.path.exists(path):
+        raise ValueError(
+            'meta_neural.json not found for session {} at {}. Run create_meta_neural '
+            'first.'.format(session, path))
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
+def resolve_meta_arg(cli_value, meta, key, default=None):
+    """CLI kwarg if provided (not None), else the meta_neural value, else default."""
+    if cli_value is not None:
+        return cli_value
+    v = meta.get(key, None) if meta else None
+    return default if v is None or v == '' else v
+
+
 class NeuralConfig():
     """Resolved configuration for processing a single session's neural data.
 
@@ -212,51 +285,67 @@ class NeuralConfig():
             (recording_index); set explicitly only when the TTLs legitimately
             live in a different segment than the one being sorted.
         recording {int|str} --- Which Open Ephys recording within experiment1
-            (block 0) to process, 1-based to match the Recording1/Recording2/...
-            folder names (accepts 2 or 'Recording2').  None -> the probe default
-            (vprobe Recording1, neuropixels Recording2).
+            (block 0) to process, 1-based (Recording1/Recording2/...; accepts 2 or
+            'Recording2').  None -> meta_neural.json 'recording', then the probe
+            default.
+        meta_neural {dict} --- Pre-loaded meta_neural dict; None loads
+            meta_neural.json from the processed session folder (REQUIRED -- run
+            create_meta_neural first).  Every config field (block_index,
+            common_reference_*, curation_query, the PROBE_DEFAULTS params and the
+            V-probe geometry) is sourced from it, falling back to module defaults;
+            nwb_units/sorter/recording additionally honour the CLI kwarg when given.
     """
     def __init__(self, server, processed_server, session, probe_type,
-                 nwb_units='noise_excluded', sorter=SORTER_NAME, n_jobs=N_JOBS,
+                 nwb_units=None, sorter=None, n_jobs=N_JOBS,
                  stream_id=None, stream_name=None, ttl_event_channel=None,
-                 ttl_event_segment=None, recording=None):
+                 ttl_event_segment=None, recording=None, meta_neural=None):
         if probe_type not in PROBE_DEFAULTS:
             raise ValueError('Unknown probe_type {!r} (expected {}).'.format(
                 probe_type, list(PROBE_DEFAULTS)))
+
+        # Per-session neural config (required; created by create_meta_neural).
+        meta = (meta_neural if meta_neural is not None
+                else load_meta_neural(processed_server, session))
+        self.meta_neural = meta
+        d = PROBE_DEFAULTS[probe_type]
 
         self.server = server
         self.processed_server = processed_server
         self.session = session
         self.probe_type = probe_type
-        self.nwb_units = nwb_units
-        self.sorter_name = sorter
         self.n_jobs = n_jobs
         self.job_kwargs = dict(n_jobs=n_jobs, chunk_duration='1s', progress_bar=True)
-        self.block_index = BLOCK_INDEX
         self.stream_id = stream_id
         self.stream_name = stream_name
         self.ttl_event_channel = ttl_event_channel
         self.ttl_event_segment = ttl_event_segment
-        self.common_reference_operator = COMMON_REFERENCE_OPERATOR
-        self.common_reference_type = COMMON_REFERENCE_TYPE
-        self.curation_query = CURATION_QUERY
 
-        # probe-scoped parameters
-        d = PROBE_DEFAULTS[probe_type]
-        _rec_override = parse_recording_index(recording)
-        self.recording_index = (d['recording_index'] if _rec_override is None
-                                else _rec_override)
-        self.highpass_freq_min = d['highpass_freq_min']
-        self.use_phase_shift = d['use_phase_shift']
-        self.sparse = d['sparse']
-        self.expected_n_channels = d['expected_n_channels']
+        # CLI-backed args: CLI kwarg > meta_neural > default.
+        self.nwb_units = resolve_meta_arg(nwb_units, meta, 'nwb_units', 'noise_excluded')
+        self.sorter_name = resolve_meta_arg(sorter, meta, 'sorter', SORTER_NAME)
+        _rec = parse_recording_index(resolve_meta_arg(recording, meta, 'recording', None))
+        self.recording_index = d['recording_index'] if _rec is None else _rec
 
-        # v-probe geometry / wiring
-        self.geometry = GEOMETRY
-        self.contact_pitch_um = CONTACT_PITCH_UM
-        self.horizontal_pitch_um = HORIZONTAL_PITCH_UM
-        self.contact_radius_um = CONTACT_RADIUS_UM
-        self.contact_channel_names = CONTACT_CHANNEL_NAMES
+        # Shared processing config: meta_neural > module default.
+        self.block_index = meta.get('block_index', BLOCK_INDEX)
+        self.common_reference_operator = meta.get('common_reference_operator',
+                                                  COMMON_REFERENCE_OPERATOR)
+        self.common_reference_type = meta.get('common_reference_type',
+                                              COMMON_REFERENCE_TYPE)
+        self.curation_query = meta.get('curation_query', CURATION_QUERY)
+
+        # probe-scoped parameters: meta_neural > PROBE_DEFAULTS.
+        self.highpass_freq_min = meta.get('highpass_freq_min', d['highpass_freq_min'])
+        self.use_phase_shift = meta.get('use_phase_shift', d['use_phase_shift'])
+        self.sparse = meta.get('sparse', d['sparse'])
+        self.expected_n_channels = meta.get('expected_n_channels', d['expected_n_channels'])
+
+        # v-probe geometry / wiring: meta_neural > module default.
+        self.geometry = meta.get('geometry', GEOMETRY)
+        self.contact_pitch_um = meta.get('contact_pitch_um', CONTACT_PITCH_UM)
+        self.horizontal_pitch_um = meta.get('horizontal_pitch_um', HORIZONTAL_PITCH_UM)
+        self.contact_radius_um = meta.get('contact_radius_um', CONTACT_RADIUS_UM)
+        self.contact_channel_names = meta.get('contact_channel_names', CONTACT_CHANNEL_NAMES)
 
         # paths
         self.rserv = os.path.join(server, session)

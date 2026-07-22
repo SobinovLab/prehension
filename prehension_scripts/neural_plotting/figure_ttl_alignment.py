@@ -41,9 +41,9 @@ if __name__ == "__main__":
                  "processed_server": current_preset["processed_server"]})
     cmd_args.add_default_arguments(parser, ("session",))
     parser.add_argument(
-        "--skip", type=int, default=0,
+        "--skip", type=int, default=None,
         help="Pulses to skip for alignment. If negative, that many trials are "
-             "skipped instead. Default: 0.")
+             "skipped instead. Default: from meta_neural.json 'skip_ttl' (then 0).")
     parser.add_argument(
         "--recording", type=str, default=None, metavar="N",
         help="Open Ephys recording within experiment1 to read, 1-based "

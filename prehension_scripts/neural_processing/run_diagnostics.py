@@ -40,8 +40,8 @@ if __name__ == "__main__":
                  "processed_server": current_preset["processed_server"]})
     cmd_args.add_default_arguments(parser, ("session", "temp", "processes"))
     parser.add_argument(
-        "--sorter", type=str, default="kilosort4",
-        help="SpikeInterface sorter name. Default: kilosort4.")
+        "--sorter", type=str, default=None,
+        help="SpikeInterface sorter name. Default: from meta_neural.json (then kilosort4).")
     parser.add_argument(
         "--all_units", action="store_true",
         help="Report on all units (full analyzer).")
