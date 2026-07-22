@@ -44,7 +44,7 @@ from . import export_nwb
 
 def run_necessary(server, processed_server, sessions, temp,
                   nwb_units='noise_excluded', sorter=config.SORTER_NAME,
-                  processes=config.N_JOBS, overwrite=False):
+                  processes=config.N_JOBS, overwrite=False, recording=None):
     """Run the necessary chain to produce neural.nwb for one or more sessions.
 
     Each step (preprocessing, spike sorting, NWB export) is skipped when its output already
@@ -64,6 +64,9 @@ def run_necessary(server, processed_server, sessions, temp,
         sorter {str} --- SpikeInterface sorter name.
         processes {int} --- Number of parallel jobs for SpikeInterface.
         overwrite {bool} --- Reprocess and overwrite sessions that already have neural.nwb.
+        recording {int|str} --- Open Ephys recording within experiment1 to process,
+            1-based (Recording1, Recording2, ...); None -> the probe default. Applies
+            to every session in this run.
     """
     tools.logs.setup_logging(temp, sessions_dir=server)
 
@@ -84,7 +87,8 @@ def run_necessary(server, processed_server, sessions, temp,
             continue
 
         cfg = config.NeuralConfig(server, processed_server, session, probe_type,
-                                  nwb_units=nwb_units, sorter=sorter, n_jobs=processes)
+                                  nwb_units=nwb_units, sorter=sorter, n_jobs=processes,
+                                  recording=recording)
 
         cfg.ensure_work_folder()
         rs('Session {} ({}) -> {}'.format(session, probe_type, cfg.work_folder))
@@ -124,7 +128,8 @@ def run_necessary(server, processed_server, sessions, temp,
 
 def run_diagnostics(server, processed_server, session, probe_type, temp,
                     all_units=False, curate=False, inspect=False,
-                    sorter=config.SORTER_NAME, processes=config.N_JOBS):
+                    sorter=config.SORTER_NAME, processes=config.N_JOBS,
+                    recording=None):
     """Run optional diagnostics + curation for one session.
 
     Arguments:
@@ -138,10 +143,12 @@ def run_diagnostics(server, processed_server, session, probe_type, temp,
         inspect {bool} --- Also run stream/event inspection first.
         sorter {str} --- SpikeInterface sorter name.
         processes {int} --- Number of parallel jobs for SpikeInterface.
+        recording {int|str} --- Open Ephys recording within experiment1 to process,
+            1-based (Recording1, Recording2, ...); None -> the probe default.
     """
     tools.logs.setup_logging(temp, sessions_dir=server)
     cfg = config.NeuralConfig(server, processed_server, session, probe_type,
-                              sorter=sorter, n_jobs=processes)
+                              sorter=sorter, n_jobs=processes, recording=recording)
     cfg.ensure_work_folder()
     rs('Diagnostics for session {} ({}).'.format(session, probe_type))
 

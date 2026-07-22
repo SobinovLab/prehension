@@ -44,6 +44,11 @@ if __name__ == "__main__":
         "--skip", type=int, default=0,
         help="Pulses to skip for alignment. If negative, that many trials are "
              "skipped instead. Default: 0.")
+    parser.add_argument(
+        "--recording", type=str, default=None, metavar="N",
+        help="Open Ephys recording within experiment1 to read, 1-based "
+             "(Recording1, Recording2, ...); accepts 2 or 'Recording2'. "
+             "Default: probe default (vprobe Recording1, neuropixels Recording2).")
 
     args = parser.parse_args(args=argv)
 
@@ -52,7 +57,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     plot_ttl_trial_alignment(args.server, args.processed_server, args.session,
-                             probe_type, skip=args.skip)
+                             probe_type, skip=args.skip, recording=args.recording)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

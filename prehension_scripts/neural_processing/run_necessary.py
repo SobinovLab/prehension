@@ -47,11 +47,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sorter", type=str, default="kilosort4",
         help="SpikeInterface sorter name. Default: kilosort4.")
+    parser.add_argument(
+        "--recording", type=str, default=None, metavar="N",
+        help="Open Ephys recording within experiment1 to process, 1-based "
+             "(Recording1, Recording2, ...); accepts 2 or 'Recording2'. "
+             "Default: probe default (vprobe Recording1, neuropixels Recording2).")
 
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
     run_necessary(args.server, args.processed_server, args.sessions,
                   args.temp, nwb_units=args.nwb_units, sorter=args.sorter,
-                  processes=args.processes, overwrite=args.overwrite)
+                  processes=args.processes, overwrite=args.overwrite,
+                  recording=args.recording)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

@@ -167,6 +167,30 @@ def find_oe_folder(neural_dir):
     return candidates[-1] if candidates else neural_dir
 
 
+def parse_recording_index(recording):
+    """Convert a user recording spec to a 0-based segment index.
+
+    Open Ephys names the recordings within an experiment Recording1, Recording2,
+    ... (1-based).  Accepts that number as an int or string ('2', 'Recording2')
+    and returns the 0-based SpikeInterface segment index (Recording2 -> 1).
+    Returns None when recording is None so the caller keeps the probe default.
+    """
+    if recording is None:
+        return None
+    s = str(recording).strip().lower()
+    if s.startswith('recording'):
+        s = s[len('recording'):].strip()
+    try:
+        number = int(s)
+    except (TypeError, ValueError):
+        raise ValueError(
+            "Could not parse recording {!r}; use e.g. 1, 2 or 'Recording2'.".format(recording))
+    if number < 1:
+        raise ValueError(
+            'recording must be >= 1 (Open Ephys Recording1 is the first), got {}.'.format(number))
+    return number - 1
+
+
 class NeuralConfig():
     """Resolved configuration for processing a single session's neural data.
 
@@ -187,11 +211,15 @@ class NeuralConfig():
             None to require the TTL events to come from the sorted segment
             (recording_index); set explicitly only when the TTLs legitimately
             live in a different segment than the one being sorted.
+        recording {int|str} --- Which Open Ephys recording within experiment1
+            (block 0) to process, 1-based to match the Recording1/Recording2/...
+            folder names (accepts 2 or 'Recording2').  None -> the probe default
+            (vprobe Recording1, neuropixels Recording2).
     """
     def __init__(self, server, processed_server, session, probe_type,
                  nwb_units='noise_excluded', sorter=SORTER_NAME, n_jobs=N_JOBS,
                  stream_id=None, stream_name=None, ttl_event_channel=None,
-                 ttl_event_segment=None):
+                 ttl_event_segment=None, recording=None):
         if probe_type not in PROBE_DEFAULTS:
             raise ValueError('Unknown probe_type {!r} (expected {}).'.format(
                 probe_type, list(PROBE_DEFAULTS)))
@@ -215,7 +243,9 @@ class NeuralConfig():
 
         # probe-scoped parameters
         d = PROBE_DEFAULTS[probe_type]
-        self.recording_index = d['recording_index']
+        _rec_override = parse_recording_index(recording)
+        self.recording_index = (d['recording_index'] if _rec_override is None
+                                else _rec_override)
         self.highpass_freq_min = d['highpass_freq_min']
         self.use_phase_shift = d['use_phase_shift']
         self.sparse = d['sparse']

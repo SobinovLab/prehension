@@ -52,8 +52,14 @@ if __name__ == "__main__":
         help="Object property to colour-code by. Default: targetForce(N).")
     parser.add_argument(
         "--skip_ttl", type=int, default=0, metavar="N",
-        help="Drop the first N TTL pulses before pairing pulse i to trial i "
-             "(spurious leading sync/setup pulses). Default: 0.")
+        help="Positional pulse<->trial alignment offset. Positive N drops the "
+             "first N TTL pulses; negative N drops the first |N| behavioural "
+             "trials. Default: 0.")
+    parser.add_argument(
+        "--recording", type=str, default=None, metavar="N",
+        help="Open Ephys recording within experiment1, 1-based (Recording1, "
+             "Recording2, ...); accepts 2 or 'Recording2'. The NWB is per-session "
+             "so this does not change what is read. Default: probe default.")
 
     args = parser.parse_args(args=argv)
 
@@ -64,7 +70,7 @@ if __name__ == "__main__":
     plot_perievent_histograms(
         args.server, args.processed_server, args.session, probe_type,
         neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column,
-        skip_ttl=args.skip_ttl)
+        skip_ttl=args.skip_ttl, recording=args.recording)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

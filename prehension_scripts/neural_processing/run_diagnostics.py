@@ -51,6 +51,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--inspect", action="store_true",
         help="Also run stream/event inspection first.")
+    parser.add_argument(
+        "--recording", type=str, default=None, metavar="N",
+        help="Open Ephys recording within experiment1 to process, 1-based "
+             "(Recording1, Recording2, ...); accepts 2 or 'Recording2'. "
+             "Default: probe default (vprobe Recording1, neuropixels Recording2).")
 
     args = parser.parse_args(args=argv)
 
@@ -60,5 +65,6 @@ if __name__ == "__main__":
     start_time = time.time()
     run_diagnostics(args.server, args.processed_server, args.session, probe_type,
                     args.temp, all_units=args.all_units, curate=args.curate,
-                    inspect=args.inspect, sorter=args.sorter, processes=args.processes)
+                    inspect=args.inspect, sorter=args.sorter, processes=args.processes,
+                    recording=args.recording)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

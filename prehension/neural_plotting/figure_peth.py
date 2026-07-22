@@ -253,7 +253,7 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               neuron_ids=None, align_timepoint=ALIGN_TIMEPOINT,
                               group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
-                              skip_ttl=0):
+                              skip_ttl=0, recording=None):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -266,11 +266,18 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         group_column {str} --- Object property to colour-code by.
         before, after {float} --- Window (s) around the alignment timepoint.
         bin_width, filter_sigma {float} --- Binning and smoothing (s).
-        skip_ttl {int} --- Drop this many leading TTL pulses before pairing pulse
-            i to trial i (for spurious sync/setup pulses recorded before the first
-            behavioural trial). Default 0.
+        skip_ttl {int} --- Alignment offset for the positional pulse<->trial
+            pairing. Positive: drop this many leading TTL pulses (spurious
+            sync/setup pulses before the first trial) so pulse skip_ttl pairs to
+            trial 0. Negative: drop this many leading behavioural trials so pulse 0
+            pairs to trial |skip_ttl|. Default 0.
+        recording {int|str} --- Open Ephys recording within experiment1, 1-based
+            (Recording1, Recording2, ...), passed to NeuralConfig. The NWB is
+            per-session, so this does not change what is read; kept for a uniform
+            interface with the processing pipeline. None -> probe default.
     """
-    cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type)
+    cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
+                                recording=recording)
 
     # behavioural meta
     mstruct, _, mobject, msession = meta_session.load_meta_information(
@@ -282,15 +289,24 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     # msession MUST be in recording (chronological) order - which create_meta now guarantees,
     # including for duplicate-recording trials. With duplicates preserved, the counts should match.
     spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
-    if skip_ttl:
-        if skip_ttl < 0:
-            raise ValueError('skip_ttl must be >= 0, got {}.'.format(skip_ttl))
+    if skip_ttl > 0:
+        # drop leading TTL pulses: pulse skip_ttl pairs to trial 0
         if skip_ttl >= len(events_time):
             raise ValueError('skip_ttl={} but only {} TTL pulse(s) available.'.format(
                 skip_ttl, len(events_time)))
         rs('Skipping the first {} TTL pulse(s): {} -> {}.'.format(
             skip_ttl, len(events_time), len(events_time) - skip_ttl))
         events_time = events_time[skip_ttl:]
+    elif skip_ttl < 0:
+        # drop leading behavioural trials: pulse 0 pairs to trial |skip_ttl|
+        n_drop = -skip_ttl
+        if n_drop >= len(msession):
+            raise ValueError(
+                'skip_ttl={} but only {} behavioural trial(s) available.'.format(
+                    skip_ttl, len(msession)))
+        rs('Skipping the first {} behavioural trial(s): {} -> {}.'.format(
+            n_drop, len(msession), len(msession) - n_drop))
+        msession = msession[n_drop:]
     if len(events_time) != len(msession):
         raise ValueError(
             '{} TTL pulses but {} behavioural trials. Pulses are matched to trials strictly by '

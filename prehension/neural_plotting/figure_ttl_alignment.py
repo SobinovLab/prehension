@@ -39,6 +39,9 @@ from ..neural_processing import ttl_sync
 # target number of index labels per subplot (kept readable on long sessions)
 MAX_LABELS = 40
 
+# max gap for a trial start to count as having a matching rising TTL pulse
+TTL_MATCH_TOL_S = 0.010  # 10 ms
+
 
 # ---------------------------------------------------------------------------
 # Data
@@ -115,7 +118,7 @@ def _plot_track(ax, starts, stops, indices, ylabel, up_label, down_label):
     ax.plot(starts, np.ones_like(starts), '|', color='tab:green', markersize=10,
             label=up_label)
     finite_stops = stops[np.isfinite(stops)]
-    ax.plot(finite_stops, np.zeros_like(finite_stops), '|', color='tab:red',
+    ax.plot(finite_stops, np.zeros_like(finite_stops), '|', color='tab:cyan',
             markersize=10, label=down_label)
     ax.axvline(0.0, color='tab:blue', linestyle='--', linewidth=0.8)
     ax.set_ylim(-0.2, 1.4)
@@ -131,10 +134,31 @@ def _plot_track(ax, starts, stops, indices, ylabel, up_label, down_label):
                         va='bottom', fontsize=7, color='tab:green', rotation=90)
 
 
+def _missing_pulse_mask(trial_starts, rising, tol=TTL_MATCH_TOL_S):
+    """Boolean mask over trial_starts: True where no rising TTL is within tol (s).
+
+    Both inputs are in the aligned time frame (see plot_ttl_trial_alignment), so a
+    True entry marks a trial start that has no corresponding TTL pulse.
+    """
+    trial_starts = np.asarray(trial_starts, dtype=float)
+    rising = np.sort(np.asarray(rising, dtype=float))
+    if trial_starts.size == 0:
+        return np.zeros(0, dtype=bool)
+    if rising.size == 0:
+        return np.ones(trial_starts.size, dtype=bool)
+    idx = np.searchsorted(rising, trial_starts)
+    idx_hi = np.clip(idx, 0, len(rising) - 1)
+    idx_lo = np.clip(idx - 1, 0, len(rising) - 1)
+    nearest = np.minimum(np.abs(rising[idx_hi] - trial_starts),
+                         np.abs(rising[idx_lo] - trial_starts))
+    return nearest > tol
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=0):
+def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=0,
+                             recording=None):
     """Plot TTL pulses over trial windows, aligned by the first pulse-trial.
 
     Arguments:
@@ -145,8 +169,12 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
         skip {int} --- Pulses to skip for alignment; if negative, that many trials
             are skipped instead.  The reference (t=0) becomes rising[skip] and
             trial_start[0] (skip >= 0) or rising[0] and trial_start[-skip] (skip < 0).
+        recording {int|str} --- Open Ephys recording within experiment1 to read,
+            1-based (Recording1, Recording2, ...); selects which recording's TTL
+            events are read. None -> probe default.
     """
-    cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type)
+    cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
+                                recording=recording)
     cfg.ensure_work_folder()
 
     # neural TTL edges (times only; no recording load needed)
@@ -202,6 +230,24 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
                     for i in trial_idx]
     _plot_track(ax2, start_a, end_a, trial_labels, 'trials', 'trial start', 'trial end')
     ax2.set_xlabel('time from alignment (s)')
+
+    # Missing-pulse check: trial starts with no rising TTL within TTL_MATCH_TOL_S,
+    # marked with a red vertical line in both subplots.
+    missing = _missing_pulse_mask(start_a, rising_a)
+    n_missing = int(np.count_nonzero(missing))
+    if n_missing:
+        missing_labels = [trial_labels[k] for k in np.flatnonzero(missing)]
+        ws('{} trial start(s) with no TTL pulse within {:.0f} ms: {}'.format(
+            n_missing, TTL_MATCH_TOL_S * 1000, missing_labels))
+        for j, x in enumerate(start_a[missing]):
+            lbl = 'missing pulse' if j == 0 else None
+            ax1.axvline(x, color='red', linewidth=1.2, alpha=0.8, label=lbl)
+            ax2.axvline(x, color='red', linewidth=1.2, alpha=0.8, label=lbl)
+        ax1.legend(loc='upper right', fontsize=8)
+        ax2.legend(loc='upper right', fontsize=8)
+    else:
+        rs('All {} trial start(s) have a TTL pulse within {:.0f} ms.'.format(
+            len(start_a), TTL_MATCH_TOL_S * 1000))
 
     fig.tight_layout()
     out = os.path.join(cfg.work_folder, 'ttl_trial_alignment.png')
