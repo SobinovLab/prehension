@@ -96,6 +96,7 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
             neuron_ids = None
 
         skip_ttl = npconfig.resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl', 0)
+        skip_ttl_last = npconfig.resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl_last', 0)
 
         try:
             mstruct, _, mobject, msession = meta_session.load_meta_information(
@@ -106,15 +107,20 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
             ws('Skipping session {}: {}'.format(session, e))
             continue
 
-        # positional pulse<->trial offset: >0 drops leading pulses, <0 drops leading trials
+        # positional pulse<->trial offset: skip_ttl >0 drops leading pulses, <0 drops
+        # leading trials; skip_ttl_last trims the end (pulses if >0, trials if <0).
         if skip_ttl and skip_ttl > 0:
             events_time = events_time[skip_ttl:]
         elif skip_ttl and skip_ttl < 0:
             msession = msession[-skip_ttl:]
+        if skip_ttl_last and skip_ttl_last > 0:
+            events_time = events_time[:-skip_ttl_last]
+        elif skip_ttl_last and skip_ttl_last < 0:
+            msession = msession[:skip_ttl_last]
         if len(events_time) != len(msession):
-            ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}); '
-               'inspect with figure_ttl_alignment.'.format(
-                   session, len(events_time), len(msession), skip_ttl))
+            ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}, '
+               'skip_ttl_last={}); inspect with figure_ttl_alignment.'.format(
+                   session, len(events_time), len(msession), skip_ttl, skip_ttl_last))
             continue
 
         session_spikes = get_trial_data_spike(spikes, events_time)
@@ -221,7 +227,7 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
                                      align_timepoint=ALIGN_TIMEPOINT,
                                      group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                                      bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
-                                     only_good=False, save_dir=None):
+                                     only_good=False, min_rate=None, save_dir=None):
     """Pool the selected neurons across `sessions` and plot them on one figure.
 
     Arguments mirror figure_peth.plot_perievent_histograms except there is no
@@ -235,6 +241,14 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
         filter_sigma=filter_sigma, only_good=only_good)
     if not entries:
         raise ValueError('No neurons pooled from the requested sessions {}.'.format(sessions))
+    if min_rate is not None:
+        n0 = len(entries)
+        entries = [e for e in entries if float(np.mean(e['frs_avg'])) > min_rate]
+        rs('Activity filter: kept {} / {} pooled neuron(s) with mean rate > {} Hz.'.format(
+            len(entries), n0, min_rate))
+        if not entries:
+            raise ValueError(
+                'No pooled neurons exceed the {} Hz activity threshold.'.format(min_rate))
     rs('Plotting {} pooled neuron(s).'.format(len(entries)))
     return plot_pooled(entries, bin_centers, max_force, group_column, align_timepoint,
                        processed_server if save_dir is None else save_dir)

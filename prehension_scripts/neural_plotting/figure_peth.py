@@ -62,6 +62,11 @@ if __name__ == "__main__":
              "first N TTL pulses; negative N drops the first |N| behavioural "
              "trials. Default: from meta_neural.json (then 0).")
     parser.add_argument(
+        "--skip_ttl_last", type=int, default=None, metavar="N",
+        help="Like --skip_ttl but trimming the end: positive N drops the last N "
+             "TTL pulses; negative N drops the last |N| trials. Default: from "
+             "meta_neural.json (then 0).")
+    parser.add_argument(
         "--recording", type=str, default=None, metavar="N",
         help="Open Ephys recording within experiment1, 1-based (Recording1, "
              "Recording2, ...); accepts 2 or 'Recording2'. The NWB is per-session "
@@ -70,6 +75,10 @@ if __name__ == "__main__":
         "--only_good", action="store_true",
         help="Plot only the unit ids listed in meta_neural.json 'good_neurons' "
              "(ignored if --units is given).")
+    parser.add_argument(
+        "--min_rate", type=float, default=None, metavar="HZ",
+        help="Optional threshold: drop units with mean rate at or below this (Hz). "
+             "Default: from meta_neural.json 'min_rate' if present, else no filter.")
 
     args = parser.parse_args(args=argv)
 
@@ -81,7 +90,8 @@ if __name__ == "__main__":
         args.server, args.processed_server, args.session, probe_type,
         neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after,
-        skip_ttl=args.skip_ttl, recording=args.recording, only_good=args.only_good)
+        skip_ttl=args.skip_ttl, skip_ttl_last=args.skip_ttl_last,
+        recording=args.recording, only_good=args.only_good, min_rate=args.min_rate)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

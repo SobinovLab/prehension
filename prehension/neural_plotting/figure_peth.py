@@ -154,6 +154,28 @@ def resolve_neuron_selection(unit_ids, neuron_ids):
 # ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
+def _filter_by_rate(msession, neuron_selection, neuron_labels, align_key, before, after,
+                    min_rate):
+    """Keep neurons whose mean firing rate over the aligned window exceeds min_rate Hz."""
+    trials = [(t, get_timepoint(t, align_key)) for t in msession]
+    trials = [(t, tp) for t, tp in trials if tp is not None]
+    dur = float(before + after)
+    keep_sel, keep_lab = [], []
+    for sel, lab in zip(neuron_selection, neuron_labels):
+        rates = []
+        for t, tp in trials:
+            s = np.asarray(t.spikes[sel])
+            rates.append(np.sum((s > tp - before) & (s < tp + after)) / dur)
+        if rates and float(np.mean(rates)) > min_rate:
+            keep_sel.append(sel)
+            keep_lab.append(lab)
+    rs('Activity filter: kept {} / {} unit(s) with mean rate > {} Hz.'.format(
+        len(keep_sel), len(neuron_selection), min_rate))
+    if not keep_sel:
+        raise ValueError('No units exceed the {} Hz activity threshold.'.format(min_rate))
+    return keep_sel, keep_lab
+
+
 def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
                group_column, before, after, bin_width, filter_sigma, save_dir,
                individual_traces=False):
@@ -253,7 +275,8 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               neuron_ids=None, align_timepoint=ALIGN_TIMEPOINT,
                               group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
-                              skip_ttl=None, recording=None, only_good=False):
+                              skip_ttl=None, skip_ttl_last=None, recording=None,
+                              only_good=False, min_rate=None):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -264,6 +287,9 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         neuron_ids {list} --- Unit ids to plot; None/empty -> all units.
         only_good {bool} --- When True and neuron_ids is empty, plot the unit ids
             listed in meta_neural.json 'good_neurons'.
+        min_rate {float} --- Optional average-activity threshold (Hz): drop units
+            whose mean firing rate over the aligned window is at or below this.
+            None (default) -> meta_neural.json 'min_rate' if present, else no filter.
         align_timepoint {str} --- Trial timepoint to align to.
         group_column {str} --- Object property to colour-code by.
         before, after {float} --- Window (s) around the alignment timepoint.
@@ -273,6 +299,9 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             sync/setup pulses before the first trial) so pulse skip_ttl pairs to
             trial 0. Negative: drop this many leading behavioural trials so pulse 0
             pairs to trial |skip_ttl|. None -> meta_neural.json 'skip_ttl' then 0.
+        skip_ttl_last {int} --- Like skip_ttl but trimming the END: positive drops
+            this many trailing TTL pulses, negative drops this many trailing
+            behavioural trials. None -> meta_neural.json 'skip_ttl_last' then 0.
         recording {int|str} --- Open Ephys recording within experiment1, 1-based
             (Recording1, Recording2, ...), passed to NeuralConfig. The NWB is
             per-session, so this does not change what is read; kept for a uniform
@@ -280,8 +309,11 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     """
     cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
                                 recording=recording)
-    # skip_ttl: CLI kwarg > meta_neural.json 'skip_ttl' > 0
+    # skip_ttl / skip_ttl_last: CLI kwarg > meta_neural.json > 0
     skip_ttl = npconfig.resolve_meta_arg(skip_ttl, cfg.meta_neural, 'skip_ttl', 0)
+    skip_ttl_last = npconfig.resolve_meta_arg(
+        skip_ttl_last, cfg.meta_neural, 'skip_ttl_last', 0)
+    min_rate = npconfig.resolve_meta_arg(min_rate, cfg.meta_neural, 'min_rate', None)
 
     # --only_good: restrict to the good_neurons listed in meta_neural.json
     if only_good and not neuron_ids:
@@ -321,6 +353,24 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         rs('Skipping the first {} behavioural trial(s): {} -> {}.'.format(
             n_drop, len(msession), len(msession) - n_drop))
         msession = msession[n_drop:]
+    if skip_ttl_last > 0:
+        # drop trailing TTL pulses
+        if skip_ttl_last >= len(events_time):
+            raise ValueError('skip_ttl_last={} but only {} TTL pulse(s) available.'.format(
+                skip_ttl_last, len(events_time)))
+        rs('Skipping the last {} TTL pulse(s): {} -> {}.'.format(
+            skip_ttl_last, len(events_time), len(events_time) - skip_ttl_last))
+        events_time = events_time[:-skip_ttl_last]
+    elif skip_ttl_last < 0:
+        # drop trailing behavioural trials
+        n_drop = -skip_ttl_last
+        if n_drop >= len(msession):
+            raise ValueError(
+                'skip_ttl_last={} but only {} behavioural trial(s) available.'.format(
+                    skip_ttl_last, len(msession)))
+        rs('Skipping the last {} behavioural trial(s): {} -> {}.'.format(
+            n_drop, len(msession), len(msession) - n_drop))
+        msession = msession[:skip_ttl_last]
     if len(events_time) != len(msession):
         raise ValueError(
             '{} TTL pulses but {} behavioural trials. Pulses are matched to trials strictly by '
@@ -344,6 +394,9 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                 if t.success and hasattr(t, 'spikes')]
 
     neuron_selection, neuron_labels = resolve_neuron_selection(unit_ids, neuron_ids)
+    if min_rate is not None:
+        neuron_selection, neuron_labels = _filter_by_rate(
+            msession, neuron_selection, neuron_labels, align_timepoint, before, after, min_rate)
     rs('Plotting {} unit(s): {}'.format(len(neuron_selection), neuron_labels))
 
     _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_timepoint,

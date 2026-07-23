@@ -220,6 +220,7 @@ def default_meta_neural(probe_type):
         'good_neurons': [],   # unit ids to plot when figure_peth is run with --only_good
         'recording': d['recording_index'] + 1,   # 1-based Open Ephys recording number
         'skip_ttl': 0,
+        'skip_ttl_last': 0,
         'sorter': SORTER_NAME,
         'nwb_units': 'noise_excluded',
         'block_index': BLOCK_INDEX,

@@ -61,6 +61,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--only_good", action="store_true",
         help="Plot only each session's meta_neural.json 'good_neurons' (else all units).")
+    parser.add_argument(
+        "--min_rate", type=float, default=None, metavar="HZ",
+        help="Optional threshold: drop pooled neurons with mean rate at or below "
+             "this (Hz). Default: no filter.")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
@@ -69,7 +73,8 @@ if __name__ == "__main__":
     plot_perievent_histograms_pooled(
         args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
-        before=args.before, after=args.after, only_good=args.only_good)
+        before=args.before, after=args.after, only_good=args.only_good,
+        min_rate=args.min_rate)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()
