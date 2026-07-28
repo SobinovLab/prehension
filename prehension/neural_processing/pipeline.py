@@ -42,6 +42,10 @@ from . import export_phy
 from . import export_nwb
 
 
+# Ordered keys of the steps run by run_necessary; used to validate/select --steps.
+NECESSARY_STEPS = ('preprocessing', 'spike_sorting', 'export_nwb')
+
+
 def create_meta_neural(server, processed_server, sessions, temp):
     """Create per-session meta_neural.json (run before run_necessary).
 
@@ -91,7 +95,8 @@ def create_meta_neural(server, processed_server, sessions, temp):
 
 def run_necessary(server, processed_server, sessions, temp,
                   nwb_units=None, sorter=None,
-                  processes=config.N_JOBS, overwrite=False, recording=None):
+                  processes=config.N_JOBS, overwrite=False, recording=None,
+                  steps=None):
     """Run the necessary chain to produce neural.nwb for one or more sessions.
 
     Each step (preprocessing, spike sorting, NWB export) is skipped when its output already
@@ -114,7 +119,22 @@ def run_necessary(server, processed_server, sessions, temp,
         recording {int|str} --- Open Ephys recording within experiment1 to process,
             1-based (Recording1, Recording2, ...); None -> the probe default. Applies
             to every session in this run.
+        steps {list[str]} --- Subset of NECESSARY_STEPS ('preprocessing', 'spike_sorting',
+            'export_nwb') to run; None or empty runs all of them. Steps always execute in
+            pipeline order regardless of the order given here. Note that later steps read
+            prior steps' outputs from disk, so running one in isolation requires the earlier
+            steps' outputs to already exist.
     """
+    if steps:
+        unknown = [s for s in steps if s not in NECESSARY_STEPS]
+        if unknown:
+            raise ValueError(
+                'Unknown step(s) {}; valid steps are {}.'.format(
+                    ', '.join(unknown), ', '.join(NECESSARY_STEPS)))
+        selected_steps = [s for s in NECESSARY_STEPS if s in steps]
+    else:
+        selected_steps = list(NECESSARY_STEPS)
+
     tools.logs.setup_logging(temp, sessions_dir=server)
 
     if sessions:
@@ -144,17 +164,30 @@ def run_necessary(server, processed_server, sessions, temp,
         # partially-processed session resume from where it stopped. Later steps read prior outputs
         # from disk (see config.load_preprocessed / load_sorting), so reusing them is safe.
         sub = cfg.subfolders()
-        steps = [
-            ('preprocessing', sub['preprocessed'],
-             lambda: preprocessing.preprocess_recording(cfg)),   # load + preprocess (probe-specific)
-            ('spike sorting', sub['sorter'],
-             lambda: spike_sorting.run_spike_sorting(cfg)),
-            ('NWB export', cfg.nwb_path,
-             lambda: export_nwb.export_nwb(cfg)),
-        ]
+        step_defs = {
+            'preprocessing': ('preprocessing', sub['preprocessed'],
+                              lambda: preprocessing.preprocess_recording(cfg)),   # load + preprocess (probe-specific)
+            'spike_sorting': ('spike sorting', sub['sorter'],
+                              lambda: spike_sorting.run_spike_sorting(cfg)),
+            'export_nwb': ('NWB export', cfg.nwb_path,
+                           lambda: export_nwb.export_nwb(cfg)),
+        }
 
         try:
-            for step_name, output_path, step_fn in steps:
+            for step_key in selected_steps:
+                step_name, output_path, step_fn = step_defs[step_key]
+                # when the previous step is not run in this invocation, its output must
+                # already exist on disk (this step reads it); fail early if it is missing.
+                step_idx = NECESSARY_STEPS.index(step_key)
+                if step_idx > 0:
+                    prev_key = NECESSARY_STEPS[step_idx - 1]
+                    if prev_key not in selected_steps:
+                        prev_name, prev_output, _ = step_defs[prev_key]
+                        if not os.path.exists(prev_output):
+                            raise RuntimeError(
+                                '{} requires the output of the previous step, {} ({}), '
+                                'which does not exist; run that step first.'.format(
+                                    step_name, prev_name, prev_output))
                 if not overwrite and os.path.exists(output_path):
                     rs('  {} already done ({}); skipping. Use --overwrite to redo.'.format(
                         step_name, output_path))

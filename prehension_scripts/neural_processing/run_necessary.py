@@ -4,6 +4,11 @@
 Run the necessary neural processing chain to produce neural.nwb for a session:
     load_recording -> preprocess_recording -> run_spike_sorting -> export_nwb.
 
+By default the whole chain runs. Pass one or more of --preprocessing,
+--spike_sorting, --export_nwb to run only those steps (they still execute in
+pipeline order). Steps run in isolation rely on earlier steps' outputs already
+existing on disk.
+
 Copyright (C) 2026 Anton Sobinov
 https://github.com/SobinovLab/prehension
 
@@ -52,6 +57,16 @@ if __name__ == "__main__":
         help="Open Ephys recording within experiment1 to process, 1-based "
              "(Recording1, Recording2, ...); accepts 2 or 'Recording2'. "
              "Default: probe default (vprobe Recording1, neuropixels Recording2).")
+    parser.add_argument(
+        "--preprocessing", dest="steps", action="append_const", const="preprocessing",
+        help="Run only the preprocessing step. Combine with other step flags to run "
+             "several; give none to run the whole chain.")
+    parser.add_argument(
+        "--spike_sorting", dest="steps", action="append_const", const="spike_sorting",
+        help="Run only the spike sorting step (see --preprocessing).")
+    parser.add_argument(
+        "--export_nwb", dest="steps", action="append_const", const="export_nwb",
+        help="Run only the NWB export step (see --preprocessing).")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
@@ -60,5 +75,5 @@ if __name__ == "__main__":
     run_necessary(args.server, args.processed_server, sessions,
                   args.temp, nwb_units=args.nwb_units, sorter=args.sorter,
                   processes=args.processes, overwrite=args.overwrite,
-                  recording=args.recording)
+                  recording=args.recording, steps=args.steps)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
