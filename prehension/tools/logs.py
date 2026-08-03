@@ -30,6 +30,9 @@ import datetime
 
 
 def logging_atexit_function(logging_filename, destination_path, start_time):
+    # destination_path is expected to be the 'logs' folder on the processed
+    # server (see setup_logging), so the log ends up next to the processed data
+    # rather than on the raw server.
     end_time = datetime.datetime.now()
     end_time_str = end_time.strftime('%Y.%m.%d-%H:%M:%S')
     time_passed_str = (end_time - start_time)
@@ -41,6 +44,9 @@ def logging_atexit_function(logging_filename, destination_path, start_time):
 def setup_logging(temp, sessions_dir=None):
     '''
     Log filename, all arguments, and time
+
+    sessions_dir should be the processed server (pserv) so that, on exit, the
+    log is copied into the 'logs' folder on the processed server.
     '''
     os.makedirs(temp, exist_ok=True)
     # Move creation of random hash to this function
@@ -60,7 +66,8 @@ def setup_logging(temp, sessions_dir=None):
         force=True)
     logging.info('')
 
-    # Define the cleanup action as upload to sessions_log dir
+    # Define the cleanup action as copying the log to the 'logs' dir on the
+    # processed server
     if sessions_dir is not None:
         destination_path = os.path.join(sessions_dir, 'logs')
         os.makedirs(destination_path, exist_ok=True)

@@ -68,7 +68,7 @@ CURATION_QUERY = (
 # Probe-scoped parameters read by the two versioned step functions.
 PROBE_DEFAULTS = {
     'neuropixels': {
-        'recording_index': 1,       # recording2
+        'recording_index': 0,       # recording1
         'highpass_freq_min': 400.0,
         'use_phase_shift': True,
         'sparse': True,             # sparse waveforms for high channel counts

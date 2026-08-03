@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     compare_digit_forces(
-        args.server, args.sessions, args.trials, args.temp, args.find_good,
+        current_preset, args.sessions, args.trials, args.temp, args.find_good,
         args.make_plots, args.find_good_n)
     print('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

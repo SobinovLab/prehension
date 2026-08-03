@@ -56,7 +56,7 @@ def analyze_videos(server, sessions, trials_sel, temp, overwrite,
         analyze {bool} --- Do not analyze videos using a DLC network.
         make_videos {bool} --- Make videos with the labelled markers.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

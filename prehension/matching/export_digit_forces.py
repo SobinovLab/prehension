@@ -168,25 +168,29 @@ def export_forces(trial, mstruct):
                         ['time'] + names, [filtered_times] + total_auto_force_traces.tolist())
 
 
-def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes):
+def export_digit_forces(preset, sessions, trials_sel, temp, overwrite, processes):
     """Compare manually-labeled to the automatically-labeled forces using sensor masks.
 
     Arguments:
-        server {str} --- Folder where the sessions are located.
+        preset {dict} --- Preset holding the raw ('default_server') and processed
+            ('processed_server') server locations.
         sessions {list of str} --- List of directories for processing. If empty, find all unprocessed directories.
         trials_sel {list of str} --- List of trials for processing. If empty, find all unprocessed trials.
         temp {str} --- Folder for local temporary storage.
         overwrite {bool} --- Overwrites the created files if they exist.
         processes {int} --- Number of parallel processes in the pool.
     """
-    tools.logs.setup_logging(temp, sessions_dir=server)
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
 
-    if not os.path.exists(server):
+    tools.logs.setup_logging(temp, sessions_dir=pserv)
+
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(sessions) == 0:
-        sessions = meta_session.find_session_dirs(server)
+        sessions = meta_session.find_session_dirs(rserv)
 
     if len(trials_sel) > 0 and len(sessions) > 1:
         ws('A subset of trials was selected, only the first session will be used.')
@@ -200,16 +204,17 @@ def export_digit_forces(server, sessions, trials_sel, temp, overwrite, processes
     for session in tqdm.tqdm(sessions, ncols=100, desc='Sessions'):
         print()
         rs('Processing session {}.'.format(session))
-        server_session = os.path.join(server, session)
+        raw_ss = os.path.join(rserv, session)
+        proc_ss = os.path.join(pserv, session)
 
-        if not os.path.exists(server_session):
+        if not os.path.exists(raw_ss):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
         # load session meta
         try:
             mstruct, _, mobject, msession = meta_session.load_meta_information(
-                server_session, check_manual_log=True)
+                raw_ss, proc_ss, check_manual_log=True)
         except Exception as e:
             ws('Could not load meta data from session {}, skipping.'.format(session))
             ws('Error message: {}'.format(e))

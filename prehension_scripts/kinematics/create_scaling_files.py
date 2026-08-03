@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
     create_scaling_files(
-        args.server, args.session, args.trial, args.temp,
+        current_preset, args.session, args.trial, args.temp,
         args.overwrite, args.period, args.transfer_position)
 
     rs('Program took {} s.'.format(time.time() - start_time))

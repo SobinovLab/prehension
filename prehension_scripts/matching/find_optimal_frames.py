@@ -21,7 +21,7 @@ if __name__ == '__main__':
     args = parser.parse_args(args=argv)
 
     start_time = time.time()
-    find_optimal_frames(args.server, args.sessions, args.trials, args.temp, args.processes, args.overwrite)
+    find_optimal_frames(current_preset, args.sessions, args.trials, args.temp, args.processes, args.overwrite)
 
     print('Program took {}.'.format(
         datetime.timedelta(seconds=time.time() - start_time)))

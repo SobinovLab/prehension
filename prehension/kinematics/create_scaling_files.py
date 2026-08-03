@@ -269,11 +269,12 @@ def transfer_position_to_model(trial, mstruct, mdof):
         trial.scaling_kinematic_filename, mstruct['opensim_model']))
 
 
-def create_scaling_files(server, session, trial_number, temp, overwrite, period, transfer_position):
+def create_scaling_files(preset, session, trial_number, temp, overwrite, period, transfer_position):
     """Create IK and SC files for scaling an OpenSim model.
 
     Arguments:
-        server {str} --- Folder where the sessions are located.
+        preset {dict} --- Preset holding the raw ('default_server') and processed
+            ('processed_server') server locations.
         session {str} --- Session directory to use.
         trial_number {int} --- Trial to do adjustment on.
         temp {str} --- Folder for local temporary storage.
@@ -282,23 +283,27 @@ def create_scaling_files(server, session, trial_number, temp, overwrite, period,
         transfer_position {bool} --- Transfer the joint angles that have resulted from IK into the model
             that is being scaled. Different mode of operation, does not generate scaling files.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    rserv = preset['default_server']
+    pserv = preset['processed_server']
 
-    if not os.path.exists(server):
+    logs.setup_logging(temp, sessions_dir=pserv)
+
+    if not os.path.exists(rserv):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
-            server))
+            rserv))
 
     if len(session) == 0:
-        session = meta_session.find_session_dirs(server)[0]
+        session = meta_session.find_session_dirs(rserv)[0]
 
     rs('Processing session {}.'.format(session))
-    server_session = os.path.join(server, session)
+    raw_ss = os.path.join(rserv, session)
+    proc_ss = os.path.join(pserv, session)
 
-    if not os.path.exists(server_session):
+    if not os.path.exists(raw_ss):
         ValueError('Session {} does not exist on the server.'.format(session))
 
     # load session meta
-    mstruct, mdof, _, msession = meta_session.load_meta_information(server_session)
+    mstruct, mdof, _, msession = meta_session.load_meta_information(raw_ss, proc_ss)
 
     # find trial
     trial = meta_session.find_trial(msession, trial_number)

@@ -66,7 +66,7 @@ def calibration(server, sessions, temp, overwrite, relocate, run_extrinsic_calib
         run_extrinsic_calibration {bool} --- Runs local extrinsic calibration in the session
             directory.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(
@@ -241,7 +241,7 @@ def run_triangulate(server, sessions, trials_sel, temp, processes, overwrite, th
         do_triangulate {bool} --- If specified, triangulation itself will be skipped,
             but the supporting files will be generated.
     """
-    logs.setup_logging(temp, sessions_dir=server)
+    logs.setup_logging(temp, sessions_dir=preset['processed_server'])
 
     if not os.path.exists(server):
         raise ValueError('Server directory {} does not exist or is inaccessible.'.format(

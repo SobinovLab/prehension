@@ -67,7 +67,7 @@ def create_meta_neural(server, processed_server, sessions, temp):
         sessions {list[str]} --- Session directory names; empty -> all sessions.
         temp {str} --- Folder for local temporary storage (logging).
     """
-    tools.logs.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=processed_server)
 
     if sessions:
         found_sessions = [s for s in sessions if os.path.isdir(os.path.join(server, s))]
@@ -161,7 +161,7 @@ def run_necessary(server, processed_server, sessions, temp,
     else:
         selected_steps = list(NECESSARY_STEPS)
 
-    tools.logs.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=processed_server)
 
     if sessions:
         found_sessions = [s for s in sessions if os.path.isdir(os.path.join(server, s))]
@@ -252,7 +252,7 @@ def run_diagnostics(server, processed_server, session, probe_type, temp,
         recording {int|str} --- Open Ephys recording within experiment1 to process,
             1-based (Recording1, Recording2, ...); None -> the probe default.
     """
-    tools.logs.setup_logging(temp, sessions_dir=server)
+    tools.logs.setup_logging(temp, sessions_dir=processed_server)
     cfg = config.NeuralConfig(server, processed_server, session, probe_type,
                               sorter=sorter, n_jobs=processes, recording=recording)
     cfg.ensure_work_folder()
