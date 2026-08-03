@@ -148,34 +148,57 @@ def _add_electrodes(nwbfile, cfg, rec):
         ws('Skipping electrodes table (schema mismatch): {}'.format(e))
 
 
-def _read_oe_ttl_windows(cfg, fs):
-    """Per-trial TTL [start, stop] windows read directly from the Open Ephys events.
+def _read_oe_ttl_windows_source(scfg, fs, concat_offset_samples=0):
+    """TTL [start, stop] windows for one source, on the (joint) spike timebase.
 
-    Identical to neural_plotting.figure_peth2.read_oe_event: consecutive events are
-    paired into [start, stop] windows, zeroed to the sorted recording's first
-    sample (sample_offset) so they share the spike timebase.  probe_type
+    Consecutive events are paired into [start, stop] windows, zeroed to that
+    source's first sample, then shifted by concat_offset_samples/fs to place them
+    on the concatenated timebase (0 for the single-recording path).  probe_type
     'neuropixels' reads the 'ProbeA-AP' event stream via sample_number; 'vprobe'
-    reads all events via their timestamps.  Returns (starts, stops) arrays (s).
+    reads all events via their timestamps.  Returns (starts, stops) lists (s).
     """
     from open_ephys.analysis import Session
 
-    probe = 'np' if cfg.probe_type == 'neuropixels' else 'v'
-    session = Session(str(cfg.oe_folder))
-    recording = session.recordnodes[0].recordings[cfg.recording_index]
+    probe = 'np' if scfg.probe_type == 'neuropixels' else 'v'
+    session = Session(str(scfg.oe_folder))
+    recording = config.oe_recording(session, scfg.block_index, scfg.recording_index)
     events = recording.events
-    sample_offset = recording.continuous[0].sample_numbers[0]
-    time_offset = sample_offset / fs
+    first_sample = recording.continuous[0].sample_numbers[0]
+    time_offset = first_sample / fs
+    shift = concat_offset_samples / fs
 
     starts, stops = [], []
     if probe == 'np':
         events_ap = events[events.stream_name == 'ProbeA-AP']
         for i in range(0, len(events_ap) - 1, 2):
-            starts.append((events_ap.iloc[i]['sample_number'] - sample_offset) / fs)
-            stops.append((events_ap.iloc[i + 1]['sample_number'] - sample_offset) / fs)
+            starts.append((events_ap.iloc[i]['sample_number'] - first_sample) / fs + shift)
+            stops.append((events_ap.iloc[i + 1]['sample_number'] - first_sample) / fs + shift)
     else:
         for i in range(0, len(events) - 1, 2):
-            starts.append(events.iloc[i]['timestamp'] - time_offset)
-            stops.append(events.iloc[i + 1]['timestamp'] - time_offset)
+            starts.append(events.iloc[i]['timestamp'] - time_offset + shift)
+            stops.append(events.iloc[i + 1]['timestamp'] - time_offset + shift)
+    return starts, stops
+
+
+def _read_oe_ttl_windows(cfg, fs):
+    """Per-trial TTL [start, stop] windows read directly from the Open Ephys events.
+
+    Identical to neural_plotting.figure_peth2.read_oe_event for a single recording.
+    When cfg spans several merge sources, each source's windows are zeroed to its
+    own start and shifted by its cumulative sample offset (config.merge_timeline),
+    so pulses from later recordings continue past the earlier ones on the same
+    timebase as the concatenated spikes.  Windows are appended in source order.
+    Returns (starts, stops) arrays (s).
+    """
+    if not getattr(cfg, 'is_merged', False):
+        starts, stops = _read_oe_ttl_windows_source(cfg, fs)
+    else:
+        starts, stops = [], []
+        sources = config.resolve_recording_sources(cfg)
+        for scfg, entry in zip(sources, config.merge_timeline(cfg)):
+            s, e = _read_oe_ttl_windows_source(scfg, fs, entry['sample_offset'])
+            starts.extend(s)
+            stops.extend(e)
 
     starts = np.asarray(starts, dtype=float)
     stops = np.maximum(np.asarray(stops, dtype=float), starts)

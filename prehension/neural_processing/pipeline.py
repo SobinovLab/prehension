@@ -55,6 +55,12 @@ def create_meta_neural(server, processed_server, sessions, temp):
     neural data are skipped.  Edit region/burr_hole/depth_um/recording/etc. in the
     file before running run_necessary; the neural steps read their defaults from it.
 
+    The neural/ folder is scanned for Open Ephys recordings: when more than one is
+    found, merge_recordings is pre-populated with all of them (concatenated for a
+    joint sort by run_necessary); when exactly one is found, merge_recordings is
+    left empty and the single recording is printed.  Review/reorder the populated
+    list before running run_necessary -- list order is the concatenation order.
+
     Arguments:
         server {str} --- Folder where the raw sessions are located.
         processed_server {str} --- Folder where the processed data is located.
@@ -89,7 +95,27 @@ def create_meta_neural(server, processed_server, sessions, temp):
         if os.path.exists(path):
             rs('  {}: meta_neural.json already exists; leaving it unchanged.'.format(session))
             continue
-        config.save_json(config.default_meta_neural(probe_type), path)
+
+        meta = config.default_meta_neural(probe_type)
+
+        # Enumerate every recording under neural/.  More than one -> populate
+        # merge_recordings so they are concatenated for a joint sort; exactly one ->
+        # leave merge_recordings empty (single-recording path) but report it.
+        recordings = config.enumerate_recordings(raw_neural_dir)
+        if len(recordings) > 1:
+            meta['merge_recordings'] = recordings
+            rs('  {}: found {} recordings; populated merge_recordings:'.format(
+                session, len(recordings)))
+            for r in recordings:
+                rs('      {}'.format(config.describe_recording(r)))
+        elif len(recordings) == 1:
+            rs('  {}: single recording found ({}); merge_recordings left empty.'.format(
+                session, config.describe_recording(recordings[0])))
+        else:
+            ws('  {}: no recordings enumerated under {}; merge_recordings left empty.'.format(
+                session, raw_neural_dir))
+
+        config.save_json(meta, path)
         rs('  {}: wrote {}'.format(session, path))
 
 

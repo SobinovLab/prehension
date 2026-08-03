@@ -126,8 +126,42 @@ def sorted_segment_first_sample(cfg):
     """
     from open_ephys.analysis import Session
     session = Session(str(cfg.oe_folder))
-    rec = session.recordnodes[0].recordings[cfg.recording_index]
+    rec = config.oe_recording(session, cfg.block_index, cfg.recording_index)
     return int(rec.continuous[0].sample_numbers[0])
+
+
+def _shift(arr, delta):
+    """arr + delta as a float array, or None when arr is None."""
+    if arr is None:
+        return None
+    return np.asarray(arr, dtype=float) + delta
+
+
+def _concat(arrays):
+    """Concatenate the non-None arrays; None if there are none."""
+    present = [np.asarray(a, dtype=float) for a in arrays if a is not None]
+    if not present:
+        return None
+    return np.concatenate(present)
+
+
+def _extract_edge_times_source(scfg, verbose=False):
+    """Read one source's TTL rising/falling edges (raw acquisition-clock times).
+
+    Returns the same dict shape as extract_ttl_edge_times for a single recording.
+    """
+    events = config.load_events(scfg)
+    ttl_ch = config.resolve_ttl_channel(scfg, events)
+    ttl_segment = _resolve_ttl_segment(scfg, events, ttl_ch, verbose=verbose)
+    if verbose:
+        print('TTL channel={}; segment_index={}'.format(ttl_ch, ttl_segment))
+
+    ev = events.get_events(channel_id=ttl_ch, segment_index=ttl_segment)
+    rising_s, falling_s, rising_si, falling_si = _extract_edges(ev)
+    return dict(channel=str(ttl_ch), segment=int(ttl_segment),
+                rising_times_s=rising_s, falling_times_s=falling_s,
+                rising_event_sample_indices=rising_si,
+                falling_event_sample_indices=falling_si)
 
 
 def extract_ttl_edge_times(cfg, verbose=False):
@@ -138,20 +172,34 @@ def extract_ttl_edge_times(cfg, verbose=False):
         verbose {bool} --- Print the channel / per-segment counts.
 
     Returns a dict with rising/falling times (s) and event sample indices, plus
-    the channel and segment used.
+    the channel and segment used.  When cfg spans several merge sources, each
+    source's edges are zeroed to its own start and shifted by its cumulative sample
+    offset (config.merge_timeline) onto the concatenated timebase, then appended in
+    source order; ``channel``/``segment`` become per-source lists.
     """
-    events = config.load_events(cfg)
-    ttl_ch = config.resolve_ttl_channel(cfg, events)
-    ttl_segment = _resolve_ttl_segment(cfg, events, ttl_ch, verbose=verbose)
-    if verbose:
-        print('TTL channel={}; segment_index={}'.format(ttl_ch, ttl_segment))
+    if not getattr(cfg, 'is_merged', False):
+        return _extract_edge_times_source(cfg, verbose=verbose)
 
-    ev = events.get_events(channel_id=ttl_ch, segment_index=ttl_segment)
-    rising_s, falling_s, rising_si, falling_si = _extract_edges(ev)
-    return dict(channel=str(ttl_ch), segment=int(ttl_segment),
-                rising_times_s=rising_s, falling_times_s=falling_s,
-                rising_event_sample_indices=rising_si,
-                falling_event_sample_indices=falling_si)
+    sources = config.resolve_recording_sources(cfg)
+    rt, ft, rsi, fsi, channels, segments = [], [], [], [], [], []
+    for scfg, entry in zip(sources, config.merge_timeline(cfg)):
+        e = _extract_edge_times_source(scfg, verbose=verbose)
+        fs = entry['fs']
+        first = entry['first_sample'] or 0
+        offset = entry['sample_offset']
+        # zero each source to its own start, then place on the concatenated timebase
+        t_shift = offset / fs - first / fs
+        s_shift = offset - first
+        rt.append(_shift(e['rising_times_s'], t_shift))
+        ft.append(_shift(e['falling_times_s'], t_shift))
+        rsi.append(_shift(e['rising_event_sample_indices'], s_shift))
+        fsi.append(_shift(e['falling_event_sample_indices'], s_shift))
+        channels.append(e['channel'])
+        segments.append(e['segment'])
+    return dict(channel=channels, segment=segments,
+                rising_times_s=_concat(rt), falling_times_s=_concat(ft),
+                rising_event_sample_indices=_concat(rsi),
+                falling_event_sample_indices=_concat(fsi))
 
 
 def extract_ttl_events(cfg, recording=None):
@@ -182,8 +230,10 @@ def extract_ttl_events(cfg, recording=None):
     # first sample so they share an origin with the spike frames (spike_frame/fs).
     # export_nwb picks whichever origin (this or the raw event time) places more
     # spikes inside the pulse windows, which self-corrects for whether the SI
-    # event 'time' field is already relative to the segment start.
-    first_sample = sorted_segment_first_sample(cfg)
+    # event 'time' field is already relative to the segment start.  When merging,
+    # extract_ttl_edge_times has already placed edges (times and sample indices) on
+    # the concatenated timebase, so no further origin subtraction is needed.
+    first_sample = 0 if getattr(cfg, 'is_merged', False) else sorted_segment_first_sample(cfg)
     rising_si = edges['rising_event_sample_indices']
     falling_si = edges['falling_event_sample_indices']
 

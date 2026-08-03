@@ -42,6 +42,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import copy
+import glob
 import json
 import datetime
 
@@ -167,6 +169,60 @@ def find_oe_folder(neural_dir):
     return candidates[-1] if candidates else neural_dir
 
 
+def _trailing_int(name):
+    """Trailing integer of a name ('experiment2' -> 2, 'recording10' -> 10)."""
+    digits = ''
+    for ch in reversed(name):
+        if ch.isdigit():
+            digits = ch + digits
+        else:
+            break
+    return int(digits) if digits else None
+
+
+def describe_recording(entry):
+    """One-line human description of a merge_recordings entry."""
+    return 'folder={} experiment={} recording={}'.format(
+        entry.get('folder', '<default>'),
+        entry.get('experiment', 1), entry.get('recording', 1))
+
+
+def enumerate_recordings(raw_neural_dir):
+    """List every Open Ephys recording under a session's neural/ folder.
+
+    Walks neural/[<timestamp>/]Record Node */experiment*/recording*/continuous
+    (the same layout meta_session uses to detect neural data) and returns one
+    merge_recordings entry per recording: {folder, experiment, recording}.
+    'folder' is the path (relative to neural/) of the Open Ephys folder holding the
+    Record Node, omitted when the Record Node sits directly in neural/ so the
+    default oe_folder resolution applies.  'experiment'/'recording' are the 1-based
+    experimentN/recordingM numbers.  Ordered by (folder, experiment, recording) --
+    chronologically for timestamp-named folders.
+    """
+    found = {}
+    # timestamped layout first, then Record Node directly under neural/; the two
+    # patterns cannot match the same recording (they differ in nesting depth).
+    for pattern in ('*/Record Node */experiment*/recording*/continuous',
+                    'Record Node */experiment*/recording*/continuous'):
+        for cont in glob.glob(os.path.join(raw_neural_dir, pattern)):
+            rec_dir = os.path.dirname(cont)          # .../recordingM
+            exp_dir = os.path.dirname(rec_dir)       # .../experimentN
+            rn_dir = os.path.dirname(exp_dir)        # .../Record Node ###
+            parent = os.path.dirname(rn_dir)         # neural/ or neural/<timestamp>
+            experiment = _trailing_int(os.path.basename(exp_dir))
+            recording = _trailing_int(os.path.basename(rec_dir))
+            if experiment is None or recording is None:
+                continue
+            rel = os.path.relpath(parent, raw_neural_dir)
+            folder = None if rel == '.' else rel
+            entry = {'experiment': experiment, 'recording': recording}
+            if folder is not None:
+                entry['folder'] = folder
+            found[(folder or '', experiment, recording)] = entry
+
+    return [found[k] for k in sorted(found)]
+
+
 def parse_recording_index(recording):
     """Convert a user recording spec to a 0-based segment index.
 
@@ -219,6 +275,14 @@ def default_meta_neural(probe_type):
         'notes': '',
         'good_neurons': [],   # unit ids to plot when figure_peth is run with --only_good
         'recording': d['recording_index'] + 1,   # 1-based Open Ephys recording number
+        # Optional list of recordings to concatenate into one dataset for a joint
+        # spike sort. Empty or a single entry -> the single-recording path above
+        # (uses 'recording'). Each entry may set any of:
+        #   folder     -- timestamped Open Ephys folder under neural/ (default: auto)
+        #   experiment -- 1-based experimentN -> block_index (default: 1)
+        #   recording  -- 1-based RecordingN -> segment    (default: probe default)
+        # List order is the concatenation (and trial) order. See merge_timeline.
+        'merge_recordings': [],
         'skip_ttl': 0,
         'skip_ttl_last': 0,
         'sorter': SORTER_NAME,
@@ -357,6 +421,60 @@ class NeuralConfig():
         self.work_folder = os.path.join(self.pserv, 'neural_processed')
         self.nwb_path = os.path.join(self.work_folder, 'neural.nwb')
 
+        # Optional merge of several recordings into one dataset (see the
+        # 'merge_recordings' field in default_meta_neural).  Resolve each entry to
+        # a concrete source {oe_folder, block_index, recording_index}; an empty or
+        # single-entry list keeps the single-recording behaviour above.  When
+        # merging, the primary attributes (oe_folder/block_index/recording_index)
+        # are taken from source 0 so session_start_time / electrodes reflect the
+        # earliest source.
+        self.merge_recordings = meta.get('merge_recordings', []) or []
+        if self.merge_recordings:
+            self.merge_sources = [self._resolve_source_entry(e)
+                                  for e in self.merge_recordings]
+        else:
+            self.merge_sources = [dict(oe_folder=self.oe_folder,
+                                       block_index=self.block_index,
+                                       recording_index=self.recording_index)]
+        self.is_merged = len(self.merge_sources) > 1
+        primary = self.merge_sources[0]
+        self.oe_folder = primary['oe_folder']
+        self.block_index = primary['block_index']
+        self.recording_index = primary['recording_index']
+
+    def _resolve_source_entry(self, entry):
+        """Resolve one merge_recordings entry to {oe_folder, block_index, recording_index}.
+
+        Unset keys fall back to this config's primary values: 'folder' -> the
+        auto-resolved oe_folder, 'experiment' -> block_index, 'recording' -> the
+        resolved recording_index.  'experiment'/'recording' are 1-based Open Ephys
+        numbers converted to 0-based block/segment indices.
+        """
+        folder = entry.get('folder')
+        oe = (find_oe_folder(os.path.join(self.raw_neural_dir, folder))
+              if folder else self.oe_folder)
+        experiment = entry.get('experiment')
+        block = (self.block_index if experiment in (None, '')
+                 else int(experiment) - 1)
+        rec = entry.get('recording')
+        rec_index = (self.recording_index if rec in (None, '')
+                     else parse_recording_index(rec))
+        return dict(oe_folder=oe, block_index=block, recording_index=rec_index)
+
+    def for_source(self, source):
+        """A shallow copy pinned to one merge source (oe_folder/block/segment).
+
+        Lets the existing single-recording helpers (get_streams, resolve_stream,
+        load_events, the loaders, the TTL readers) run unchanged against one source
+        of a merge.  Only the three location scalars are overridden; meta_neural and
+        every other resolved field are shared.
+        """
+        scfg = copy.copy(self)
+        scfg.oe_folder = source['oe_folder']
+        scfg.block_index = source['block_index']
+        scfg.recording_index = source['recording_index']
+        return scfg
+
     def subfolders(self):
         return {
             'preprocessed': os.path.join(self.work_folder, 'preprocessed'),
@@ -446,6 +564,94 @@ def select_one_segment(rec, segment_index):
     if hasattr(rec, 'select_segments'):
         return rec.select_segments([segment_index])
     return si.select_segment_recording(rec, segment_indices=segment_index)
+
+
+# ---------------------------------------------------------------------------
+# Merge of several recordings into one dataset (concatenation)
+# ---------------------------------------------------------------------------
+def resolve_recording_sources(cfg):
+    """Ordered list of per-source configs to concatenate.
+
+    Returns ``[cfg]`` unchanged for the single-recording path (so existing
+    behaviour is byte-identical); otherwise one shallow-copied config per entry of
+    cfg.merge_sources, each pinned to its own oe_folder/block/segment via
+    cfg.for_source.  The order is the concatenation (and trial) order.
+    """
+    if not getattr(cfg, 'is_merged', False):
+        return [cfg]
+    return [cfg.for_source(s) for s in cfg.merge_sources]
+
+
+def oe_recording(session, block_index, recording_index):
+    """Open Ephys Recording for (experiment=block_index, recording=recording_index).
+
+    Prefers matching the recording's own experiment/recording indices when the
+    installed open-ephys-python exposes them; otherwise falls back to flat indexing
+    of recordnodes[0].recordings, which reproduces the previous behaviour for a
+    single experiment (block_index 0).
+    """
+    recs = session.recordnodes[0].recordings
+    matches = [r for r in recs
+               if getattr(r, 'experiment_index', None) == block_index
+               and getattr(r, 'recording_index', None) == recording_index]
+    if matches:
+        return matches[0]
+    return recs[recording_index]
+
+
+def _segment_num_samples(scfg):
+    """(n_samples, fs) of the SpikeInterface segment a source contributes.
+
+    This is exactly the sample count concatenate_recordings uses, so the merge
+    timeline matches the sorted spike frames.  Reads metadata only (no traces).
+    """
+    import spikeinterface.full as si
+
+    stream_names, stream_ids = get_streams(scfg)
+    stream_id, _ = resolve_stream(scfg, stream_names, stream_ids)
+    rec = si.read_openephys(str(scfg.oe_folder), stream_id=str(stream_id),
+                            block_index=scfg.block_index)
+    if rec.get_num_segments() > 1:
+        rec = select_one_segment(rec, scfg.recording_index)
+    return rec.get_num_samples(), rec.get_sampling_frequency()
+
+
+def _source_first_sample(scfg):
+    """First continuous sample_number of a source, or None if it cannot be read."""
+    try:
+        from open_ephys.analysis import Session
+        session = Session(str(scfg.oe_folder))
+        rec = oe_recording(session, scfg.block_index, scfg.recording_index)
+        return int(rec.continuous[0].sample_numbers[0])
+    except Exception:
+        return None
+
+
+def merge_timeline(cfg):
+    """Per-source concatenation layout on the joint spike timebase.
+
+    For each source (in concatenation order) returns a dict with oe_folder,
+    block_index, recording_index, n_samples (the SpikeInterface segment length),
+    first_sample (Open Ephys continuous[0].sample_numbers[0], used to zero that
+    source), fs, and sample_offset (cumulative n_samples of all preceding sources).
+
+    Spikes and TTLs share this timeline: for a raw sample within source k,
+    ``joint_time = (raw_sample - first_sample_k) / fs + sample_offset_k / fs``.
+    """
+    layout, offset = [], 0
+    for scfg in resolve_recording_sources(cfg):
+        n_samples, fs = _segment_num_samples(scfg)
+        first_sample = _source_first_sample(scfg)
+        layout.append(dict(
+            oe_folder=str(scfg.oe_folder),
+            block_index=int(scfg.block_index),
+            recording_index=int(scfg.recording_index),
+            n_samples=int(n_samples),
+            first_sample=(None if first_sample is None else int(first_sample)),
+            fs=float(fs),
+            sample_offset=int(offset)))
+        offset += int(n_samples)
+    return layout
 
 
 # ---------------------------------------------------------------------------

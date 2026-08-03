@@ -57,6 +57,12 @@ def _finish_and_save(cfg, rec_pre, bad_channel_ids, channel_labels, n_before):
         common_reference=dict(operator=cfg.common_reference_operator,
                               reference=cfg.common_reference_type),
     ), os.path.join(cfg.work_folder, 'preprocess_bad_channels.json'))
+
+    # When several recordings were concatenated, persist the per-source layout so
+    # the timing steps (export_nwb, ttl_sync) can reconstruct the joint timebase.
+    if getattr(cfg, 'is_merged', False):
+        config.save_json(config.merge_timeline(cfg),
+                         os.path.join(cfg.work_folder, 'merge_layout.json'))
     return rec_saved
 
 
