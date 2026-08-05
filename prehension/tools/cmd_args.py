@@ -25,6 +25,7 @@ import os
 def add_default_arguments(parser, arguments):
     '''Possible arguments:
         sessions
+        sessions2 -- second, independent session list
         session -- singular
         trials
         trial -- singular required argument
@@ -43,6 +44,16 @@ def add_default_arguments(parser, arguments):
             'directories (empty by default). A token may also be a selector '
             '"region:<value>" or "burr_hole:<value>" (case-insensitive) that expands, via '
             'resolve_sessions(), to every session whose meta_neural.json matches.')
+
+    if 'sessions2' in arguments:
+        parser.add_argument(
+            '--sessions2',
+            type=str, default=[], nargs='*', metavar='SESSION',
+            help='A second, independent list of session directories, processed separately '
+            'from --sessions (e.g. pooled on its own and overlaid on the same plot for '
+            'comparison). Same token syntax as --sessions (literal names or '
+            '"region:<value>"/"burr_hole:<value>" selectors expanded via '
+            'resolve_sessions()). Empty by default (no second set).')
 
     if 'trials' in arguments:
         parser.add_argument(
