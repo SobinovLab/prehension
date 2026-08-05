@@ -56,6 +56,35 @@ def get_object_sets(sy_column_names, sy_data, object_def_columns):
     return u_objects, object_ids, odcs
 
 
+def collect_target_suffixes(base, ext, column_names):
+    '''Find the per-target column suffixes present for a base behaviour-log column name.
+
+    Multi-target trials append a target index to the relevant column names, mirroring the
+    multi-target object-definition columns (e.g. ``targetForce(N)`` for the first target and
+    ``targetForce_2(N)`` for the second). The first target uses the bare name and subsequent
+    targets use ``_2``, ``_3``, ... suffixes.
+
+    Args:
+        base (str): the column name without the target suffix or extension, e.g.
+            ``'started_touching_time'``.
+        ext (str): the trailing unit/type portion of the column name, e.g. ``'(ms)'``.
+        column_names (list): the behaviour-log column names to search.
+
+    Returns:
+        list of str: the ordered suffixes for which ``'{base}{suffix}{ext}'`` is a column, with
+        ``''`` (the first target) first, followed by ``'_2'``, ``'_3'``, ... for as long as they
+        are present.
+    '''
+    suffixes = []
+    if base + ext in column_names:
+        suffixes.append('')
+    i_target = 2
+    while '{}_{}{}'.format(base, i_target, ext) in column_names:
+        suffixes.append('_{}'.format(i_target))
+        i_target += 1
+    return suffixes
+
+
 def _duplicate_trial_counts(trial_nums):
     '''Given an array/list of trial numbers, return {trial_num: count} for every trial number that
     appears more than once (in the order the numbers first appear).'''
@@ -495,6 +524,39 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
             sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
         ttl_to_success_grasp[np.logical_not(rewarded_trials.astype(bool))] = math.nan
 
+        # Additional per-target touch and force-target-reached offsets (in seconds).
+        # Multi-target trials repeat these columns per target (base target, then _2, _3, ...),
+        # mirroring the multi-target object-definition columns (e.g. targetForce/targetForce_2).
+        # Only the columns actually present in the behaviour log are exported, so single-target
+        # sessions are unaffected.
+        extra_column_names = []
+        extra_values = []
+
+        # touch onset for the 2nd, 3rd, ... targets, mirroring ttl_to_success_grasp above (the
+        # first target is already exported as 'ttl_to_success_grasp'). Undefined on unsuccessful
+        # trials, same as the first target.
+        for suffix in collect_target_suffixes('started_touching_time', '(ms)', sy_column_names):
+            if suffix == '':
+                continue
+            touch_col = 'started_touching_time{}(ms)'.format(suffix)
+            ttl_to_touch = (
+                sy_data[:, sy_column_names.index(touch_col)] -
+                sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+            ttl_to_touch[np.logical_not(rewarded_trials.astype(bool))] = math.nan
+            extra_column_names.append('ttl_to_success_grasp{}'.format(suffix))
+            extra_values.append(ttl_to_touch)
+
+        # time the force reached its target for each target present (base target, then _2, _3, ...).
+        # A value of 0 means the target was never reached on that trial, so mask it as undefined.
+        for suffix in collect_target_suffixes('force_target_start_time', '(ms)', sy_column_names):
+            force_col = 'force_target_start_time{}(ms)'.format(suffix)
+            ttl_to_force_target_start = (
+                sy_data[:, sy_column_names.index(force_col)] -
+                sy_data[:, sy_column_names.index('log_started_ephys_recording(ms)')]) / 1000
+            ttl_to_force_target_start[sy_data[:, sy_column_names.index(force_col)] == 0] = math.nan
+            extra_column_names.append('ttl_to_force_target_start{}'.format(suffix))
+            extra_values.append(ttl_to_force_target_start)
+
         # NS: get the time offset to end trial/reward
         ttl_to_reward = (
             sy_data[:, sy_column_names.index('trial_end_time(ms)')] -
@@ -546,6 +608,10 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
                   ttl_to_success_grasp,
                   ttl_to_reward,
                   ja_ttl_to_rec_start]
+
+        # append the per-target touch and force-target offsets discovered above
+        column_names += extra_column_names
+        values += extra_values
 
         io.export_csv(meta_session_filename, column_names, values)
         rs('Exported session meta information to {}'.format(meta_session_filename))

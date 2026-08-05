@@ -40,7 +40,9 @@ from ..neural_processing import ttl_sync
 MAX_LABELS = 40
 
 # max gap for a trial start to count as having a matching rising TTL pulse
-TTL_MATCH_TOL_S = 0.010  # 10 ms
+# Larger value does not matter because each trial is aligned separately
+# this needs to be small enough to not confuse multiple trials, which are >1 s long
+TTL_MATCH_TOL_S = 0.050  # 50 ms
 
 
 # ---------------------------------------------------------------------------

@@ -46,7 +46,10 @@ if __name__ == "__main__":
         help="Unit ids to plot. If empty, plot all units.")
     parser.add_argument(
         "--align", type=str, default="first_grasp_start",
-        help="Trial timepoint to align to. Default: first_grasp_start.")
+        help="Trial timepoint to align to: a timepoints.csv column (e.g. "
+             "first_grasp_start) or a meta_session 'ttl_to_*' column (e.g. "
+             "ttl_to_success_grasp, ttl_to_reach, ttl_to_force_target_start). "
+             "Default: first_grasp_start.")
     parser.add_argument(
         "--group_column", type=str, default="targetForce(N)",
         help="Object property to colour-code by. Default: targetForce(N).")

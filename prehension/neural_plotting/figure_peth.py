@@ -7,7 +7,10 @@ Reads the neural product (spikes + TTL sync) from the NWB written by
 neural_processing.export_nwb, and behavioural trial timepoints / object forces
 from the prehension meta.  Aligns each trial's spikes to a timepoint (default
 first_grasp_start) and colour-codes traces by an object property (default
-targetForce(N)).  Probe-agnostic: the NWB is uniform for both probe types.
+targetForce(N)).  The alignment timepoint may be a column of the timepoints CSV
+or a meta_session 'ttl_to_*' offset (e.g. ttl_to_success_grasp) -- both are in
+seconds since the trial's TTL pulse.  Probe-agnostic: the NWB is uniform for both
+probe types.
 
 Copyright (C) 2026 Anton Sobinov
 https://github.com/SobinovLab/prehension
@@ -91,7 +94,20 @@ def get_trial_data_spike(spike_per_unit, events_time):
 # Behavioural data (prehension meta)
 # ---------------------------------------------------------------------------
 def load_timepoints_into_msession(msession, mstruct):
-    tp_dic = io.import_csv_as_dic(mstruct['timepoint_csv_filename'])
+    """Attach per-trial timepoints (from timepoints.csv) to each trial as trial.timepoints.
+
+    The timepoints file is optional: when it is missing every trial gets an empty
+    timepoints dict, and alignment can still fall back to the meta_session 'ttl_to_*'
+    columns (already on trial.other_info); see get_timepoint.
+    """
+    tp_path = mstruct['timepoint_csv_filename']
+    if not tp_path or not os.path.exists(tp_path):
+        ws('No timepoints file at {}; only meta_session timepoints (ttl_to_*) will be '
+           'available for alignment.'.format(tp_path))
+        for trial in msession:
+            trial.timepoints = {}
+        return
+    tp_dic = io.import_csv_as_dic(tp_path)
     trial_number_col = tp_dic['trial_number']
     del tp_dic['trial_number']
     # optional occurrence index to disambiguate duplicate recordings of the same trial_number
@@ -113,7 +129,20 @@ def load_timepoints_into_msession(msession, mstruct):
 
 
 def get_timepoint(trial, key):
-    v = trial.timepoints.get(key, None)
+    """Return the trial's alignment time (seconds since the TTL pulse) for `key`.
+
+    `key` may name either a column from the timepoints CSV (e.g. 'first_grasp_start')
+    or a column from meta_session.csv -- the 'ttl_to_*' offsets loaded onto
+    trial.other_info by meta_session.load_meta_information (e.g. 'ttl_to_success_grasp',
+    'ttl_to_reach', 'ttl_to_force_target_start'). The timepoints CSV is searched first,
+    then meta_session. Both store times in the same reference frame (seconds since the
+    trial's TTL pulse), so either can be used to align spikes.
+
+    Returns None if the value is missing or not finite.
+    """
+    v = getattr(trial, 'timepoints', {}).get(key, None)
+    if v is None:
+        v = (trial.other_info or {}).get(key, None)
     try:
         v = float(v)
     except (TypeError, ValueError):
@@ -290,7 +319,9 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         min_rate {float} --- Optional average-activity threshold (Hz): drop units
             whose mean firing rate over the aligned window is at or below this.
             None (default) -> meta_neural.json 'min_rate' if present, else no filter.
-        align_timepoint {str} --- Trial timepoint to align to.
+        align_timepoint {str} --- Trial timepoint to align to. Either a timepoints
+            CSV column (e.g. first_grasp_start) or a meta_session 'ttl_to_*' column
+            (e.g. ttl_to_success_grasp, ttl_to_reach, ttl_to_force_target_start).
         group_column {str} --- Object property to colour-code by.
         before, after {float} --- Window (s) around the alignment timepoint.
         bin_width, filter_sigma {float} --- Binning and smoothing (s).
