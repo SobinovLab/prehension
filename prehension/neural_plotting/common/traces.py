@@ -44,6 +44,33 @@ CI_MARG = 1         # condition-independent (time) marginalization
 N_SHOW = 3          # condition-dependent components plotted through time
 
 
+POOLED_FIGURES_DIRNAME = 'pooled_figures'
+
+
+def resolve_pooled_save_dir(processed_server, save, save_dir):
+    """Resolve where pooled figures are written.
+
+    An explicit ``save_dir`` always wins.  Otherwise saving is opt-in: when ``save``
+    is True the default is ``<processed_server>/pooled_figures``; when ``save`` is
+    False saving is disabled (returns None, so the drawers skip writing files).
+    """
+    if save_dir is not None:
+        return save_dir
+    if save:
+        return os.path.join(processed_server, POOLED_FIGURES_DIRNAME)
+    return None
+
+
+def _save(fig, save_dir, name):
+    """Save fig as a single PNG into save_dir (created if needed); no-op if None."""
+    if save_dir is None:
+        return
+    os.makedirs(save_dir, exist_ok=True)
+    out = os.path.join(save_dir, name)
+    fig.savefig(out, dpi=150, bbox_inches='tight')
+    rs('Saved {}'.format(out))
+
+
 # ---------------------------------------------------------------------------
 # PCA state-space traces
 # ---------------------------------------------------------------------------
@@ -69,6 +96,7 @@ def plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr, ali
     fig.suptitle('Population PCs through time, aligned to {}'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.94, 0.96))
     fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
+    _save(fig, save_dir, 'spaces_pooled_pcs_time_{}.png'.format(align_key))
     return fig
 
 
@@ -96,6 +124,7 @@ def plot_pc_2d(scores3d, conditions, max_force, evr, align_key, save_dir):
     fig.suptitle('Population trajectories (2D), aligned to {} (o=start, s=end)'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.92, 0.95))
     fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
+    _save(fig, save_dir, 'spaces_pooled_pc2d_{}.png'.format(align_key))
     return fig
 
 
@@ -119,6 +148,7 @@ def plot_pc_3d(scores3d, conditions, max_force, evr, align_key, save_dir):
     ax.set_zlabel('PC3 ({:.1f}%)'.format(100 * evr[2]))
     ax.set_title('Population trajectory (3D), aligned to {} (o=start, s=end)'.format(align_key))
     fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.1).set_label(GROUP_COLUMN)
+    _save(fig, save_dir, 'spaces_pooled_pc3d_{}.png'.format(align_key))
     return fig
 
 
@@ -161,6 +191,7 @@ def plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_key,
         time=bin_centers, time_events=[0.0], marginalization_names=marg_names,
         time_marginalization=time_marg)
     fig.suptitle('dPCA summary, aligned to {}'.format(align_key))
+    _save(fig, save_dir, 'spaces_dpca_summary_{}.png'.format(align_key))
     return fig
 
 
@@ -203,6 +234,7 @@ def plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
                  'aligned to {}'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.94, 0.96))
     fig.colorbar(sm, ax=axs.ravel().tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
+    _save(fig, save_dir, 'spaces_dpca_cd_traces_{}.png'.format(align_key))
     return fig
 
 

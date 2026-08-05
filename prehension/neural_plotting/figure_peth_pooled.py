@@ -42,6 +42,7 @@ from ..tools.logs import rs, ws
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA)
 from .common.pooling import pool_neurons
+from .common.traces import resolve_pooled_save_dir
 
 
 # ---------------------------------------------------------------------------
@@ -94,14 +95,17 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
                                      align_timepoint=ALIGN_TIMEPOINT,
                                      group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                                      bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
-                                     only_good=False, min_rate=None, save_dir=None):
+                                     only_good=False, min_rate=None, save=False, save_dir=None):
     """Pool the selected neurons across `sessions` and plot them on one figure.
 
     Arguments mirror figure_peth.plot_perievent_histograms except there is no
     neuron_ids/recording/skip_ttl override: `sessions` is a list (empty -> all
     sessions on the server), and per-session recording/skip_ttl/good_neurons come
-    from each session's meta_neural.json.  save_dir defaults to processed_server.
+    from each session's meta_neural.json.  Figures are NOT saved unless save=True
+    (or an explicit save_dir is given); the default save location is
+    <processed_server>/pooled_figures.
     """
+    save_dir = resolve_pooled_save_dir(processed_server, save, save_dir)
     entries, bin_centers, max_force = pool_neurons(
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
@@ -117,5 +121,4 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
             raise ValueError(
                 'No pooled neurons exceed the {} Hz activity threshold.'.format(min_rate))
     rs('Plotting {} pooled neuron(s).'.format(len(entries)))
-    return plot_pooled(entries, bin_centers, max_force, group_column, align_timepoint,
-                       processed_server if save_dir is None else save_dir)
+    return plot_pooled(entries, bin_centers, max_force, group_column, align_timepoint, save_dir)

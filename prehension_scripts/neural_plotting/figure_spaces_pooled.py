@@ -72,6 +72,10 @@ if __name__ == "__main__":
         "--n_pcs", type=int, default=N_PCS, metavar="N",
         help="Number of principal components to compute / plot through time. "
              "Default: {}.".format(N_PCS))
+    parser.add_argument(
+        "--save", action="store_true",
+        help="Save the figures into <processed_server>/pooled_figures. "
+             "Off by default (figures are only shown).")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
@@ -81,7 +85,7 @@ if __name__ == "__main__":
         args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after, only_good=args.only_good,
-        min_rate=args.min_rate, n_pcs=args.n_pcs)
+        min_rate=args.min_rate, n_pcs=args.n_pcs, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

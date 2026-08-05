@@ -92,6 +92,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--min_rate", type=float, default=MIN_RATE_HZ, metavar="HZ",
         help="Keep only neurons with mean rate above this (Hz). Default: {}.".format(MIN_RATE_HZ))
+    parser.add_argument(
+        "--save", action="store_true",
+        help="Save the figure into <processed_server>/pooled_figures. "
+             "Off by default (the figure is only shown).")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
@@ -108,7 +112,7 @@ if __name__ == "__main__":
         before=args.before, after=args.after, causal_sigma=args.causal_sigma,
         avg_window=args.avg_window, n_folds=args.n_folds,
         only_good=args.only_good, min_rate=args.min_rate, processes=args.processes,
-        sessions_label=sessions_label, sessions2_label=sessions2_label)
+        sessions_label=sessions_label, sessions2_label=sessions2_label, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

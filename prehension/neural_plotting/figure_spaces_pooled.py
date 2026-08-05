@@ -39,7 +39,8 @@ from ..neural_processing.common.spikes import (
 from ..neural_processing.common.population import (
     select_active_neurons, build_condition_matrix, MIN_RATE_HZ)
 from .common.pooling import pool_neurons
-from .common.traces import plot_pcs_through_time, plot_pc_2d, plot_pc_3d
+from .common.traces import (
+    plot_pcs_through_time, plot_pc_2d, plot_pc_3d, resolve_pooled_save_dir)
 
 N_PCS = 9           # number of principal components to compute / plot through time
 
@@ -48,13 +49,15 @@ def figure_spaces_pooled(server, processed_server, sessions,
                          align_timepoint=ALIGN_TIMEPOINT, group_column=GROUP_COLUMN,
                          before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
                          filter_sigma=FILTER_SIGMA, only_good=False,
-                         min_rate=MIN_RATE_HZ, n_pcs=N_PCS, save_dir=None):
+                         min_rate=MIN_RATE_HZ, n_pcs=N_PCS, save=False, save_dir=None):
     """Pool neurons across sessions, PCA their per-condition averages, and plot the spaces.
 
     `sessions` is a list (empty -> all sessions on the server); per-session
     recording/skip_ttl/good_neurons come from each session's meta_neural.json.
-    save_dir defaults to processed_server.
+    Figures are NOT saved unless save=True (or an explicit save_dir is given); the
+    default save location is <processed_server>/pooled_figures.
     """
+    save_dir = resolve_pooled_save_dir(processed_server, save, save_dir)
     entries, bin_centers, max_force = pool_neurons(
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
@@ -74,7 +77,6 @@ def figure_spaces_pooled(server, processed_server, sessions,
         len(labels), len(conditions), numbins, k,
         ', '.join('{:.1f}%'.format(100 * v) for v in evr)))
 
-    save_dir = processed_server if save_dir is None else save_dir
     plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr,
                           align_timepoint, save_dir)
     plot_pc_2d(scores3d, conditions, max_force, evr, align_timepoint, save_dir)

@@ -68,6 +68,10 @@ if __name__ == "__main__":
         "--min_rate", type=float, default=None, metavar="HZ",
         help="Optional threshold: drop pooled neurons with mean rate at or below "
              "this (Hz). Default: no filter.")
+    parser.add_argument(
+        "--save", action="store_true",
+        help="Save the figure into <processed_server>/pooled_figures. "
+             "Off by default (the figure is only shown).")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
@@ -77,7 +81,7 @@ if __name__ == "__main__":
         args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after, only_good=args.only_good,
-        min_rate=args.min_rate)
+        min_rate=args.min_rate, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()
