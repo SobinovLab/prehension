@@ -21,17 +21,41 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 
 ############ Export
-def savefig(dirname, filename):
+def savefig(dirname, filename, fig=None, dpi=None, bbox_inches=None):
+    '''Save a figure as both PNG and PDF into dirname (created if needed).
+
+    Saves the current pyplot figure by default, or ``fig`` when given.  ``dpi`` and
+    ``bbox_inches`` are forwarded to savefig when provided.
+    '''
     if dirname is None:
         return
     os.makedirs(dirname, exist_ok=True)
 
-    plt.savefig(os.path.join(dirname, filename + '.png'))
-    plt.savefig(os.path.join(dirname, filename + '.pdf'))
+    saver = fig.savefig if fig is not None else plt.savefig
+    kwargs = {}
+    if dpi is not None:
+        kwargs['dpi'] = dpi
+    if bbox_inches is not None:
+        kwargs['bbox_inches'] = bbox_inches
+    saver(os.path.join(dirname, filename + '.png'), **kwargs)
+    saver(os.path.join(dirname, filename + '.pdf'), **kwargs)
+
+
+############ Colors
+def cmap_norm(values, vmax, cmap_name='autumn_r'):
+    '''Build a colormap + linear norm (0..vmax) and per-value colours.
+
+    Returns (cmap, norm, [cmap(norm(v)) for v in values]).  vmax <= 0 falls back to
+    a range of 1 so the norm stays valid.
+    '''
+    cmap = plt.get_cmap(cmap_name)
+    norm = mpl.colors.Normalize(vmin=0, vmax=vmax if vmax > 0 else 1)
+    return cmap, norm, [cmap(norm(v)) for v in values]
 
 
 ############# Drawing
@@ -80,6 +104,60 @@ def xy_numsubplots(numsubplots):
     yn_subplots = int(np.ceil(np.sqrt(numsubplots)))
     xn_subplots = int(np.ceil(numsubplots / yn_subplots))
     return xn_subplots, yn_subplots
+
+
+############# Interval tracks
+def interval_step(starts, stops):
+    '''Build x/y arrays of a 0/1 step signal that is high during each [start, stop].
+
+    Overlapping intervals are clamped to 1.  Returns (xs, ys) numpy arrays.
+    '''
+    edges = [(float(s), 1) for s in starts]
+    edges += [(float(e), -1) for e in stops if np.isfinite(e)]
+    edges.sort(key=lambda p: (p[0], -p[1]))
+    if not edges:
+        return np.array([0.0]), np.array([0])
+
+    xs, ys, level = [edges[0][0]], [0], 0
+    for t, d in edges:
+        xs.append(t)
+        ys.append(level)
+        level = max(0, min(1, level + d))  # clamp for overlapping intervals
+        xs.append(t)
+        ys.append(level)
+    xs.append(edges[-1][0])
+    ys.append(level)
+    return np.array(xs), np.array(ys)
+
+
+def plot_interval_track(ax, starts, stops, indices, ylabel, up_label, down_label,
+                        max_labels=40):
+    '''Draw a 0/1 track high during each [start, stop], with sparse index labels.
+
+    Rising edges are marked in green (labelled ``up_label``), falling edges in cyan
+    (``down_label``); at most ``max_labels`` of the ``indices`` are annotated.
+    '''
+    starts = np.asarray(starts, dtype=float)
+    stops = np.asarray(stops, dtype=float)
+    xs, ys = interval_step(starts, stops)
+    ax.plot(xs, ys, color='k', linewidth=1.0)
+    ax.plot(starts, np.ones_like(starts), '|', color='tab:green', markersize=10,
+            label=up_label)
+    finite_stops = stops[np.isfinite(stops)]
+    ax.plot(finite_stops, np.zeros_like(finite_stops), '|', color='tab:cyan',
+            markersize=10, label=down_label)
+    ax.axvline(0.0, color='tab:blue', linestyle='--', linewidth=0.8)
+    ax.set_ylim(-0.2, 1.4)
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(['low', 'high'])
+    ax.set_ylabel(ylabel)
+    ax.legend(loc='upper right', fontsize=8)
+
+    label_every = max(1, int(np.ceil(len(starts) / max_labels)))
+    for k, (s, idx) in enumerate(zip(starts, indices)):
+        if k % label_every == 0:
+            ax.annotate(str(idx), xy=(s, 1.0), xytext=(s, 1.12), ha='center',
+                        va='bottom', fontsize=7, color='tab:green', rotation=90)
 
 
 ############# Ranges

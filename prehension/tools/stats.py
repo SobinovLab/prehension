@@ -23,6 +23,26 @@ import numpy as np
 import scipy.stats
 
 
+def run_pca(X, n_components):
+    '''Z-score each column of X and run PCA via SVD.
+
+    Returns (scores, explained_variance_ratio) with scores shape (n_samples, k),
+    k = min(n_components, rank).  Columns with zero variance are left unscaled.
+    '''
+    Xc = X.astype(float)
+    mean = Xc.mean(axis=0)
+    std = Xc.std(axis=0)
+    std[std == 0] = 1.0
+    Xz = (Xc - mean) / std
+
+    U, S, Vt = np.linalg.svd(Xz, full_matrices=False)
+    k = int(min(n_components, S.size))
+    scores = U[:, :k] * S[:k]
+    total = np.sum(S ** 2)
+    evr = (S[:k] ** 2) / total if total > 0 else np.zeros(k)
+    return scores, evr
+
+
 def format_p(p):
     '''Formats p-value according to recommendations with additional zero.
 

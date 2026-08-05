@@ -28,6 +28,7 @@ import os
 import shutil
 
 from . import config
+from ..tools import io
 from ..tools.logs import rs, ws
 
 
@@ -105,9 +106,9 @@ def curate_by_quality(cfg):
 
     analyzer.select_units(keep_unit_ids, folder=curated_folder, format='binary_folder')
     rs('Saved curated analyzer -> {}'.format(curated_folder))
-    config.save_json(dict(curation_query=cfg.curation_query,
-                          n_units_total=int(len(metrics)),
-                          n_units_kept=int(len(keep_unit_ids)),
-                          kept_unit_ids=[str(u) for u in keep_unit_ids]),
-                     os.path.join(cfg.work_folder, 'curation_summary.json'))
+    io.save_json(dict(curation_query=cfg.curation_query,
+                      n_units_total=int(len(metrics)),
+                      n_units_kept=int(len(keep_unit_ids)),
+                      kept_unit_ids=[str(u) for u in keep_unit_ids]),
+                 os.path.join(cfg.work_folder, 'curation_summary.json'))
     return keep_unit_ids

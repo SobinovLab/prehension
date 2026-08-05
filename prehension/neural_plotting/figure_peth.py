@@ -36,148 +36,15 @@ import matplotlib.pyplot as plt
 import scipy.ndimage
 
 from .. import meta_session
-from ..tools import io
 from ..tools import plotting
+from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..neural_processing import config as npconfig
-
-# defaults; overridable through the calling function / script
-ALIGN_TIMEPOINT = 'first_grasp_start'
-GROUP_COLUMN = 'targetForce(N)'
-BEFORE = 1.0            # s before the alignment timepoint
-AFTER = 1.0            # s after
-BIN_WIDTH = 0.02       # s
-FILTER_SIGMA = 0.05    # s, Gaussian smoothing of firing-rate traces
-
-
-# ---------------------------------------------------------------------------
-# Neural data (from the NWB)
-# ---------------------------------------------------------------------------
-def read_nwb_spikes_and_ttl(nwb_path):
-    """Read per-unit spike times, unit ids and per-pulse TTL windows from the NWB.
-
-    Returns (spike_per_unit {list of arrays, s}, unit_ids {list}, events_time
-    {list of [start, stop] arrays, s}).
-    """
-    from pynwb import NWBHDF5IO
-
-    with NWBHDF5IO(str(nwb_path), 'r') as fio:
-        nwbfile = fio.read()
-
-        udf = nwbfile.units.to_dataframe()
-        spike_per_unit = [np.asarray(s, dtype=float) for s in udf['spike_times']]
-        if 'unit_id' in udf.columns:
-            unit_ids = [u for u in udf['unit_id']]
-        else:
-            unit_ids = list(udf.index)
-
-        ttl = nwbfile.intervals['ttl_pulses'].to_dataframe()
-        events_time = [np.array([float(a), float(b)])
-                       for a, b in zip(ttl['start_time'], ttl['stop_time'])]
-    rs('NWB: {} units, {} TTL pulses.'.format(len(unit_ids), len(events_time)))
-    return spike_per_unit, unit_ids, events_time
-
-
-def get_trial_data_spike(spike_per_unit, events_time):
-    """For each trial window [start, stop], extract per-unit spikes within it."""
-    trial_spike = []
-    for e in events_time:
-        temp = []
-        for spike in spike_per_unit:
-            idx = np.where((spike > e[0]) & (spike < e[1]))
-            temp.append(spike[idx])
-        trial_spike.append(temp)
-    return trial_spike
-
-
-# ---------------------------------------------------------------------------
-# Behavioural data (prehension meta)
-# ---------------------------------------------------------------------------
-def load_timepoints_into_msession(msession, mstruct):
-    """Attach per-trial timepoints (from timepoints.csv) to each trial as trial.timepoints.
-
-    The timepoints file is optional: when it is missing every trial gets an empty
-    timepoints dict, and alignment can still fall back to the meta_session 'ttl_to_*'
-    columns (already on trial.other_info); see get_timepoint.
-    """
-    tp_path = mstruct['timepoint_csv_filename']
-    if not tp_path or not os.path.exists(tp_path):
-        ws('No timepoints file at {}; only meta_session timepoints (ttl_to_*) will be '
-           'available for alignment.'.format(tp_path))
-        for trial in msession:
-            trial.timepoints = {}
-        return
-    tp_dic = io.import_csv_as_dic(tp_path)
-    trial_number_col = tp_dic['trial_number']
-    del tp_dic['trial_number']
-    # optional occurrence index to disambiguate duplicate recordings of the same trial_number
-    dup_col = tp_dic.pop('trial_dup_index', None)
-    for trial in msession:
-        if dup_col is not None:
-            trial_row = None
-            for i, tn in enumerate(trial_number_col):
-                if (int(float(tn)) == trial.trial_number and
-                        int(float(dup_col[i])) == trial.dup_index):
-                    trial_row = i
-                    break
-            if trial_row is None:
-                raise ValueError('Trial {} (occurrence {}) not found in timepoints.'.format(
-                    trial.trial_number, trial.dup_index))
-        else:
-            trial_row = trial_number_col.index(trial.trial_number)
-        trial.timepoints = {k: v[trial_row] for k, v in tp_dic.items()}
-
-
-def get_timepoint(trial, key):
-    """Return the trial's alignment time (seconds since the TTL pulse) for `key`.
-
-    `key` may name either a column from the timepoints CSV (e.g. 'first_grasp_start')
-    or a column from meta_session.csv -- the 'ttl_to_*' offsets loaded onto
-    trial.other_info by meta_session.load_meta_information (e.g. 'ttl_to_success_grasp',
-    'ttl_to_reach', 'ttl_to_force_target_start'). The timepoints CSV is searched first,
-    then meta_session. Both store times in the same reference frame (seconds since the
-    trial's TTL pulse), so either can be used to align spikes.
-
-    Returns None if the value is missing or not finite.
-    """
-    v = getattr(trial, 'timepoints', {}).get(key, None)
-    if v is None:
-        v = (trial.other_info or {}).get(key, None)
-    try:
-        v = float(v)
-    except (TypeError, ValueError):
-        return None
-    return v if np.isfinite(v) else None
-
-
-def get_target_force(mobject, object_id, group_column):
-    key = object_id
-    if key not in mobject and str(key) in mobject:
-        key = str(key)
-    return float(mobject[key]['def'][group_column])
-
-
-def resolve_neuron_selection(unit_ids, neuron_ids):
-    """Map requested unit ids to indices into unit_ids.  None/[] -> all."""
-    if not neuron_ids:
-        return list(range(len(unit_ids))), list(unit_ids)
-    id_to_index = {}
-    for i, uid in enumerate(unit_ids):
-        id_to_index[uid] = i
-        id_to_index[str(uid)] = i
-    selection, labels, missing = [], [], []
-    for uid in neuron_ids:
-        idx = id_to_index.get(uid, id_to_index.get(str(uid)))
-        if idx is None:
-            missing.append(uid)
-        else:
-            selection.append(idx)
-            labels.append(unit_ids[idx])
-    if missing:
-        ws('Requested unit ids not found and skipped: {}'.format(missing))
-    if not selection:
-        raise ValueError('None of neuron_ids={} matched {}.'.format(neuron_ids, unit_ids))
-    return selection, labels
+from ..neural_processing.common.spikes import (
+    ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
+    read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection)
+from .common.behaviour import (
+    load_timepoints_into_msession, get_timepoint, get_target_force)
 
 
 # ---------------------------------------------------------------------------
@@ -341,10 +208,10 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
                                 recording=recording)
     # skip_ttl / skip_ttl_last: CLI kwarg > meta_neural.json > 0
-    skip_ttl = npconfig.resolve_meta_arg(skip_ttl, cfg.meta_neural, 'skip_ttl', 0)
-    skip_ttl_last = npconfig.resolve_meta_arg(
+    skip_ttl = resolve_meta_arg(skip_ttl, cfg.meta_neural, 'skip_ttl', 0)
+    skip_ttl_last = resolve_meta_arg(
         skip_ttl_last, cfg.meta_neural, 'skip_ttl_last', 0)
-    min_rate = npconfig.resolve_meta_arg(min_rate, cfg.meta_neural, 'min_rate', None)
+    min_rate = resolve_meta_arg(min_rate, cfg.meta_neural, 'min_rate', None)
 
     # --only_good: restrict to the good_neurons listed in meta_neural.json
     if only_good and not neuron_ids:

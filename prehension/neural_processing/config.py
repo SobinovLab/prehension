@@ -1,8 +1,8 @@
 #!python3
 # -*- coding: utf-8 -*-
 """
-Configuration and shared helpers for neural spike sorting (Open Ephys ->
-minimal NWB), for both Neuropixels and 32-channel V-probe recordings.
+Per-session configuration for neural spike sorting (Open Ephys -> minimal NWB), for
+both Neuropixels and 32-channel V-probe recordings.
 
 Per-session paths are resolved from a server/processed_server/session triple (as
 elsewhere in prehension): raw neural = server/session/neural, processed output =
@@ -14,6 +14,11 @@ preprocessing).  Probe-scoped parameters live in PROBE_DEFAULTS below; the large
 per-dataset V-probe wiring lives in this local config file.  A NeuralConfig
 instance carries the resolved values for one session and is passed to the step
 functions.
+
+The reusable stream / probe / event / Open-Ephys helpers this config used to hold
+now live in neural_processing.common (openephys, streams, probe, events); this
+module keeps the NeuralConfig class, the meta_neural defaults and the saved-folder
+loaders.
 
 Setup recommendations:
 # Conda packages:
@@ -43,9 +48,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 import copy
-import glob
-import json
-import datetime
+
+from ..tools import io
+from ..tools.cmd_args import resolve_meta_arg
+from .common import openephys, streams
 
 
 # ---------------------------------------------------------------------------
@@ -83,42 +89,6 @@ PROBE_DEFAULTS = {
     },
 }
 
-# Mapping from the meta_structure 'neural' field (written by fill_meta_structure) to a probe_type
-# key understood by PROBE_DEFAULTS / NeuralConfig.
-NEURAL_TO_PROBE_TYPE = {
-    'vprobe': 'vprobe',
-    'neuropixel': 'neuropixels',
-    'neuropixels': 'neuropixels',
-}
-
-
-def probe_type_from_meta(server, processed_server, session):
-    """Resolve a session's probe_type from its meta_structure.json 'neural' field.
-
-    The field is written by meta_session.fill_meta_structure during create_meta and is one of
-    '' (no neural data), 'vprobe', or 'neuropixel'. Returns a probe_type key of PROBE_DEFAULTS
-    ('vprobe' or 'neuropixels'). Raises ValueError if meta is missing or has no neural type.
-    """
-    meta_path = os.path.join(processed_server, session, 'meta_structure.json')
-    if not os.path.exists(meta_path):
-        raise ValueError(
-            'meta_structure.json not found for session {} at {}. Run create_meta first.'.format(
-                session, meta_path))
-    with open(meta_path, 'r') as f:
-        mstruct = json.load(f)
-
-    neural = (mstruct.get('neural') or '').strip()
-    if neural == '':
-        raise ValueError(
-            'No neural recording type recorded in meta_structure for session {} (the "neural" '
-            'field is empty). Re-run create_meta on a session that has a neural/ folder.'.format(
-                session))
-    if neural not in NEURAL_TO_PROBE_TYPE:
-        raise ValueError(
-            'Unknown neural recording type {!r} in meta_structure for session {}. Expected one '
-            'of {}.'.format(neural, session, list(NEURAL_TO_PROBE_TYPE)))
-    return NEURAL_TO_PROBE_TYPE[neural]
-
 
 # ---------------------------------------------------------------------------
 # V-probe geometry and wiring (only used when probe_type == 'vprobe')
@@ -137,114 +107,6 @@ CONTACT_CHANNEL_NAMES = [
     'CH16', 'CH15', 'CH14', 'CH13', 'CH12', 'CH11', 'CH10', 'CH9',
     'CH25', 'CH26', 'CH27', 'CH28', 'CH29', 'CH30', 'CH31', 'CH32',
     'CH1', 'CH2', 'CH3', 'CH4', 'CH5', 'CH6', 'CH7', 'CH8']
-
-
-# ---------------------------------------------------------------------------
-# Per-session configuration
-# ---------------------------------------------------------------------------
-def find_oe_folder(neural_dir):
-    """Locate the Open Ephys folder (containing 'Record Node ###') in a neural dir.
-
-    Handles neural/ directly containing Record Node dirs, or
-    neural/<timestamped session>/Record Node ###.
-    """
-    try:
-        entries = [os.path.join(neural_dir, e) for e in os.listdir(neural_dir)]
-        entries = [e for e in entries if os.path.isdir(e)]
-    except (FileNotFoundError, NotADirectoryError):
-        return neural_dir
-
-    if any(os.path.basename(e).startswith('Record Node') for e in entries):
-        return neural_dir
-
-    def has_record_node(d):
-        try:
-            return any(os.path.isdir(os.path.join(d, c)) and c.startswith('Record Node')
-                       for c in os.listdir(d))
-        except OSError:
-            return False
-
-    candidates = sorted((e for e in entries if has_record_node(e)),
-                        key=os.path.basename)
-    return candidates[-1] if candidates else neural_dir
-
-
-def _trailing_int(name):
-    """Trailing integer of a name ('experiment2' -> 2, 'recording10' -> 10)."""
-    digits = ''
-    for ch in reversed(name):
-        if ch.isdigit():
-            digits = ch + digits
-        else:
-            break
-    return int(digits) if digits else None
-
-
-def describe_recording(entry):
-    """One-line human description of a merge_recordings entry."""
-    return 'folder={} experiment={} recording={}'.format(
-        entry.get('folder', '<default>'),
-        entry.get('experiment', 1), entry.get('recording', 1))
-
-
-def enumerate_recordings(raw_neural_dir):
-    """List every Open Ephys recording under a session's neural/ folder.
-
-    Walks neural/[<timestamp>/]Record Node */experiment*/recording*/continuous
-    (the same layout meta_session uses to detect neural data) and returns one
-    merge_recordings entry per recording: {folder, experiment, recording}.
-    'folder' is the path (relative to neural/) of the Open Ephys folder holding the
-    Record Node, omitted when the Record Node sits directly in neural/ so the
-    default oe_folder resolution applies.  'experiment'/'recording' are the 1-based
-    experimentN/recordingM numbers.  Ordered by (folder, experiment, recording) --
-    chronologically for timestamp-named folders.
-    """
-    found = {}
-    # timestamped layout first, then Record Node directly under neural/; the two
-    # patterns cannot match the same recording (they differ in nesting depth).
-    for pattern in ('*/Record Node */experiment*/recording*/continuous',
-                    'Record Node */experiment*/recording*/continuous'):
-        for cont in glob.glob(os.path.join(raw_neural_dir, pattern)):
-            rec_dir = os.path.dirname(cont)          # .../recordingM
-            exp_dir = os.path.dirname(rec_dir)       # .../experimentN
-            rn_dir = os.path.dirname(exp_dir)        # .../Record Node ###
-            parent = os.path.dirname(rn_dir)         # neural/ or neural/<timestamp>
-            experiment = _trailing_int(os.path.basename(exp_dir))
-            recording = _trailing_int(os.path.basename(rec_dir))
-            if experiment is None or recording is None:
-                continue
-            rel = os.path.relpath(parent, raw_neural_dir)
-            folder = None if rel == '.' else rel
-            entry = {'experiment': experiment, 'recording': recording}
-            if folder is not None:
-                entry['folder'] = folder
-            found[(folder or '', experiment, recording)] = entry
-
-    return [found[k] for k in sorted(found)]
-
-
-def parse_recording_index(recording):
-    """Convert a user recording spec to a 0-based segment index.
-
-    Open Ephys names the recordings within an experiment Recording1, Recording2,
-    ... (1-based).  Accepts that number as an int or string ('2', 'Recording2')
-    and returns the 0-based SpikeInterface segment index (Recording2 -> 1).
-    Returns None when recording is None so the caller keeps the probe default.
-    """
-    if recording is None:
-        return None
-    s = str(recording).strip().lower()
-    if s.startswith('recording'):
-        s = s[len('recording'):].strip()
-    try:
-        number = int(s)
-    except (TypeError, ValueError):
-        raise ValueError(
-            "Could not parse recording {!r}; use e.g. 1, 2 or 'Recording2'.".format(recording))
-    if number < 1:
-        raise ValueError(
-            'recording must be >= 1 (Open Ephys Recording1 is the first), got {}.'.format(number))
-    return number - 1
 
 
 META_NEURAL_NAME = 'meta_neural.json'
@@ -281,7 +143,7 @@ def default_meta_neural(probe_type):
         #   folder     -- timestamped Open Ephys folder under neural/ (default: auto)
         #   experiment -- 1-based experimentN -> block_index (default: 1)
         #   recording  -- 1-based RecordingN -> segment    (default: probe default)
-        # List order is the concatenation (and trial) order. See merge_timeline.
+        # List order is the concatenation (and trial) order. See streams.merge_timeline.
         'merge_recordings': [],
         'skip_ttl': 0,
         'skip_ttl_last': 0,
@@ -318,16 +180,7 @@ def load_meta_neural(processed_server, session):
         raise ValueError(
             'meta_neural.json not found for session {} at {}. Run create_meta_neural '
             'first.'.format(session, path))
-    with open(path, 'r') as f:
-        return json.load(f)
-
-
-def resolve_meta_arg(cli_value, meta, key, default=None):
-    """CLI kwarg if provided (not None), else the meta_neural value, else default."""
-    if cli_value is not None:
-        return cli_value
-    v = meta.get(key, None) if meta else None
-    return default if v is None or v == '' else v
+    return io.load_json(path)
 
 
 class NeuralConfig():
@@ -389,7 +242,8 @@ class NeuralConfig():
         # CLI-backed args: CLI kwarg > meta_neural > default.
         self.nwb_units = resolve_meta_arg(nwb_units, meta, 'nwb_units', 'noise_excluded')
         self.sorter_name = resolve_meta_arg(sorter, meta, 'sorter', SORTER_NAME)
-        _rec = parse_recording_index(resolve_meta_arg(recording, meta, 'recording', None))
+        _rec = openephys.parse_recording_index(
+            resolve_meta_arg(recording, meta, 'recording', None))
         self.recording_index = d['recording_index'] if _rec is None else _rec
 
         # Shared processing config: meta_neural > module default.
@@ -417,7 +271,7 @@ class NeuralConfig():
         self.rserv = os.path.join(server, session)
         self.pserv = os.path.join(processed_server, session)
         self.raw_neural_dir = os.path.join(self.rserv, 'neural')
-        self.oe_folder = find_oe_folder(self.raw_neural_dir)
+        self.oe_folder = openephys.find_oe_folder(self.raw_neural_dir)
         self.work_folder = os.path.join(self.pserv, 'neural_processed')
         self.nwb_path = os.path.join(self.work_folder, 'neural.nwb')
 
@@ -451,14 +305,14 @@ class NeuralConfig():
         numbers converted to 0-based block/segment indices.
         """
         folder = entry.get('folder')
-        oe = (find_oe_folder(os.path.join(self.raw_neural_dir, folder))
+        oe = (openephys.find_oe_folder(os.path.join(self.raw_neural_dir, folder))
               if folder else self.oe_folder)
         experiment = entry.get('experiment')
         block = (self.block_index if experiment in (None, '')
                  else int(experiment) - 1)
         rec = entry.get('recording')
         rec_index = (self.recording_index if rec in (None, '')
-                     else parse_recording_index(rec))
+                     else openephys.parse_recording_index(rec))
         return dict(oe_folder=oe, block_index=block, recording_index=rec_index)
 
     def for_source(self, source):
@@ -491,341 +345,18 @@ class NeuralConfig():
 
     def session_start_time(self):
         """Timezone-aware session start parsed from the OE timestamp folder name."""
-        name = os.path.basename(self.oe_folder)  # e.g. 2026-06-24_15-02-48
-        local_tz = datetime.datetime.now().astimezone().tzinfo
-        try:
-            return datetime.datetime.strptime(
-                name, '%Y-%m-%d_%H-%M-%S').replace(tzinfo=local_tz)
-        except ValueError:
-            return datetime.datetime(1970, 1, 1, tzinfo=local_tz)
-
-
-# ---------------------------------------------------------------------------
-# Stream resolution
-# ---------------------------------------------------------------------------
-def get_streams(cfg):
-    """Return (stream_names, stream_ids) for the Open Ephys binary folder."""
-    import spikeinterface.full as si
-
-    stream_names, stream_ids = si.get_neo_streams('openephysbinary', str(cfg.oe_folder))
-    return list(stream_names), list(stream_ids)
-
-
-def _is_ap_stream(name):
-    n = name.lower()
-    return n.endswith('ap') or '-ap' in n or '.ap' in n
-
-
-def resolve_stream(cfg, stream_names, stream_ids):
-    """Pick the continuous neural stream.
-
-    Neuropixels -> first AP-named stream; V-probe -> the stream whose channel
-    count equals expected_n_channels.  Priority: stream_id -> stream_name ->
-    probe rule -> first stream.  Returns (stream_id, stream_name).
-    """
-    import spikeinterface.full as si
-
-    pairs = list(zip(stream_names, stream_ids))
-
-    if cfg.stream_id is not None:
-        for name, sid in pairs:
-            if str(sid) == str(cfg.stream_id):
-                return sid, name
-        raise ValueError('stream_id={!r} not found in {}'.format(cfg.stream_id, stream_ids))
-    if cfg.stream_name is not None:
-        for name, sid in pairs:
-            if name == cfg.stream_name:
-                return sid, name
-        raise ValueError('stream_name={!r} not found in {}'.format(cfg.stream_name, stream_names))
-
-    if cfg.probe_type == 'neuropixels':
-        ap = [(name, sid) for name, sid in pairs if _is_ap_stream(name)]
-        if ap:
-            name, sid = ap[0]
-            return sid, name
-    else:  # vprobe: match channel count
-        for name, sid in pairs:
-            try:
-                r = si.read_openephys(str(cfg.oe_folder), stream_id=str(sid),
-                                      block_index=cfg.block_index)
-                if r.get_num_channels() == cfg.expected_n_channels:
-                    return sid, name
-            except Exception:
-                continue
-
-    name, sid = pairs[0]
-    return sid, name
-
-
-def select_one_segment(rec, segment_index):
-    """Reduce a multi-segment recording to a single mono-segment recording."""
-    import spikeinterface.full as si
-
-    if hasattr(rec, 'select_segments'):
-        return rec.select_segments([segment_index])
-    return si.select_segment_recording(rec, segment_indices=segment_index)
-
-
-# ---------------------------------------------------------------------------
-# Merge of several recordings into one dataset (concatenation)
-# ---------------------------------------------------------------------------
-def resolve_recording_sources(cfg):
-    """Ordered list of per-source configs to concatenate.
-
-    Returns ``[cfg]`` unchanged for the single-recording path (so existing
-    behaviour is byte-identical); otherwise one shallow-copied config per entry of
-    cfg.merge_sources, each pinned to its own oe_folder/block/segment via
-    cfg.for_source.  The order is the concatenation (and trial) order.
-    """
-    if not getattr(cfg, 'is_merged', False):
-        return [cfg]
-    return [cfg.for_source(s) for s in cfg.merge_sources]
-
-
-def oe_recording(session, block_index, recording_index):
-    """Open Ephys Recording for (experiment=block_index, recording=recording_index).
-
-    Prefers matching the recording's own experiment/recording indices when the
-    installed open-ephys-python exposes them; otherwise falls back to flat indexing
-    of recordnodes[0].recordings, which reproduces the previous behaviour for a
-    single experiment (block_index 0).
-    """
-    recs = session.recordnodes[0].recordings
-    matches = [r for r in recs
-               if getattr(r, 'experiment_index', None) == block_index
-               and getattr(r, 'recording_index', None) == recording_index]
-    if matches:
-        return matches[0]
-    return recs[recording_index]
-
-
-def _segment_num_samples(scfg):
-    """(n_samples, fs) of the SpikeInterface segment a source contributes.
-
-    This is exactly the sample count concatenate_recordings uses, so the merge
-    timeline matches the sorted spike frames.  Reads metadata only (no traces).
-    """
-    import spikeinterface.full as si
-
-    stream_names, stream_ids = get_streams(scfg)
-    stream_id, _ = resolve_stream(scfg, stream_names, stream_ids)
-    rec = si.read_openephys(str(scfg.oe_folder), stream_id=str(stream_id),
-                            block_index=scfg.block_index)
-    if rec.get_num_segments() > 1:
-        rec = select_one_segment(rec, scfg.recording_index)
-    return rec.get_num_samples(), rec.get_sampling_frequency()
-
-
-def _source_first_sample(scfg):
-    """First continuous sample_number of a source, or None if it cannot be read."""
-    try:
-        from open_ephys.analysis import Session
-        session = Session(str(scfg.oe_folder))
-        rec = oe_recording(session, scfg.block_index, scfg.recording_index)
-        return int(rec.continuous[0].sample_numbers[0])
-    except Exception:
-        return None
-
-
-def merge_timeline(cfg):
-    """Per-source concatenation layout on the joint spike timebase.
-
-    For each source (in concatenation order) returns a dict with oe_folder,
-    block_index, recording_index, n_samples (the SpikeInterface segment length),
-    first_sample (Open Ephys continuous[0].sample_numbers[0], used to zero that
-    source), fs, and sample_offset (cumulative n_samples of all preceding sources).
-
-    Spikes and TTLs share this timeline: for a raw sample within source k,
-    ``joint_time = (raw_sample - first_sample_k) / fs + sample_offset_k / fs``.
-    """
-    layout, offset = [], 0
-    for scfg in resolve_recording_sources(cfg):
-        n_samples, fs = _segment_num_samples(scfg)
-        first_sample = _source_first_sample(scfg)
-        layout.append(dict(
-            oe_folder=str(scfg.oe_folder),
-            block_index=int(scfg.block_index),
-            recording_index=int(scfg.recording_index),
-            n_samples=int(n_samples),
-            first_sample=(None if first_sample is None else int(first_sample)),
-            fs=float(fs),
-            sample_offset=int(offset)))
-        offset += int(n_samples)
-    return layout
-
-
-# ---------------------------------------------------------------------------
-# Probe geometry / wiring (V-probe)
-# ---------------------------------------------------------------------------
-def _contact_positions(cfg):
-    import numpy as np
-
-    n = cfg.expected_n_channels
-    pos = np.zeros((n, 2), dtype=float)
-    if cfg.geometry == 'linear':
-        for i in range(n):
-            pos[i] = [0.0, i * cfg.contact_pitch_um]
-    elif cfg.geometry == 'staggered':
-        for i in range(n):
-            row, col = divmod(i, 2)
-            pos[i] = [col * cfg.horizontal_pitch_um, row * cfg.contact_pitch_um]
-    else:
-        raise ValueError('Unknown geometry {!r}'.format(cfg.geometry))
-    return pos
-
-
-def recording_channel_names(rec):
-    """Channel names in the recording's stored channel order."""
-    import numpy as np
-
-    names = rec.get_property('channel_name')
-    if names is None:
-        names = np.array([str(c) for c in rec.get_channel_ids()])
-    return [str(n) for n in names]
-
-
-def build_vprobe(cfg, rec):
-    """Build a 32-channel probe and wire contacts to device channels by name."""
-    import numpy as np
-    from probeinterface import Probe
-
-    n = cfg.expected_n_channels
-    if len(cfg.contact_channel_names) != n:
-        raise ValueError('contact_channel_names has {} entries, expected {}.'.format(
-            len(cfg.contact_channel_names), n))
-
-    names = recording_channel_names(rec)
-    name_to_index = {nm: i for i, nm in enumerate(names)}
-    missing = [c for c in cfg.contact_channel_names if c not in name_to_index]
-    if missing:
-        raise ValueError('Contact channel names not in recording: {}. '
-                         'Recording channel names (stored order): {}'.format(missing, names))
-
-    probe = Probe(ndim=2, si_units='um')
-    probe.set_contacts(positions=_contact_positions(cfg), shapes='circle',
-                       shape_params={'radius': cfg.contact_radius_um})
-    probe.create_auto_shape(probe_type='tip')
-    device_indices = np.array([name_to_index[c] for c in cfg.contact_channel_names],
-                              dtype='int64')
-    probe.set_device_channel_indices(device_indices)
-    return probe
-
-
-def attach_probe(cfg, rec):
-    """Attach the manually-built V-probe geometry to a recording."""
-    return rec.set_probe(build_vprobe(cfg, rec))
-
-
-# ---------------------------------------------------------------------------
-# Events
-# ---------------------------------------------------------------------------
-def load_events(cfg):
-    import spikeinterface.full as si
-
-    return si.read_openephys_event(str(cfg.oe_folder), block_index=cfg.block_index)
-
-
-def _ttl_name_score(channel_id):
-    s = str(channel_id).lower()
-    if 'message' in s:
-        return -1
-    score = 0
-    if 'ttl' in s:
-        score += 3
-    if 'sync' in s:
-        score += 2
-    if 'ap' in s:
-        score += 1
-    return score
-
-
-def event_segment_counts(events, channel_id):
-    """Return {segment_index: n_events} for a channel across all event segments."""
-    try:
-        n_seg = events.get_num_segments()
-    except Exception:
-        n_seg = 1
-    counts = {}
-    for s in range(n_seg):
-        try:
-            ev = events.get_events(channel_id=channel_id, segment_index=s)
-            counts[s] = int(len(ev)) if ev is not None else 0
-        except Exception:
-            counts[s] = None
-    return counts
-
-
-def resolve_ttl_channel(cfg, events):
-    """Pick the TTL/sync channel that actually has events (avoids 'Messages')."""
-    channel_ids = list(events.channel_ids)
-    if cfg.ttl_event_channel is not None:
-        if cfg.ttl_event_channel not in channel_ids:
-            raise ValueError('ttl_event_channel={!r} not in {}'.format(
-                cfg.ttl_event_channel, channel_ids))
-        return cfg.ttl_event_channel
-
-    seen, unique_ids = set(), []
-    for cid in channel_ids:
-        if str(cid) not in seen:
-            seen.add(str(cid))
-            unique_ids.append(cid)
-
-    def n_events(cid):
-        counts = [c for c in event_segment_counts(events, cid).values() if c]
-        return max(counts) if counts else 0
-
-    with_events = [cid for cid in unique_ids if n_events(cid) > 0]
-    if with_events:
-        with_events.sort(key=lambda cid: (_ttl_name_score(cid), n_events(cid)),
-                         reverse=True)
-        return with_events[0]
-    hinted = [cid for cid in unique_ids if _ttl_name_score(cid) > 0]
-    return hinted[0] if hinted else channel_ids[0]
-
-
-def find_event_segment(cfg, events, channel_id, preferred=None):
-    """Return (segment_index, ev) for the first segment with non-empty events."""
-    if preferred is None:
-        preferred = cfg.recording_index
-    try:
-        n_seg = events.get_num_segments()
-    except Exception:
-        n_seg = preferred + 1
-    order = [preferred] + [s for s in range(n_seg) if s != preferred]
-
-    fallback = None
-    for s in order:
-        try:
-            ev = events.get_events(channel_id=channel_id, segment_index=s)
-        except Exception:
-            continue
-        if fallback is None:
-            fallback = (s, ev)
-        if ev is not None and len(ev) > 0:
-            return s, ev
-    return fallback if fallback is not None else (preferred, None)
+        return openephys.session_start_time(self.oe_folder)
 
 
 # ---------------------------------------------------------------------------
 # Loaders for saved intermediates
 # ---------------------------------------------------------------------------
-def load_si_folder(folder):
-    import spikeinterface.full as si
-
-    if hasattr(si, 'load'):
-        try:
-            return si.load(str(folder))
-        except Exception:
-            pass
-    return si.load_extractor(str(folder))
-
-
 def load_preprocessed(cfg):
     folder = cfg.subfolders()['preprocessed']
     if not os.path.exists(folder):
         raise FileNotFoundError('Preprocessed recording not found at {}. '
                                 'Run preprocess_recording first.'.format(folder))
-    return load_si_folder(folder)
+    return streams.load_si_folder(folder)
 
 
 def load_sorting(cfg):
@@ -846,12 +377,3 @@ def load_analyzer(cfg):
         raise FileNotFoundError('Sorting analyzer not found at {}. '
                                 'Run build_sorting_analyzer first.'.format(folder))
     return si.load_sorting_analyzer(str(folder))
-
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-def save_json(obj, path):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
-        json.dump(obj, f, indent=2, default=str)

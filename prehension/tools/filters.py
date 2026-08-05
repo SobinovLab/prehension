@@ -131,6 +131,35 @@ def nanmedianfilt(input_vector, kernel_width):
     return output_vector
 
 
+########### Causal smoothing
+def causal_halfgaussian_kernel(sigma_s, bin_width, n_sd=4):
+    '''Return a normalized causal half-gaussian smoothing kernel (in bins).
+
+    The kernel spans the current bin and the preceding ~n_sd*sigma bins (no future
+    bins), so filtering with it never uses activity from after a bin -- appropriate
+    for a read-out that sweeps forward through time.  The weights are the right half
+    of a Gaussian (index 0 = current bin) normalized to sum to 1.  A non-positive
+    sigma degenerates to a pass-through kernel ([1.0]).
+    '''
+    sigma_bins = float(sigma_s) / float(bin_width)
+    if sigma_bins <= 0:
+        return np.array([1.0])
+    half_len = int(np.ceil(n_sd * sigma_bins))
+    delays = np.arange(0, half_len + 1)
+    kernel = np.exp(-0.5 * (delays / sigma_bins) ** 2)
+    kernel /= kernel.sum()
+    return kernel
+
+
+def apply_causal_filter(rate, kernel):
+    '''Causally smooth a 1-D rate trace with `kernel` (index 0 weights the current bin).
+
+    Output bin i is sum_d kernel[d] * rate[i - d] for d >= 0, i.e. only the present
+    and past bins contribute; the trace length is preserved.
+    '''
+    return np.convolve(rate, kernel, mode='full')[:len(rate)]
+
+
 ############## Deprecated
 def reduce_force_matrices(matrices, reduction=np.sum):
     '''Consider replacing with np.sum(matrices, axis=(1, 2)) on numpy versions >= 1.7.0'''

@@ -40,6 +40,7 @@ from . import spike_sorting
 from . import postprocessing
 from . import export_phy
 from . import export_nwb
+from .common import openephys, probe
 
 
 # Ordered keys of the steps run by run_necessary; used to validate/select --steps.
@@ -86,7 +87,7 @@ def create_meta_neural(server, processed_server, sessions, temp):
 
         # probe type comes from meta_structure; sessions without neural data are skipped
         try:
-            probe_type = config.probe_type_from_meta(server, processed_server, session)
+            probe_type = probe.probe_type_from_meta(server, processed_server, session)
         except ValueError as e:
             ws('Skipping session {}: {}'.format(session, e))
             continue
@@ -101,21 +102,21 @@ def create_meta_neural(server, processed_server, sessions, temp):
         # Enumerate every recording under neural/.  More than one -> populate
         # merge_recordings so they are concatenated for a joint sort; exactly one ->
         # leave merge_recordings empty (single-recording path) but report it.
-        recordings = config.enumerate_recordings(raw_neural_dir)
+        recordings = openephys.enumerate_recordings(raw_neural_dir)
         if len(recordings) > 1:
             meta['merge_recordings'] = recordings
             rs('  {}: found {} recordings; populated merge_recordings:'.format(
                 session, len(recordings)))
             for r in recordings:
-                rs('      {}'.format(config.describe_recording(r)))
+                rs('      {}'.format(openephys.describe_recording(r)))
         elif len(recordings) == 1:
             rs('  {}: single recording found ({}); merge_recordings left empty.'.format(
-                session, config.describe_recording(recordings[0])))
+                session, openephys.describe_recording(recordings[0])))
         else:
             ws('  {}: no recordings enumerated under {}; merge_recordings left empty.'.format(
                 session, raw_neural_dir))
 
-        config.save_json(meta, path)
+        tools.io.save_json(meta, path)
         rs('  {}: wrote {}'.format(session, path))
 
 
@@ -175,7 +176,7 @@ def run_necessary(server, processed_server, sessions, temp,
         # probe type from meta_structure; the config also loads meta_neural.json.
         # A missing meta_structure OR meta_neural raises ValueError -> skip session.
         try:
-            probe_type = config.probe_type_from_meta(server, processed_server, session)
+            probe_type = probe.probe_type_from_meta(server, processed_server, session)
             cfg = config.NeuralConfig(server, processed_server, session, probe_type,
                                       nwb_units=nwb_units, sorter=sorter, n_jobs=processes,
                                       recording=recording)

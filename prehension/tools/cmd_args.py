@@ -22,6 +22,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 
+def resolve_meta_arg(cli_value, meta, key, default=None):
+    '''CLI kwarg if provided (not None), else the meta value, else default.
+
+    A generic precedence resolver used to layer a command-line override over a
+    per-session config dict: returns ``cli_value`` when it is not None, otherwise
+    ``meta[key]`` when present and not empty, otherwise ``default``.
+    '''
+    if cli_value is not None:
+        return cli_value
+    v = meta.get(key, None) if meta else None
+    return default if v is None or v == '' else v
+
+
 def add_default_arguments(parser, arguments):
     '''Possible arguments:
         sessions

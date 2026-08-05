@@ -23,10 +23,27 @@ import os
 import csv
 import re
 import math
+import json
 
 import numpy as np
 
 import timed_sparse_matrix as tsm
+
+
+def save_json(obj, path):
+    '''Write ``obj`` to ``path`` as JSON (creating the directory), indent 2.
+
+    Non-serializable values are stringified via ``default=str``.
+    '''
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as f:
+        json.dump(obj, f, indent=2, default=str)
+
+
+def load_json(path):
+    '''Read and return the JSON object stored at ``path``.'''
+    with open(path, 'r') as f:
+        return json.load(f)
 
 
 def import_matrices(filename, equalize_period=-np.inf,

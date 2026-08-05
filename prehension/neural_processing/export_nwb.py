@@ -41,6 +41,7 @@ import numpy as np
 
 from . import config
 from ..tools.logs import rs, ws
+from .common import openephys, streams, probe
 
 
 def _sorting_from_phy(cfg, exclude_groups=('noise',)):
@@ -131,23 +132,6 @@ def _select_sorting(cfg):
     return config.load_sorting(cfg)
 
 
-def _add_electrodes(nwbfile, cfg, rec):
-    """Best-effort electrodes table from the recording probe geometry."""
-    try:
-        device = nwbfile.create_device(name='probe', description=cfg.probe_type)
-        eg = nwbfile.create_electrode_group(
-            name='probe0', description='{} probe'.format(cfg.probe_type),
-            location='unknown', device=device)
-        locs = rec.get_channel_locations()
-        for i in range(rec.get_num_channels()):
-            x, y = float(locs[i][0]), float(locs[i][1])
-            nwbfile.add_electrode(x=x, y=y, z=0.0, location='unknown',
-                                  group=eg, group_name='probe0')
-        print('Added {} electrodes.'.format(rec.get_num_channels()))
-    except Exception as e:
-        ws('Skipping electrodes table (schema mismatch): {}'.format(e))
-
-
 def _read_oe_ttl_windows_source(scfg, fs, concat_offset_samples=0):
     """TTL [start, stop] windows for one source, on the (joint) spike timebase.
 
@@ -161,7 +145,7 @@ def _read_oe_ttl_windows_source(scfg, fs, concat_offset_samples=0):
 
     probe = 'np' if scfg.probe_type == 'neuropixels' else 'v'
     session = Session(str(scfg.oe_folder))
-    recording = config.oe_recording(session, scfg.block_index, scfg.recording_index)
+    recording = openephys.oe_recording(session, scfg.block_index, scfg.recording_index)
     events = recording.events
     first_sample = recording.continuous[0].sample_numbers[0]
     time_offset = first_sample / fs
@@ -185,7 +169,7 @@ def _read_oe_ttl_windows(cfg, fs):
 
     Identical to neural_plotting.figure_peth2.read_oe_event for a single recording.
     When cfg spans several merge sources, each source's windows are zeroed to its
-    own start and shifted by its cumulative sample offset (config.merge_timeline),
+    own start and shifted by its cumulative sample offset (streams.merge_timeline),
     so pulses from later recordings continue past the earlier ones on the same
     timebase as the concatenated spikes.  Windows are appended in source order.
     Returns (starts, stops) arrays (s).
@@ -194,8 +178,8 @@ def _read_oe_ttl_windows(cfg, fs):
         starts, stops = _read_oe_ttl_windows_source(cfg, fs)
     else:
         starts, stops = [], []
-        sources = config.resolve_recording_sources(cfg)
-        for scfg, entry in zip(sources, config.merge_timeline(cfg)):
+        sources = streams.resolve_recording_sources(cfg)
+        for scfg, entry in zip(sources, streams.merge_timeline(cfg)):
             s, e = _read_oe_ttl_windows_source(scfg, fs, entry['sample_offset'])
             starts.extend(s)
             stops.extend(e)
@@ -223,7 +207,7 @@ def export_nwb(cfg):
         session_start_time=cfg.session_start_time(),
         session_id=cfg.session)
 
-    _add_electrodes(nwbfile, cfg, rec_pre)
+    probe.add_electrodes(nwbfile, cfg, rec_pre)
 
     # Units (spike times in seconds, zeroed to the sorted segment start) -- from
     # _select_sorting, exactly as figure_peth2.get_neural_spikes.

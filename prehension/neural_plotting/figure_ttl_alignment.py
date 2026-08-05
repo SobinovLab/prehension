@@ -32,12 +32,12 @@ import matplotlib.pyplot as plt
 
 from .. import meta_session
 from ..tools import io
+from ..tools import misc
+from ..tools import plotting
+from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..neural_processing import config as npconfig
-from ..neural_processing import ttl_sync
-
-# target number of index labels per subplot (kept readable on long sessions)
-MAX_LABELS = 40
+from ..neural_processing.common import events
 
 # max gap for a trial start to count as having a matching rising TTL pulse
 # Larger value does not matter because each trial is aligned separately
@@ -89,74 +89,6 @@ def read_trial_sync_times(cfg):
 
 
 # ---------------------------------------------------------------------------
-# Plotting helpers
-# ---------------------------------------------------------------------------
-def _interval_step(starts, stops):
-    """Build x/y arrays of a 0/1 step signal that is high during each interval."""
-    edges = [(float(s), 1) for s in starts]
-    edges += [(float(e), -1) for e in stops if np.isfinite(e)]
-    edges.sort(key=lambda p: (p[0], -p[1]))
-    if not edges:
-        return np.array([0.0]), np.array([0])
-
-    xs, ys, level = [edges[0][0]], [0], 0
-    for t, d in edges:
-        xs.append(t)
-        ys.append(level)
-        level = max(0, min(1, level + d))  # clamp for overlapping intervals
-        xs.append(t)
-        ys.append(level)
-    xs.append(edges[-1][0])
-    ys.append(level)
-    return np.array(xs), np.array(ys)
-
-
-def _plot_track(ax, starts, stops, indices, ylabel, up_label, down_label):
-    """Draw a 0/1 track high during each [start, stop], with index labels."""
-    starts = np.asarray(starts, dtype=float)
-    stops = np.asarray(stops, dtype=float)
-    xs, ys = _interval_step(starts, stops)
-    ax.plot(xs, ys, color='k', linewidth=1.0)
-    ax.plot(starts, np.ones_like(starts), '|', color='tab:green', markersize=10,
-            label=up_label)
-    finite_stops = stops[np.isfinite(stops)]
-    ax.plot(finite_stops, np.zeros_like(finite_stops), '|', color='tab:cyan',
-            markersize=10, label=down_label)
-    ax.axvline(0.0, color='tab:blue', linestyle='--', linewidth=0.8)
-    ax.set_ylim(-0.2, 1.4)
-    ax.set_yticks([0, 1])
-    ax.set_yticklabels(['low', 'high'])
-    ax.set_ylabel(ylabel)
-    ax.legend(loc='upper right', fontsize=8)
-
-    label_every = max(1, int(np.ceil(len(starts) / MAX_LABELS)))
-    for k, (s, idx) in enumerate(zip(starts, indices)):
-        if k % label_every == 0:
-            ax.annotate(str(idx), xy=(s, 1.0), xytext=(s, 1.12), ha='center',
-                        va='bottom', fontsize=7, color='tab:green', rotation=90)
-
-
-def _missing_pulse_mask(trial_starts, rising, tol=TTL_MATCH_TOL_S):
-    """Boolean mask over trial_starts: True where no rising TTL is within tol (s).
-
-    Both inputs are in the aligned time frame (see plot_ttl_trial_alignment), so a
-    True entry marks a trial start that has no corresponding TTL pulse.
-    """
-    trial_starts = np.asarray(trial_starts, dtype=float)
-    rising = np.sort(np.asarray(rising, dtype=float))
-    if trial_starts.size == 0:
-        return np.zeros(0, dtype=bool)
-    if rising.size == 0:
-        return np.ones(trial_starts.size, dtype=bool)
-    idx = np.searchsorted(rising, trial_starts)
-    idx_hi = np.clip(idx, 0, len(rising) - 1)
-    idx_lo = np.clip(idx - 1, 0, len(rising) - 1)
-    nearest = np.minimum(np.abs(rising[idx_hi] - trial_starts),
-                         np.abs(rising[idx_lo] - trial_starts))
-    return nearest > tol
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=None,
@@ -180,10 +112,10 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
                                 recording=recording)
     cfg.ensure_work_folder()
     # skip: CLI kwarg > meta_neural.json 'skip_ttl' > 0
-    skip = npconfig.resolve_meta_arg(skip, cfg.meta_neural, 'skip_ttl', 0)
+    skip = resolve_meta_arg(skip, cfg.meta_neural, 'skip_ttl', 0)
 
     # neural TTL edges (times only; no recording load needed)
-    edges = ttl_sync.extract_ttl_edge_times(cfg, verbose=True)
+    edges = events.extract_ttl_edge_times(cfg, verbose=True)
     rising = (np.asarray(edges['rising_times_s'], dtype=float)
               if edges['rising_times_s'] is not None else np.array([]))
     falling = (np.asarray(edges['falling_times_s'], dtype=float)
@@ -225,20 +157,21 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
             len(start_s) - len(trial_idx)))
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(16, 6))
-    _plot_track(ax1, rising_a, falling_a, np.arange(len(rising)), 'TTL pulses',
-                'rising', 'falling')
+    plotting.plot_interval_track(ax1, rising_a, falling_a, np.arange(len(rising)),
+                                 'TTL pulses', 'rising', 'falling')
     ax1.set_title('TTL pulses (n={}) vs trials (n={}); aligned by pulse {} <-> '
                   'trial {} (skip={})'.format(len(rising), len(start_s), pulse_ref,
                                               trial_ref, skip))
     # label trials by their composite id (trial number + '_1', ... for duplicate recordings)
     trial_labels = ['{}{}'.format(trial_num[i], '' if dup_index[i] == 0 else '_%d' % dup_index[i])
                     for i in trial_idx]
-    _plot_track(ax2, start_a, end_a, trial_labels, 'trials', 'trial start', 'trial end')
+    plotting.plot_interval_track(ax2, start_a, end_a, trial_labels, 'trials',
+                                 'trial start', 'trial end')
     ax2.set_xlabel('time from alignment (s)')
 
     # Missing-pulse check: trial starts with no rising TTL within TTL_MATCH_TOL_S,
     # marked with a red vertical line in both subplots.
-    missing = _missing_pulse_mask(start_a, rising_a)
+    missing = misc.unmatched_mask(start_a, rising_a, TTL_MATCH_TOL_S)
     n_missing = int(np.count_nonzero(missing))
     if n_missing:
         missing_labels = [trial_labels[k] for k in np.flatnonzero(missing)]

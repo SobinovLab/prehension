@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.neural_processing import config
+from prehension.neural_processing.common import probe
 from prehension.neural_plotting.figure_peth import plot_perievent_histograms, BEFORE, AFTER
 
 if __name__ == "__main__":
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     args = parser.parse_args(args=argv)
 
     # probe type is read from the session meta_structure ('neural' field), not the command line
-    probe_type = config.probe_type_from_meta(args.server, args.processed_server, args.session)
+    probe_type = probe.probe_type_from_meta(args.server, args.processed_server, args.session)
 
     start_time = time.time()
     plot_perievent_histograms(

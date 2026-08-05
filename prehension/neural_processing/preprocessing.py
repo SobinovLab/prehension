@@ -30,9 +30,9 @@ import shutil
 
 import numpy as np
 
-from . import config
-from . import io_streams
+from ..tools import io
 from ..tools.logs import rs, ws
+from .common import streams
 
 
 def _finish_and_save(cfg, rec_pre, bad_channel_ids, channel_labels, n_before):
@@ -45,7 +45,7 @@ def _finish_and_save(cfg, rec_pre, bad_channel_ids, channel_labels, n_before):
     rec_saved = rec_pre.save(folder=pre_folder, format='binary', **cfg.job_kwargs)
     print(rec_saved)
 
-    config.save_json(dict(
+    io.save_json(dict(
         probe_type=cfg.probe_type,
         bad_channel_ids=[str(c) for c in bad_channel_ids],
         channel_labels=([str(x) for x in np.asarray(channel_labels).tolist()]
@@ -61,8 +61,8 @@ def _finish_and_save(cfg, rec_pre, bad_channel_ids, channel_labels, n_before):
     # When several recordings were concatenated, persist the per-source layout so
     # the timing steps (export_nwb, ttl_sync) can reconstruct the joint timebase.
     if getattr(cfg, 'is_merged', False):
-        config.save_json(config.merge_timeline(cfg),
-                         os.path.join(cfg.work_folder, 'merge_layout.json'))
+        io.save_json(streams.merge_timeline(cfg),
+                     os.path.join(cfg.work_folder, 'merge_layout.json'))
     return rec_saved
 
 
@@ -72,7 +72,7 @@ def preprocess_recording_neuropixels(cfg):
 
     rs('Preprocessing Neuropixels recording.')
     # Sorting operates on frames; the synced time vector is not needed here.
-    rec, _, _ = io_streams.load_recording_neuropixels(cfg, with_sync=False)
+    rec, _, _ = streams.load_recording_neuropixels(cfg, with_sync=False)
 
     rec_hp = si.highpass_filter(rec, freq_min=cfg.highpass_freq_min)
     bad_channel_ids, channel_labels = si.detect_bad_channels(rec_hp)
@@ -96,7 +96,7 @@ def preprocess_recording_vprobe(cfg):
     import spikeinterface.full as si
 
     rs('Preprocessing V-probe recording.')
-    rec, _, _ = io_streams.load_recording_vprobe(cfg, with_sync=False, with_probe=True)
+    rec, _, _ = streams.load_recording_vprobe(cfg, with_sync=False, with_probe=True)
 
     rec_hp = si.highpass_filter(rec, freq_min=cfg.highpass_freq_min)
     bad_channel_ids, channel_labels = si.detect_bad_channels(rec_hp)
