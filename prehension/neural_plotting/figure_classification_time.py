@@ -42,6 +42,25 @@ from .common.traces import plot_classification_time, resolve_pooled_save_dir
 # defaults; overridable through the calling function / script
 N_FOLDS = 5                # cross-validation folds (trials held out)
 SHUFFLE_PERCENTILE = 90.0  # percentile of the pooled shuffled accuracies -> chance level
+SUSTAINED_DURATION_S = 0.2  # min contiguous time above session chance to report (s)
+
+
+def _sustained_above_chance(accuracy, chance, bin_centers):
+    """Longest contiguous time (s) `accuracy` stays strictly above `chance`.
+
+    Returns 0.0 when `chance` is missing/not finite or accuracy never exceeds it.
+    """
+    accuracy = np.asarray(accuracy, dtype=float)
+    bin_centers = np.asarray(bin_centers, dtype=float)
+    if accuracy.size == 0 or chance is None or not np.isfinite(chance):
+        return 0.0
+    dt = float(np.median(np.diff(bin_centers))) if bin_centers.size > 1 else 0.0
+    above = np.isfinite(accuracy) & (accuracy > chance)
+    best = run = 0
+    for a in above:
+        run = run + 1 if a else 0
+        best = max(best, run)
+    return best * dt
 
 # style per plotted session set; extended if more sets are ever added
 GROUP_STYLES = [
@@ -114,6 +133,7 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
                                n_folds=N_FOLDS, shuffle_percentile=SHUFFLE_PERCENTILE,
                                only_good=False, min_rate=MIN_RATE_HZ, processes=1,
                                sessions_label=None, sessions2_label=None, name=None,
+                               sustained_duration=SUSTAINED_DURATION_S,
                                save=True, save_dir=None, seed=0):
     """Classify the condition (`group_column`) through time for one or two session sets.
 
@@ -133,7 +153,9 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
     good_neurons come from each session's meta_neural.json.  `sessions_label` /
     `sessions2_label` set the legend label for each set (e.g. the raw --sessions /
     --sessions2 token string); default to the GROUP_STYLES labels when not given.
-    `processes` sets the size of the per-time-bin process pool.  The figure is saved by
+    `processes` sets the size of the per-time-bin process pool.  Per set, the sessions
+    whose accuracy stays above their own shuffle chance threshold for a contiguous
+    stretch longer than `sustained_duration` seconds are logged.  The figure is saved by
     default (save=True) into <processed_server>/pooled_figures/figure_classification_time,
     named after `name` (the --sessions/--sessions2 strings; defaults to a stub built
     from `sessions`/`sessions2`); pass save=False to disable or save_dir to override the
@@ -163,6 +185,21 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
             if sessions2_label:
                 group2['label'] = sessions2_label
             groups.append(group2)
+
+    # Report, per set, which sessions stay above their own shuffle chance threshold
+    # for a contiguous stretch longer than `sustained_duration`.
+    for g in groups:
+        exceeding = [(r['session'], _sustained_above_chance(
+                          r['accuracy'], r.get('chance'), g['bin_centers']))
+                     for r in g['per_session_results']]
+        exceeding = [(s, d) for s, d in exceeding if d > sustained_duration]
+        if exceeding:
+            rs('[{}] {} session(s) above session shuffle chance for > {:.0f} ms: {}'.format(
+                g['label'], len(exceeding), sustained_duration * 1e3,
+                ', '.join('{} ({:.0f} ms)'.format(s, d * 1e3) for s, d in exceeding)))
+        else:
+            rs('[{}] no sessions above session shuffle chance for > {:.0f} ms.'.format(
+                g['label'], sustained_duration * 1e3))
 
     # the bin grid is identical across sets (same before/after/bin_width); theoretical
     # chance = 1 / n_conditions over the conditions seen across every plotted set.

@@ -45,7 +45,7 @@ from prehension.tools import cmd_args
 from prehension.neural_plotting.figure_peth import BEFORE, AFTER
 from prehension.neural_plotting.figure_spaces_pooled import MIN_RATE_HZ
 from prehension.neural_plotting.figure_classification_time import (
-    figure_classification_time, CAUSAL_SIGMA, N_FOLDS)
+    figure_classification_time, CAUSAL_SIGMA, N_FOLDS, SUSTAINED_DURATION_S)
 
 if __name__ == "__main__":
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
@@ -93,6 +93,11 @@ if __name__ == "__main__":
         "--min_rate", type=float, default=MIN_RATE_HZ, metavar="HZ",
         help="Keep only neurons with mean rate above this (Hz). Default: {}.".format(MIN_RATE_HZ))
     parser.add_argument(
+        "--sustained_ms", type=float, default=SUSTAINED_DURATION_S * 1e3, metavar="MS",
+        help="Report the sessions whose accuracy stays above their own shuffle chance "
+             "threshold for a contiguous stretch longer than this (ms). "
+             "Default: {:.0f}.".format(SUSTAINED_DURATION_S * 1e3))
+    parser.add_argument(
         "--no_save", dest="save", action="store_false",
         help="Do not save the figure (saving is on by default, into "
              "<processed_server>/pooled_figures/figure_classification_time, named after "
@@ -116,7 +121,7 @@ if __name__ == "__main__":
         avg_window=args.avg_window, n_folds=args.n_folds,
         only_good=args.only_good, min_rate=args.min_rate, processes=args.processes,
         sessions_label=sessions_label, sessions2_label=sessions2_label,
-        name=name, save=args.save)
+        name=name, sustained_duration=args.sustained_ms / 1e3, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()
