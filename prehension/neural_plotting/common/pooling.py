@@ -44,7 +44,8 @@ from ...neural_processing import config
 from ...neural_processing.common import probe
 from ...neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
-    read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection)
+    read_nwb_spikes_and_ttl, read_nwb_unit_depths, get_trial_data_spike,
+    resolve_neuron_selection)
 from ...neural_processing.common.population import MIN_RATE_HZ
 from .behaviour import load_timepoints_into_msession, get_timepoint, get_target_force
 
@@ -407,8 +408,9 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
     Returns (sessions_results, lag_times) where each entry of sessions_results is
     {'session': str, 'region': str, 'burr_hole': str, 'xcorr': (n_neurons, n_lags)
     mean Pearson cross-correlation curves, 'neuron_labels': [unit id, ...],
-    'n_trials': int}, and lag_times is the shared lag axis (s, negative = neuron leads
-    the force, positive = neuron lags it).
+    'depths': (n_neurons,) unit depth along the probe (um, NaN when the NWB carries
+    no depth), 'n_trials': int}, and lag_times is the shared lag axis (s, negative =
+    neuron leads the force, positive = neuron lags it).
     """
     found = ([s for s in sessions if os.path.isdir(os.path.join(server, s))]
              if sessions else meta_session.find_session_dirs(server))
@@ -445,6 +447,7 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
         try:
             _, _, _, msession = meta_session.load_meta_information(cfg.rserv, cfg.pserv)
             spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
+            unit_depths = read_nwb_unit_depths(cfg.nwb_path)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
@@ -563,12 +566,17 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
                 session, min_rate))
             continue
 
+        kept_labels = [neuron_labels[j] for j in keep]
         sessions_results.append({
             'session': session,
             'region': cfg.meta_neural.get('region', '') or '',
             'burr_hole': cfg.meta_neural.get('burr_hole', '') or '',
             'xcorr': xcorr[keep, :],
-            'neuron_labels': [neuron_labels[j] for j in keep],
+            'neuron_labels': kept_labels,
+            # depth (um along the probe) of each kept neuron, aligned to xcorr rows;
+            # NaN where the NWB carries no depth for that unit (older products).
+            'depths': np.array([unit_depths.get(lbl, np.nan) for lbl in kept_labels],
+                               dtype=float),
             'n_trials': n_used_trials,
         })
 

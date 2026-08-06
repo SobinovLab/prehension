@@ -64,6 +64,32 @@ def read_nwb_spikes_and_ttl(nwb_path):
     return spike_per_unit, unit_ids, events_time
 
 
+def read_nwb_unit_depths(nwb_path):
+    """Read per-unit depth (um along the probe) from the NWB, keyed by unit id.
+
+    Returns {unit_id: depth} for the units in the NWB Units table (depth is the
+    unit-location y-coordinate written by export_nwb; larger y is farther from the
+    electrode tip).  Returns {} for products written before depth extraction (no
+    'depth' column).  Keys are the same unit ids returned by
+    read_nwb_spikes_and_ttl, so callers can align depths to those unit ids.
+    """
+    from pynwb import NWBHDF5IO
+
+    with NWBHDF5IO(str(nwb_path), 'r') as fio:
+        nwbfile = fio.read()
+        udf = nwbfile.units.to_dataframe()
+        if 'depth' not in udf.columns:
+            rs('NWB has no unit depth column.')
+            return {}
+        if 'unit_id' in udf.columns:
+            unit_ids = [u for u in udf['unit_id']]
+        else:
+            unit_ids = list(udf.index)
+        depths = {uid: float(d) for uid, d in zip(unit_ids, udf['depth'])}
+    rs('NWB: read depth for {} units.'.format(len(depths)))
+    return depths
+
+
 def get_trial_data_spike(spike_per_unit, events_time):
     """For each trial window [start, stop], extract per-unit spikes within it."""
     trial_spike = []

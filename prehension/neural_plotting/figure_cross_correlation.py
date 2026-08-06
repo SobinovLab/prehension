@@ -16,15 +16,20 @@ so a neuron's peak lag is the lag of its strongest correlation regardless of sig
 Sessions are drawn on separate subplots titled with the session, region and burr hole
 (from meta_neural.json).
 
-Two figures are produced:
+Three figures are produced:
   * plot_cross_correlation(...)    -> the per-neuron r^2 curves, one subplot per
-    session, with the median peak-r^2 lag marked, and
+    session, with the median peak-r^2 lag marked,
   * plot_peak_lag_histogram(...)   -> a density histogram of the per-neuron peak-r^2
-    lag, one subplot per session.
+    lag, one subplot per session, and
+  * plot_depth_stacked_cross_correlation(...) -> each neuron's peak-normalized
+    cross-correlation curve stacked at its depth along the probe, one subplot per
+    session, oriented with the electrode tip at the bottom.
 
 Stages, as separate functions:
-  * pool_cross_correlations(...)  -> per-session per-neuron mean cross-correlations (r),
-  * plot_cross_correlation(...) / plot_peak_lag_histogram(...) -> the two figures.
+  * pool_cross_correlations(...)  -> per-session per-neuron mean cross-correlations (r)
+    and each neuron's depth along the probe,
+  * plot_cross_correlation(...) / plot_peak_lag_histogram(...) /
+    plot_depth_stacked_cross_correlation(...) -> the three figures.
 figure_cross_correlation(...) runs them all.
 
 Copyright (C) 2026 Anton Sobinov
@@ -193,6 +198,100 @@ def plot_peak_lag_histogram(sessions_results, lag_times, pre_lag, post_lag, name
 
 
 # ---------------------------------------------------------------------------
+# Plot the per-session depth-stacked cross-correlations
+# ---------------------------------------------------------------------------
+def plot_depth_stacked_cross_correlation(sessions_results, lag_times, pre_lag, post_lag,
+                                         name, save_dir, gain_fraction=0.9):
+    """Depth-stacked, peak-normalized neuron-force cross-correlation curves per session.
+
+    One subplot per session.  Each neuron's mean cross-correlation curve is squared to
+    r^2 and normalized to its own peak (r^2 max -> 1), then drawn at a vertical position
+    set by the neuron's depth along the probe (um), so the panel reads as a depth map of
+    the correlation shape.  A red tick marks each curve's peak r^2, placed on the curve
+    itself (at the peak lag, height depth + gain).  Curves whose depth is unknown (NaN --
+    older NWB products without the depth column) are skipped.  The per-curve gain is
+    ``gain_fraction`` of the median spacing between adjacent neuron depths, so
+    neighbouring traces stay legible.  The subplot title carries the session, its region
+    and burr hole (from
+    meta_neural.json) and the count of neurons with a depth.  Saves <name>_depth_stack.png
+    into save_dir and returns the figure.
+    """
+    xn, yn = plotting.xy_numsubplots(len(sessions_results))
+    fig, axs = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9), squeeze=False)
+    axs = axs.flatten()
+    for i_s, ax in enumerate(axs):
+        if i_s >= len(sessions_results):
+            ax.axis('off')
+            continue
+        res = sessions_results[i_s]
+        xcorr = res['xcorr']
+        depths = np.asarray(res.get('depths'), dtype=float)
+
+        finite = np.isfinite(depths)
+        if not finite.any():
+            ax.text(0.5, 0.5, 'no unit depths', ha='center', va='center',
+                    transform=ax.transAxes, fontsize=8, color='0.4')
+            ax.set_title(res['session'], fontsize=8)
+            continue
+
+        # Vertical gain: a peak-normalized curve (|max| -> 1) spans gain_fraction of the
+        # median spacing between adjacent neuron depths so neighbouring traces just about
+        # touch and stay readable regardless of how many neurons the probe recorded.
+        sorted_depths = np.sort(depths[finite])
+        spacing = np.median(np.diff(sorted_depths)) if sorted_depths.size > 1 else 1.0
+        if not np.isfinite(spacing) or spacing <= 0:
+            spacing = 1.0
+        gain = gain_fraction * spacing
+
+        n_drawn = 0
+        for row, depth in zip(xcorr, depths):
+            if not np.isfinite(depth) or np.all(np.isnan(row)):
+                continue
+            r2 = row ** 2
+            peak = np.nanmax(r2)
+            norm = r2 / peak if peak > 0 else np.zeros_like(r2)
+            curve = depth + gain * norm
+            ax.plot(lag_times, curve, color='0.3', linewidth=0.7, alpha=0.8)
+            # Red tick at the peak r^2 of this curve, sitting on the curve itself
+            # (its height is the curve value at the peak lag = depth + gain).
+            i_peak = np.nanargmax(r2)
+            ax.plot(lag_times[i_peak], curve[i_peak], marker='|', color='tab:red',
+                    markersize=5, markeredgewidth=1.0)
+            n_drawn += 1
+        ax.axvline(0.0, color='k', linewidth=0.8, linestyle=':')
+
+        # Orientation: the stored depth is the unit-location y-coordinate along the
+        # probe, which increases from the electrode tip upward (see export_nwb /
+        # read_nwb_unit_depths).  Matplotlib's y-axis increases upward by default, so
+        # plotting depth directly already puts the electrode TIP AT THE BOTTOM.  Set the
+        # limits ascending (low at bottom) explicitly and never invert the axis, so the
+        # tip stays at the bottom no matter what order the depths arrive in.
+        lo = float(np.nanmin(depths[finite])) - gain
+        hi = float(np.nanmax(depths[finite])) + gain
+        ax.set_ylim(lo, hi)   # ascending: tip (smallest probe y) at the bottom
+
+        region = res['region'] or 'n/a'
+        burr_hole = res['burr_hole'] or 'n/a'
+        ax.set_title('{}\n{}, burr hole {} ({} neurons w/ depth, {} trials)'.format(
+            res['session'], region, burr_hole, n_drawn, res['n_trials']), fontsize=8)
+        ax.set_xlim(-pre_lag, post_lag)
+        ax.tick_params(labelsize=6)
+        ax.set_xlabel('Neuron lag re force, s (>0: neuron lags force)', fontsize=7)
+        ax.set_ylabel('Depth along probe, um (tip at bottom)', fontsize=7)
+
+    fig.suptitle('Depth-stacked peak-normalized neuron rate vs summed grasp-force '
+                 'cross-correlation (r$^2$; tip at bottom)')
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+
+    if save_dir is not None:
+        os.makedirs(save_dir, exist_ok=True)
+        out = os.path.join(save_dir, figure_filename(name, 'depth_stack'))
+        fig.savefig(out, dpi=150, bbox_inches='tight')
+        rs('Saved {}'.format(out))
+    return fig
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 def figure_cross_correlation(server, processed_server, sessions, bin_width=BIN_WIDTH,
@@ -210,12 +309,15 @@ def figure_cross_correlation(server, processed_server, sessions, bin_width=BIN_W
     force; `min_rate` drops neurons whose mean rate over the active periods is at or
     below this (Hz), defaulting to the same MIN_RATE_HZ activity floor as the dPCA figure.
     `processes` sets the size of the per-session neuron process pool (one neuron per
-    process; serial when <= 1).  Two figures are produced -- the per-neuron r^2 curves
-    and the per-session peak-lag density histogram -- and saved by default (save=True)
-    into <processed_server>/pooled_figures/figure_cross_correlation, named after `name`
+    process; serial when <= 1).  Three figures are produced -- the per-neuron r^2
+    curves, the per-session peak-lag density histogram, and the depth-stacked
+    peak-normalized cross-correlation curves (each neuron placed at its probe depth,
+    tip at the bottom) -- and saved by default (save=True) into
+    <processed_server>/pooled_figures/figure_cross_correlation, named after `name`
     (the --sessions string; defaults to a stub built from `sessions`) with the
-    '_curves' / '_peak_lag_hist' suffixes; pass save=False to disable or save_dir to
-    override the folder.  Returns (curves_fig, peak_lag_hist_fig).
+    '_curves' / '_peak_lag_hist' / '_depth_stack' suffixes; pass save=False to disable
+    or save_dir to override the folder.  Returns
+    (curves_fig, peak_lag_hist_fig, depth_stack_fig).
     """
     save_dir = resolve_pooled_save_dir(
         processed_server, 'figure_cross_correlation', save, save_dir)
@@ -233,4 +335,6 @@ def figure_cross_correlation(server, processed_server, sessions, bin_width=BIN_W
         sessions_results, lag_times, pre_lag, post_lag, name, save_dir)
     hist_fig = plot_peak_lag_histogram(
         sessions_results, lag_times, pre_lag, post_lag, name, save_dir)
-    return curves_fig, hist_fig
+    depth_stack_fig = plot_depth_stacked_cross_correlation(
+        sessions_results, lag_times, pre_lag, post_lag, name, save_dir)
+    return curves_fig, hist_fig, depth_stack_fig
