@@ -5,8 +5,9 @@ export_nwb --- the product.
 
 Writes a minimal NWB (work/neural.nwb) holding only the neural structure plus the
 TTL sync needed to align spikes to each trial: a Units table (spike_times in
-seconds, + original unit_id), electrodes / probe geometry (best-effort), and a
-TimeIntervals 'ttl_pulses' (per-trial [start, stop] windows).
+seconds, + original unit_id and the unit depth along the probe), electrodes /
+probe geometry (best-effort), and a TimeIntervals 'ttl_pulses' (per-trial
+[start, stop] windows).
 
 Spikes and TTL windows are produced exactly as neural_plotting.figure_peth2 does:
 units come from the sorter output (_select_sorting), and the TTL windows are read
@@ -189,6 +190,41 @@ def _read_oe_ttl_windows(cfg, fs):
     return starts, stops
 
 
+def _unit_depths(cfg, sorting, rec):
+    """Per-unit depth along the probe (um) for the selected units.
+
+    Depth is the y-coordinate of each unit's location -- the center of mass of the
+    unit's average-template peak amplitude over the channel positions.  This is the
+    standard probe depth axis: for the V-probe geometry the y positions run from
+    the tip up the single shank, and for Neuropixels y runs along the probe.
+
+    Computed with a lightweight in-memory sorting analyzer built on the selected
+    units and the preprocessed recording (the same extension chain the diagnostic
+    analyzer uses, minus everything not needed for locations), so the depths line
+    up one-to-one with the units written to the NWB regardless of which sorting
+    _select_sorting returned.  Returns {unit_id: depth}; an empty dict (with a
+    warning) if locations cannot be computed, so the export still succeeds -- the
+    depth column is then simply omitted.
+    """
+    import spikeinterface.full as si
+
+    try:
+        analyzer = si.create_sorting_analyzer(sorting=sorting, recording=rec,
+                                              sparse=cfg.sparse, format='memory')
+        jk = cfg.job_kwargs
+        analyzer.compute('random_spikes', method='uniform', max_spikes_per_unit=500)
+        analyzer.compute('waveforms', ms_before=1.5, ms_after=2.0, **jk)
+        analyzer.compute('templates', operators=['average'])
+        locs = analyzer.compute('unit_locations', method='center_of_mass').get_data()
+        depths = {uid: float(loc[1])
+                  for uid, loc in zip(sorting.get_unit_ids(), locs)}
+        rs('Computed depth for {} units.'.format(len(depths)))
+        return depths
+    except Exception as e:
+        ws('Could not compute unit depths (writing units without depth): {}'.format(e))
+        return {}
+
+
 def export_nwb(cfg):
     """Write the minimal NWB neural product for one session."""
     from pynwb import NWBFile, NWBHDF5IO
@@ -210,12 +246,25 @@ def export_nwb(cfg):
     probe.add_electrodes(nwbfile, cfg, rec_pre)
 
     # Units (spike times in seconds, zeroed to the sorted segment start) -- from
-    # _select_sorting, exactly as figure_peth2.get_neural_spikes.
+    # _select_sorting, exactly as figure_peth2.get_neural_spikes.  Each unit also
+    # carries its depth along the probe (unit-location y, um), computed on the same
+    # selected sorting so the values align one-to-one with the written units.
+    depths = _unit_depths(cfg, sorting, rec_pre)
     nwbfile.add_unit_column(name='unit_id', description='original sorter unit id')
+    if depths:
+        nwbfile.add_unit_column(
+            name='depth',
+            description='unit depth along the probe (um): y-coordinate of the unit '
+                        'location (center of mass of the template peak amplitude over '
+                        'channel positions)')
     n_units = 0
     for uid in sorting.get_unit_ids():
         st = np.asarray(sorting.get_unit_spike_train(unit_id=uid), dtype=float) / fs
-        nwbfile.add_unit(spike_times=st, unit_id=str(uid))
+        if depths:
+            nwbfile.add_unit(spike_times=st, unit_id=str(uid),
+                             depth=float(depths.get(uid, np.nan)))
+        else:
+            nwbfile.add_unit(spike_times=st, unit_id=str(uid))
         n_units += 1
     print('Added {} units.'.format(n_units))
 
