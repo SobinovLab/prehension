@@ -45,6 +45,7 @@ from ..neural_processing.common.spikes import (
     read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection)
 from .common.behaviour import (
     load_timepoints_into_msession, get_timepoint, get_target_force)
+from .common.traces import resolve_session_save_dir, figure_filename
 
 
 # ---------------------------------------------------------------------------
@@ -157,14 +158,15 @@ def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
     fig2.tight_layout(rect=(0, 0, 0.94, 0.96))
     fig2.colorbar(sm, ax=axs2.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
 
-    os.makedirs(save_dir, exist_ok=True)
-    if individual_traces:
-        f1 = os.path.join(save_dir, 'peth_traces_{}.png'.format(align_key))
-        fig1.savefig(f1, dpi=150, bbox_inches='tight')
-        rs('Saved {}'.format(f1))
-    f2 = os.path.join(save_dir, 'peth_force_averages_{}.png'.format(align_key))
-    fig2.savefig(f2, dpi=150, bbox_inches='tight')
-    rs('Saved {}'.format(f2))
+    if save_dir is not None:
+        os.makedirs(save_dir, exist_ok=True)
+        if individual_traces:
+            f1 = os.path.join(save_dir, figure_filename('figure_peth', 'traces'))
+            fig1.savefig(f1, dpi=150, bbox_inches='tight')
+            rs('Saved {}'.format(f1))
+        f2 = os.path.join(save_dir, figure_filename('figure_peth'))
+        fig2.savefig(f2, dpi=150, bbox_inches='tight')
+        rs('Saved {}'.format(f2))
 
 
 def plot_perievent_histograms(server, processed_server, session, probe_type,
@@ -172,7 +174,7 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
                               skip_ttl=None, skip_ttl_last=None, recording=None,
-                              only_good=False, min_rate=None):
+                              only_good=False, min_rate=None, save=True, save_dir=None):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -204,6 +206,11 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             (Recording1, Recording2, ...), passed to NeuralConfig. The NWB is
             per-session, so this does not change what is read; kept for a uniform
             interface with the processing pipeline. None -> probe default.
+        save {bool} --- Save the figure(s) as PNG (default True). The averages figure
+            is <processed_server>/<session>/prehension_plots/figure_peth.png, and the
+            optional individual-traces figure adds a '_traces' suffix.
+        save_dir {str} --- Explicit output folder overriding the default
+            <session>/prehension_plots location. None -> the default (see save).
     """
     cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
                                 recording=recording)
@@ -297,5 +304,6 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             msession, neuron_selection, neuron_labels, align_timepoint, before, after, min_rate)
     rs('Plotting {} unit(s): {}'.format(len(neuron_selection), neuron_labels))
 
+    save_dir = resolve_session_save_dir(processed_server, session, save, save_dir)
     _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_timepoint,
-               group_column, before, after, bin_width, filter_sigma, cfg.work_folder)
+               group_column, before, after, bin_width, filter_sigma, save_dir)

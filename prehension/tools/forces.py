@@ -25,7 +25,67 @@ import numpy as np
 
 from . import constants
 from . import io
+from . import misc
 from .logs import rs, ws
+
+
+def load_summed_force_trace(ps_filenames):
+    '''Summed force trace across pressure-sensor files on a shared time base.
+
+    Loads each pressure-sensor matrix file (TSM or CSV), sums every frame over its
+    sensels, and combines the per-sensor summed forces onto the union of their
+    timestamps (linearly interpolating each onto the union) so sensors sampled on
+    slightly different clocks still add up.  Mirrors the summed-force reading in
+    matching.process_and_align_data (sum over sensels, then across sensors), but on a
+    common base rather than the joint-angle grid.  The times are returned in the file
+    reference frame: for the filtered/aligned sensor files this is seconds since the
+    trial's TTL pulse, the same frame as the NWB-derived spike times.
+
+    Arguments:
+        ps_filenames {iterable of str} --- Pressure-sensor matrix files (e.g. the two
+            values of trial.get_pre_ps_filenames()).
+
+    Returns:
+        times {ndarray} --- Shared, sorted timestamps.
+        summed_force {ndarray} --- Total force summed over all sensels and sensors.
+    '''
+    times_list, sums_list = [], []
+    for filename in ps_filenames:
+        times, matrices = io.import_matrices(filename)
+        times_list.append(np.asarray(times, dtype=float))
+        sums_list.append(np.sum(matrices, axis=(1, 2)))
+    if not times_list:
+        raise ValueError('No pressure-sensor files provided.')
+
+    union_times = times_list[0]
+    for times in times_list[1:]:
+        union_times = np.union1d(union_times, times)
+    summed_force = np.zeros(union_times.size)
+    for times, sums in zip(times_list, sums_list):
+        summed_force += np.interp(union_times, times, sums)
+    return union_times, summed_force
+
+
+def active_period_bounds(summed_force, fraction=0.05):
+    '''First/last indices of the continuous active-force period, threshold-based.
+
+    Mirrors the active (stable grasp) period used in
+    matching.process_and_align_data: the span from the first crossing of
+    ``fraction`` * max(force) to the last such crossing, treated as one continuous
+    non-zero-force period.  Returns a half-open index range [start, end) into
+    ``summed_force`` (end already incremented past the last above-threshold sample,
+    as in process_and_align_data).  Returns (0, 0) when the force never exceeds the
+    threshold (e.g. an all-zero or empty trace).
+    '''
+    summed_force = np.asarray(summed_force, dtype=float)
+    if summed_force.size == 0 or np.max(summed_force) <= 0:
+        return 0, 0
+    above_thr = summed_force >= (np.max(summed_force) * fraction)
+    start = misc.find_first(above_thr)
+    if start < 0:
+        return 0, 0
+    end = misc.find_last(above_thr) + 1  # end + 1, matching process_and_align_data
+    return int(start), int(end)
 
 
 def get_matched_contact_frame_mask(exp, mcf, frame_size):

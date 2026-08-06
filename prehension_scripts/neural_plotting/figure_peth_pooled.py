@@ -69,19 +69,21 @@ if __name__ == "__main__":
         help="Optional threshold: drop pooled neurons with mean rate at or below "
              "this (Hz). Default: no filter.")
     parser.add_argument(
-        "--save", action="store_true",
-        help="Save the figure into <processed_server>/pooled_figures. "
-             "Off by default (the figure is only shown).")
+        "--no_save", dest="save", action="store_false",
+        help="Do not save the figure (saving is on by default, into "
+             "<processed_server>/pooled_figures/figure_peth_pooled, named after the "
+             "--sessions string).")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
+    name = cmd_args.sessions_name_stub(args.sessions)
 
     start_time = time.time()
     plot_perievent_histograms_pooled(
         args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after, only_good=args.only_good,
-        min_rate=args.min_rate, save=args.save)
+        min_rate=args.min_rate, name=name, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

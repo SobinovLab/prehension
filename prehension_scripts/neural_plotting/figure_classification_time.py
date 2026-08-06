@@ -93,9 +93,10 @@ if __name__ == "__main__":
         "--min_rate", type=float, default=MIN_RATE_HZ, metavar="HZ",
         help="Keep only neurons with mean rate above this (Hz). Default: {}.".format(MIN_RATE_HZ))
     parser.add_argument(
-        "--save", action="store_true",
-        help="Save the figure into <processed_server>/pooled_figures. "
-             "Off by default (the figure is only shown).")
+        "--no_save", dest="save", action="store_false",
+        help="Do not save the figure (saving is on by default, into "
+             "<processed_server>/pooled_figures/figure_classification_time, named after "
+             "the --sessions/--sessions2 strings).")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
@@ -104,6 +105,8 @@ if __name__ == "__main__":
     # legend labels: the raw token string used to select each set (before resolution)
     sessions_label = ' '.join(args.sessions) if args.sessions else 'all sessions'
     sessions2_label = ' '.join(args.sessions2) if args.sessions2 else None
+    # filename stub from the raw --sessions / --sessions2 tokens
+    name = cmd_args.sessions_name_stub(args.sessions, args.sessions2)
 
     start_time = time.time()
     figure_classification_time(
@@ -112,7 +115,8 @@ if __name__ == "__main__":
         before=args.before, after=args.after, causal_sigma=args.causal_sigma,
         avg_window=args.avg_window, n_folds=args.n_folds,
         only_good=args.only_good, min_rate=args.min_rate, processes=args.processes,
-        sessions_label=sessions_label, sessions2_label=sessions2_label, save=args.save)
+        sessions_label=sessions_label, sessions2_label=sessions2_label,
+        name=name, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

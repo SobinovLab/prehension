@@ -38,6 +38,7 @@ from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..neural_processing import config as npconfig
 from ..neural_processing.common import events
+from .common.traces import resolve_session_save_dir, figure_filename
 
 # max gap for a trial start to count as having a matching rising TTL pulse
 # Larger value does not matter because each trial is aligned separately
@@ -92,7 +93,7 @@ def read_trial_sync_times(cfg):
 # Main
 # ---------------------------------------------------------------------------
 def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=None,
-                             recording=None):
+                             recording=None, save=True, save_dir=None):
     """Plot TTL pulses over trial windows, aligned by the first pulse-trial.
 
     Arguments:
@@ -107,10 +108,13 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
         recording {int|str} --- Open Ephys recording within experiment1 to read,
             1-based (Recording1, Recording2, ...); selects which recording's TTL
             events are read. None -> probe default.
+        save {bool} --- Save the figure as PNG (default True) to
+            <processed_server>/<session>/prehension_plots/figure_ttl_alignment.png.
+        save_dir {str} --- Explicit output folder overriding the default
+            <session>/prehension_plots location. None -> the default (see save).
     """
     cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
                                 recording=recording)
-    cfg.ensure_work_folder()
     # skip: CLI kwarg > meta_neural.json 'skip_ttl' > 0
     skip = resolve_meta_arg(skip, cfg.meta_neural, 'skip_ttl', 0)
 
@@ -188,6 +192,9 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
             len(start_a), TTL_MATCH_TOL_S * 1000))
 
     fig.tight_layout()
-    out = os.path.join(cfg.work_folder, 'ttl_trial_alignment.png')
-    fig.savefig(out, dpi=150, bbox_inches='tight')
-    rs('Saved {}'.format(out))
+    save_dir = resolve_session_save_dir(processed_server, session, save, save_dir)
+    if save_dir is not None:
+        os.makedirs(save_dir, exist_ok=True)
+        out = os.path.join(save_dir, figure_filename('figure_ttl_alignment'))
+        fig.savefig(out, dpi=150, bbox_inches='tight')
+        rs('Saved {}'.format(out))

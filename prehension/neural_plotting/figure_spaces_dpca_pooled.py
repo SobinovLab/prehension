@@ -35,6 +35,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 from ..tools.logs import rs, ws
+from ..tools.cmd_args import sessions_name_stub
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA)
 from ..neural_processing.common.population import (
@@ -53,17 +54,21 @@ def figure_spaces_dpca_pooled(server, processed_server, sessions,
                               before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
                               filter_sigma=FILTER_SIGMA, only_good=False,
                               min_rate=MIN_RATE_HZ, n_components=N_COMPONENTS,
-                              save=False, save_dir=None):
+                              name=None, save=True, save_dir=None):
     """Pool neurons across sessions, run demixed PCA on their per-condition averages,
     print the marginalization variance, and plot the matlab_dpca summary figure and
     the leading condition-dependent components through time.
 
     `sessions` is a list (empty -> all sessions); per-session recording/skip_ttl/
-    good_neurons come from each session's meta_neural.json.  Figures are NOT saved
-    unless save=True (or an explicit save_dir is given); the default save location is
-    <processed_server>/pooled_figures.  Returns (W, V, which_marg, expl_var, conditions).
+    good_neurons come from each session's meta_neural.json.  Figures are saved by
+    default (save=True) into <processed_server>/pooled_figures/figure_spaces_dpca_pooled,
+    named after `name` (the --sessions string; defaults to a stub built from `sessions`)
+    with a per-figure suffix; pass save=False to disable or save_dir to override the
+    folder.  Returns (W, V, which_marg, expl_var, conditions).
     """
-    save_dir = resolve_pooled_save_dir(processed_server, save, save_dir)
+    save_dir = resolve_pooled_save_dir(
+        processed_server, 'figure_spaces_dpca_pooled', save, save_dir)
+    name = name or sessions_name_stub(sessions)
     entries, bin_centers, max_force = pool_neurons(
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
@@ -81,7 +86,7 @@ def figure_spaces_dpca_pooled(server, processed_server, sessions,
         R.shape[0], len(conditions), numbins, W.shape[1]))
     report_marginalization_variance(expl_var)
 
-    plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_timepoint, save_dir)
+    plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_timepoint, name, save_dir)
     plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
-                       bin_centers, align_timepoint, save_dir, n_show=N_SHOW)
+                       bin_centers, align_timepoint, name, save_dir, n_show=N_SHOW)
     return W, V, which_marg, expl_var, conditions

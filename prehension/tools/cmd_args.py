@@ -20,6 +20,29 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import re
+
+
+def sessions_name_stub(sessions, sessions2=None):
+    '''Filesystem-safe filename stub from the raw --sessions (+ --sessions2) tokens.
+
+    Joins the tokens supplied on the command line with '_' and replaces any
+    filename-unsafe characters (path separators, the ':' of region:/burr_hole:
+    selectors, whitespace) with '-'.  An empty token list -> 'all_sessions'.  When
+    ``sessions2`` is a non-empty list, its stub is appended as '<stub>__vs__<stub2>'
+    so a figure comparing two session sets is named after both.  Used to name pooled
+    figures after the session strings that produced them.
+    '''
+    def _stub(tokens):
+        if not tokens:
+            return 'all_sessions'
+        joined = '_'.join(str(t) for t in tokens)
+        return re.sub(r'[^A-Za-z0-9._-]+', '-', joined).strip('-_') or 'all_sessions'
+
+    stub = _stub(sessions)
+    if sessions2:
+        stub = '{}__vs__{}'.format(stub, _stub(sessions2))
+    return stub
 
 
 def resolve_meta_arg(cli_value, meta, key, default=None):

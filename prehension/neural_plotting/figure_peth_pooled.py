@@ -39,21 +39,22 @@ import matplotlib.pyplot as plt
 
 from ..tools import plotting
 from ..tools.logs import rs, ws
+from ..tools.cmd_args import sessions_name_stub
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA)
 from .common.pooling import pool_neurons
-from .common.traces import resolve_pooled_save_dir
+from .common.traces import resolve_pooled_save_dir, figure_filename
 
 
 # ---------------------------------------------------------------------------
 # Plot the pooled structure
 # ---------------------------------------------------------------------------
-def plot_pooled(entries, bin_centers, max_force, group_column, align_key, save_dir):
+def plot_pooled(entries, bin_centers, max_force, group_column, align_key, name, save_dir):
     """Plot pooled per-neuron force-group PETH averages, one subplot per neuron.
 
     Each subplot is titled '<session>: <unit id>'; force groups are coloured on a
-    single shared scale (0..max_force).  Saves peth_pooled_force_averages_<align>.png
-    into save_dir and returns the figure.
+    single shared scale (0..max_force).  Saves <name>.png into save_dir and returns the
+    figure.
     """
     cmap = plt.get_cmap('autumn_r')
     norm = mpl.colors.Normalize(vmin=0, vmax=max_force if max_force > 0 else 1)
@@ -82,7 +83,7 @@ def plot_pooled(entries, bin_centers, max_force, group_column, align_key, save_d
 
     if save_dir is not None:
         os.makedirs(save_dir, exist_ok=True)
-        out = os.path.join(save_dir, 'peth_pooled_force_averages_{}.png'.format(align_key))
+        out = os.path.join(save_dir, figure_filename(name))
         fig.savefig(out, dpi=150, bbox_inches='tight')
         rs('Saved {}'.format(out))
     return fig
@@ -95,17 +96,20 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
                                      align_timepoint=ALIGN_TIMEPOINT,
                                      group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                                      bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
-                                     only_good=False, min_rate=None, save=False, save_dir=None):
+                                     only_good=False, min_rate=None, name=None,
+                                     save=True, save_dir=None):
     """Pool the selected neurons across `sessions` and plot them on one figure.
 
     Arguments mirror figure_peth.plot_perievent_histograms except there is no
     neuron_ids/recording/skip_ttl override: `sessions` is a list (empty -> all
     sessions on the server), and per-session recording/skip_ttl/good_neurons come
-    from each session's meta_neural.json.  Figures are NOT saved unless save=True
-    (or an explicit save_dir is given); the default save location is
-    <processed_server>/pooled_figures.
+    from each session's meta_neural.json.  The figure is saved by default (save=True)
+    into <processed_server>/pooled_figures/figure_peth_pooled, named after `name` (the
+    --sessions string; defaults to a stub built from `sessions`); pass save=False to
+    disable or save_dir to override the folder.
     """
-    save_dir = resolve_pooled_save_dir(processed_server, save, save_dir)
+    save_dir = resolve_pooled_save_dir(processed_server, 'figure_peth_pooled', save, save_dir)
+    name = name or sessions_name_stub(sessions)
     entries, bin_centers, max_force = pool_neurons(
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
@@ -121,4 +125,5 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
             raise ValueError(
                 'No pooled neurons exceed the {} Hz activity threshold.'.format(min_rate))
     rs('Plotting {} pooled neuron(s).'.format(len(entries)))
-    return plot_pooled(entries, bin_centers, max_force, group_column, align_timepoint, save_dir)
+    return plot_pooled(entries, bin_centers, max_force, group_column, align_timepoint,
+                       name, save_dir)

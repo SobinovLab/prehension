@@ -45,20 +45,45 @@ N_SHOW = 3          # condition-dependent components plotted through time
 
 
 POOLED_FIGURES_DIRNAME = 'pooled_figures'
+PREHENSION_PLOTS_DIRNAME = 'prehension_plots'
 
 
-def resolve_pooled_save_dir(processed_server, save, save_dir):
-    """Resolve where pooled figures are written.
+def resolve_pooled_save_dir(processed_server, figure_name, save, save_dir=None):
+    """Resolve where a pooled figure's PNGs are written.
 
-    An explicit ``save_dir`` always wins.  Otherwise saving is opt-in: when ``save``
-    is True the default is ``<processed_server>/pooled_figures``; when ``save`` is
-    False saving is disabled (returns None, so the drawers skip writing files).
+    An explicit ``save_dir`` always wins.  Otherwise, when ``save`` is True the PNGs
+    go into ``<processed_server>/pooled_figures/<figure_name>`` (a per-figure
+    subfolder); when ``save`` is False saving is disabled (returns None, so the
+    drawers skip writing files).
     """
     if save_dir is not None:
         return save_dir
     if save:
-        return os.path.join(processed_server, POOLED_FIGURES_DIRNAME)
+        return os.path.join(processed_server, POOLED_FIGURES_DIRNAME, figure_name)
     return None
+
+
+def resolve_session_save_dir(processed_server, session, save, save_dir=None):
+    """Resolve where a single-session figure's PNGs are written.
+
+    An explicit ``save_dir`` always wins.  Otherwise, when ``save`` is True the PNGs
+    go into ``<processed_server>/<session>/prehension_plots``; when ``save`` is False
+    saving is disabled (returns None).
+    """
+    if save_dir is not None:
+        return save_dir
+    if save:
+        return os.path.join(processed_server, session, PREHENSION_PLOTS_DIRNAME)
+    return None
+
+
+def figure_filename(base, suffix=None):
+    """PNG filename for a figure: ``<base>.png`` or ``<base>_<suffix>.png``.
+
+    ``suffix`` is a short tag distinguishing the individual figures a script
+    produces (e.g. 'pc2d', 'traces'); omit it for a script's sole figure.
+    """
+    return '{}_{}.png'.format(base, suffix) if suffix else '{}.png'.format(base)
 
 
 def _save(fig, save_dir, name):
@@ -74,7 +99,8 @@ def _save(fig, save_dir, name):
 # ---------------------------------------------------------------------------
 # PCA state-space traces
 # ---------------------------------------------------------------------------
-def plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr, align_key, save_dir):
+def plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr, align_key, name,
+                          save_dir):
     """First min(k,10) PCs vs time, one trace per condition, one subplot per PC."""
     n_cond, numbins, k = scores3d.shape
     n = min(k, 10)
@@ -96,11 +122,11 @@ def plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr, ali
     fig.suptitle('Population PCs through time, aligned to {}'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.94, 0.96))
     fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
-    _save(fig, save_dir, 'spaces_pooled_pcs_time_{}.png'.format(align_key))
+    _save(fig, save_dir, figure_filename(name, 'pcs_time'))
     return fig
 
 
-def plot_pc_2d(scores3d, conditions, max_force, evr, align_key, save_dir):
+def plot_pc_2d(scores3d, conditions, max_force, evr, align_key, name, save_dir):
     """2D trajectories PC1 vs PC2 and (if available) PC1 vs PC3; o=start, s=end."""
     k = scores3d.shape[2]
     if k < 2:
@@ -124,11 +150,11 @@ def plot_pc_2d(scores3d, conditions, max_force, evr, align_key, save_dir):
     fig.suptitle('Population trajectories (2D), aligned to {} (o=start, s=end)'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.92, 0.95))
     fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
-    _save(fig, save_dir, 'spaces_pooled_pc2d_{}.png'.format(align_key))
+    _save(fig, save_dir, figure_filename(name, 'pc2d'))
     return fig
 
 
-def plot_pc_3d(scores3d, conditions, max_force, evr, align_key, save_dir):
+def plot_pc_3d(scores3d, conditions, max_force, evr, align_key, name, save_dir):
     """3D trajectory PC1 vs PC2 vs PC3; o=start, s=end."""
     if scores3d.shape[2] < 3:
         ws('Fewer than 3 PCs available; skipping 3D plot.')
@@ -148,7 +174,7 @@ def plot_pc_3d(scores3d, conditions, max_force, evr, align_key, save_dir):
     ax.set_zlabel('PC3 ({:.1f}%)'.format(100 * evr[2]))
     ax.set_title('Population trajectory (3D), aligned to {} (o=start, s=end)'.format(align_key))
     fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.1).set_label(GROUP_COLUMN)
-    _save(fig, save_dir, 'spaces_pooled_pc3d_{}.png'.format(align_key))
+    _save(fig, save_dir, figure_filename(name, 'pc3d'))
     return fig
 
 
@@ -176,7 +202,7 @@ def report_marginalization_variance(expl_var, marg_names=MARG_NAMES):
     rs('Per-component variance by marginalization:\n' + '\n'.join(lines))
 
 
-def plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_key,
+def plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_key, name,
                       save_dir, marg_names=MARG_NAMES, time_marg=CI_MARG):
     """The matlab_dpca summary figure (dpca_plot): explained variance, per-margin
     variance and the leading components through time, one trace per condition.
@@ -191,12 +217,12 @@ def plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_key,
         time=bin_centers, time_events=[0.0], marginalization_names=marg_names,
         time_marginalization=time_marg)
     fig.suptitle('dPCA summary, aligned to {}'.format(align_key))
-    _save(fig, save_dir, 'spaces_dpca_summary_{}.png'.format(align_key))
+    _save(fig, save_dir, figure_filename(name, 'summary'))
     return fig
 
 
 def plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
-                       bin_centers, align_key, save_dir, cd_marg=CD_MARG, n_show=N_SHOW):
+                       bin_centers, align_key, name, save_dir, cd_marg=CD_MARG, n_show=N_SHOW):
     """Leading condition-dependent demixed components through time (plotDPcaTraces.m style).
 
     Projects the per-condition average activity onto the top condition-dependent
@@ -234,7 +260,7 @@ def plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
                  'aligned to {}'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.94, 0.96))
     fig.colorbar(sm, ax=axs.ravel().tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
-    _save(fig, save_dir, 'spaces_dpca_cd_traces_{}.png'.format(align_key))
+    _save(fig, save_dir, figure_filename(name, 'cd_traces'))
     return fig
 
 
@@ -242,7 +268,7 @@ def plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
 # Classification-through-time
 # ---------------------------------------------------------------------------
 def plot_classification_time(bin_centers, groups, theoretical_chance, shuffle_percentile,
-                             align_key, group_column, save_dir):
+                             align_key, group_column, name, save_dir):
     """Plot classification accuracy through time for one or more session sets.
 
     Each group in `groups` (see figure_classification_time / GROUP_STYLES) is drawn in
@@ -251,8 +277,7 @@ def plot_classification_time(bin_centers, groups, theoretical_chance, shuffle_pe
     accuracies), and the pooled pseudo-population as a thick accuracy line with its own
     dashed chance line.  A single green solid line marks the theoretical chance level
     (1 / n_conditions).  When more than one group is plotted, legend entries are prefixed
-    with the group label.  Saves classification_time_<align>.png into save_dir and
-    returns the figure.
+    with the group label.  Saves <name>.png into save_dir and returns the figure.
     """
     fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -299,9 +324,5 @@ def plot_classification_time(bin_centers, groups, theoretical_chance, shuffle_pe
     ax.legend(loc='best', fontsize=8)
     fig.tight_layout()
 
-    if save_dir is not None:
-        os.makedirs(save_dir, exist_ok=True)
-        out = os.path.join(save_dir, 'classification_time_{}.png'.format(align_key))
-        fig.savefig(out, dpi=150, bbox_inches='tight')
-        rs('Saved {}'.format(out))
+    _save(fig, save_dir, figure_filename(name))
     return fig

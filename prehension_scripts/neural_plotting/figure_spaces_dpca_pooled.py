@@ -81,19 +81,21 @@ if __name__ == "__main__":
         help="Demixed components kept overall (top 3 condition-dependent are traced). "
              "Default: {}.".format(N_COMPONENTS))
     parser.add_argument(
-        "--save", action="store_true",
-        help="Save the figures into <processed_server>/pooled_figures. "
-             "Off by default (figures are only shown).")
+        "--no_save", dest="save", action="store_false",
+        help="Do not save the figures (saving is on by default, into "
+             "<processed_server>/pooled_figures/figure_spaces_dpca_pooled, named after "
+             "the --sessions string with a per-figure suffix).")
 
     args = parser.parse_args(args=argv)
     sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
+    name = cmd_args.sessions_name_stub(args.sessions)
 
     start_time = time.time()
     figure_spaces_dpca_pooled(
         args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after, only_good=args.only_good,
-        min_rate=args.min_rate, n_components=args.n_components, save=args.save)
+        min_rate=args.min_rate, n_components=args.n_components, name=name, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

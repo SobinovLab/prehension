@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 
 from ..tools.logs import rs, ws
+from ..tools.cmd_args import sessions_name_stub
 from ..tools.decoding import classify_through_time, chance_level
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH)
@@ -112,8 +113,8 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
                                causal_sigma=CAUSAL_SIGMA, avg_window=None,
                                n_folds=N_FOLDS, shuffle_percentile=SHUFFLE_PERCENTILE,
                                only_good=False, min_rate=MIN_RATE_HZ, processes=1,
-                               sessions_label=None, sessions2_label=None,
-                               save=False, save_dir=None, seed=0):
+                               sessions_label=None, sessions2_label=None, name=None,
+                               save=True, save_dir=None, seed=0):
     """Classify the condition (`group_column`) through time for one or two session sets.
 
     Pools per-trial, causally-smoothed, square-rooted activity (pool_trials), then runs
@@ -132,9 +133,11 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
     good_neurons come from each session's meta_neural.json.  `sessions_label` /
     `sessions2_label` set the legend label for each set (e.g. the raw --sessions /
     --sessions2 token string); default to the GROUP_STYLES labels when not given.
-    `processes` sets the size of the per-time-bin process pool.  Figures are NOT saved
-    unless save=True (or an explicit save_dir is given); the default save location is
-    <processed_server>/pooled_figures.  Returns the list of plotted group dicts.
+    `processes` sets the size of the per-time-bin process pool.  The figure is saved by
+    default (save=True) into <processed_server>/pooled_figures/figure_classification_time,
+    named after `name` (the --sessions/--sessions2 strings; defaults to a stub built
+    from `sessions`/`sessions2`); pass save=False to disable or save_dir to override the
+    folder.  Returns the list of plotted group dicts.
     """
     def _run(sess):
         return _pool_and_classify(
@@ -167,7 +170,9 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
     all_conditions = set().union(*[g['all_conditions'] for g in groups])
     theoretical_chance = 1.0 / len(all_conditions) if all_conditions else np.nan
 
-    save_dir = resolve_pooled_save_dir(processed_server, save, save_dir)
+    save_dir = resolve_pooled_save_dir(
+        processed_server, 'figure_classification_time', save, save_dir)
+    name = name or sessions_name_stub(sessions, sessions2)
     plot_classification_time(bin_centers, groups, theoretical_chance, shuffle_percentile,
-                             align_timepoint, group_column, save_dir)
+                             align_timepoint, group_column, name, save_dir)
     return groups

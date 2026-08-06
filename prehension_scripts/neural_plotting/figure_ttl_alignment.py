@@ -49,6 +49,10 @@ if __name__ == "__main__":
         help="Open Ephys recording within experiment1 to read, 1-based "
              "(Recording1, Recording2, ...); accepts 2 or 'Recording2'. "
              "Default: probe default (vprobe Recording1, neuropixels Recording2).")
+    parser.add_argument(
+        "--no_save", dest="save", action="store_false",
+        help="Do not save the figure (saving is on by default, into "
+             "<processed_server>/<session>/prehension_plots/figure_ttl_alignment.png).")
 
     args = parser.parse_args(args=argv)
 
@@ -57,7 +61,8 @@ if __name__ == "__main__":
 
     start_time = time.time()
     plot_ttl_trial_alignment(args.server, args.processed_server, args.session,
-                             probe_type, skip=args.skip, recording=args.recording)
+                             probe_type, skip=args.skip, recording=args.recording,
+                             save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

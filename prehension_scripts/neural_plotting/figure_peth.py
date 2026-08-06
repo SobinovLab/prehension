@@ -82,6 +82,10 @@ if __name__ == "__main__":
         "--min_rate", type=float, default=None, metavar="HZ",
         help="Optional threshold: drop units with mean rate at or below this (Hz). "
              "Default: from meta_neural.json 'min_rate' if present, else no filter.")
+    parser.add_argument(
+        "--no_save", dest="save", action="store_false",
+        help="Do not save the figure (saving is on by default, into "
+             "<processed_server>/<session>/prehension_plots/figure_peth.png).")
 
     args = parser.parse_args(args=argv)
 
@@ -94,7 +98,8 @@ if __name__ == "__main__":
         neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after,
         skip_ttl=args.skip_ttl, skip_ttl_last=args.skip_ttl_last,
-        recording=args.recording, only_good=args.only_good, min_rate=args.min_rate)
+        recording=args.recording, only_good=args.only_good, min_rate=args.min_rate,
+        save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

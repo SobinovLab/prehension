@@ -23,6 +23,48 @@ import numpy as np
 import scipy.stats
 
 
+def lagged_crosscorrelation(a, b, n_pre, n_post):
+    '''Pearson cross-correlation of `a` vs `b` over integer sample lags [-n_pre, n_post].
+
+    `a` and `b` are 1-D signals sampled on the same uniform grid.  `b` is the fixed
+    reference window (length ``len(b)``); `a` must extend ``n_pre`` samples before and
+    ``n_post`` samples after that window, i.e. ``len(a) == len(b) + n_pre + n_post``.
+    That padding is what lets every lag be evaluated over the full reference window
+    without truncation -- the caller widens `a`'s window by the lag range so the
+    correlation edges stay fixed to `b`.
+
+    Lag ``k`` (in samples, ``k`` in ``[-n_pre, n_post]``) correlates ``b[i]`` with
+    ``a[n_pre + k + i]``, i.e. ``b`` at time ``t`` against ``a`` at time ``t + k``.
+    A positive peak therefore means `a` follows `b` in time (so, with `a` a neuron
+    rate and `b` a force, a positive peak means the neuron lags the force; a negative
+    peak means the neuron leads it).
+
+    Returns an array of ``n_pre + n_post + 1`` Pearson correlation coefficients,
+    ordered from lag ``-n_pre`` to ``+n_post``; an entry is NaN where the shifted
+    window (or `b`) has zero variance.
+    '''
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    n = b.size
+    if a.size != n + n_pre + n_post:
+        raise ValueError(
+            'len(a)={} must equal len(b)+n_pre+n_post={}+{}+{}={}.'.format(
+                a.size, n, n_pre, n_post, n + n_pre + n_post))
+
+    b0 = b - b.mean()
+    b_norm = np.sqrt(np.sum(b0 ** 2))
+    out = np.full(n_pre + n_post + 1, np.nan)
+    if b_norm == 0:
+        return out
+    for j, k in enumerate(range(-n_pre, n_post + 1)):
+        w = a[n_pre + k:n_pre + k + n]
+        w0 = w - w.mean()
+        denom = b_norm * np.sqrt(np.sum(w0 ** 2))
+        if denom > 0:
+            out[j] = np.sum(w0 * b0) / denom
+    return out
+
+
 def run_pca(X, n_components):
     '''Z-score each column of X and run PCA via SVD.
 
