@@ -180,8 +180,12 @@ def import_logs(dirname, mstruct):
         sy_ja_data = []
 
     # import pressure sensor sync data
-    sy_ps_column_names, sy_ps_data = io.import_csv(sy_ps_file)
-    sy_ps_data = np.array(sy_ps_data).transpose()
+    if os.path.exists(sy_ps_file):
+        sy_ps_column_names, sy_ps_data = io.import_csv(sy_ps_file)
+        sy_ps_data = np.array(sy_ps_data).transpose()
+    else:
+        sy_ps_column_names = []
+        sy_ps_data = []
 
     return sy_column_names, sy_data, sy_ja_column_names, sy_ja_data, sy_ps_column_names, sy_ps_data
 
