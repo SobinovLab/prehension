@@ -391,6 +391,29 @@ def extract_date(s):
     return None
 
 
+def determine_experiment_type(auto_log):
+    '''Infer the experiment type from the raw behaviour-log filename(s).
+
+    The behaviour-log filename encodes the task variant. Defaults to ``'prehension'``; a log with
+    ``'multiforce'`` in its name is a ``'prehension_multiforce'`` session, ``'kinvar'`` is a
+    ``'prehension_kinforce'`` session, and ``'transport'`` is a ``'transport'`` session.
+
+    Args:
+        auto_log (list of str): the raw behaviour-log paths (``mstruct['auto_log']``).
+
+    Returns:
+        str: the experiment type.
+    '''
+    names = ' '.join(os.path.basename(p) for p in auto_log).lower()
+    if 'multiforce' in names:
+        return 'prehension_multiforce'
+    if 'kinvar' in names:
+        return 'prehension_kinforce'
+    if 'transport' in names:
+        return 'transport'
+    return 'prehension'
+
+
 def find_calibration(session, calibrations_dir):
     candidates = glob.glob(os.path.join(calibrations_dir, '*.*.*_calibration'))
 
@@ -456,6 +479,7 @@ def create_session_meta(raw_ss, processed_ss, preset, session, overwrite, export
     if overwrite or not os.path.exists(os.path.join(processed_ss, 'meta_structure.json')):
         mstruct_rel = meta_session.get_default_meta_structure()
         meta_session.fill_meta_structure(mstruct_rel, raw_ss, session)
+        mstruct_rel['experiment_type'] = determine_experiment_type(mstruct_rel['auto_log'])
         mstruct_rel['ncams_config'] = find_ncams_config(session, CALIBRATIONS_DIR)
         mstruct_rel['hand'] = preset['hand']
         mstruct_rel['ps_dic'] = preset['ps_dic']

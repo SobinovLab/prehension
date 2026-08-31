@@ -406,7 +406,12 @@ class SessionWrapper:
 
     @property
     def has_plots(self):
-        for fname in SessionWrapper.EXPECTED_PLOT_NAMES:
+        expected_plot_names = SessionWrapper.EXPECTED_PLOT_NAMES
+        # transport sessions have no force traces, so those plots are never created
+        if self.mstruct.get("experiment_type") == "transport":
+            expected_plot_names = [fname for fname in expected_plot_names
+                                   if not fname.startswith("ForceTrace")]
+        for fname in expected_plot_names:
             if not os.path.exists(os.path.join(self.results_dir, fname)):
                 return False
         return True
@@ -567,6 +572,11 @@ class SessionWrapper:
             raise ValueError(f'Could not parse date from folder name: {folder}')
 
     def plot_force_trace(self):
+        # transport sessions record no grasp forces, so there is nothing to plot
+        if self.mstruct.get("experiment_type") == "transport":
+            ws(f"Session {self.sess_name} is a transport session, skipping force trace")
+            return
+
         tp_path = self.mstruct['timepoint_csv_filename']
 
         if not os.path.isfile(tp_path):

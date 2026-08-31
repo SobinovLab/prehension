@@ -77,6 +77,7 @@ def create_meta_neural(server, processed_server, sessions, temp):
     rs('create_meta_neural: {} session(s) to consider: {}'.format(
         len(found_sessions), ', '.join(found_sessions)))
 
+    created_sessions = []
     for session in found_sessions:
         # only sessions whose raw folder actually contains a neural/ folder
         raw_neural_dir = os.path.join(server, session, 'neural')
@@ -118,6 +119,10 @@ def create_meta_neural(server, processed_server, sessions, temp):
 
         tools.io.save_json(meta, path)
         rs('  {}: wrote {}'.format(session, path))
+        created_sessions.append(session)
+
+    rs('create_meta_neural: created meta_neural.json for {} session(s): {}'.format(
+        len(created_sessions), ', '.join(created_sessions)))
 
 
 def run_necessary(server, processed_server, sessions, temp,

@@ -146,6 +146,11 @@ def ppps_helper(raw_ss, proc_ss, _, session, trials_sel, overwrite, processes):
         ws('Error message: {}'.format(e))
         return
 
+    # transport sessions have no pressure sensor data, skip them
+    if mstruct.get('experiment_type') == 'transport':
+        ws('Session {} is a transport session, skipping.'.format(session))
+        return
+
     output_dir = mstruct['transformed_ps_dir']
     trial_log_filename = mstruct['ps_log_filename']
     os.makedirs(output_dir, exist_ok=True)

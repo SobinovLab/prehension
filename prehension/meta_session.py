@@ -61,6 +61,9 @@ def get_default_meta_structure():
         mujoco_model_sensorized
         cameras
 
+    These are filled from the raw behaviour log in create_meta:
+        experiment_type
+
     These are filled by preset in create_meta:
         ps_dic
         ps_markers
@@ -109,6 +112,9 @@ def get_default_meta_structure():
         # type of neural recording present in the session, filled by fill_meta_structure:
         # '' (no neural data), 'vprobe', or 'neuropixel'
         'neural': '',
+        # experiment type inferred from the raw behaviour-log filename in create_meta:
+        # 'prehension' (default), 'prehension_multiforce', 'prehension_kinforce', or 'transport'
+        'experiment_type': 'prehension',
         'fps': 50,  # fill in
         'ps_markers': {
             'medial_sensor': ('o_sensor_tb', 'o_sensor_tf', 'o_sensor_bb', 'o_sensor_bf'),
