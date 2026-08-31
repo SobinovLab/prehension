@@ -54,7 +54,7 @@ def figure_spaces_dpca_pooled(server, processed_server, sessions,
                               before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
                               filter_sigma=FILTER_SIGMA, only_good=False,
                               min_rate=MIN_RATE_HZ, n_components=N_COMPONENTS,
-                              name=None, save=True, save_dir=None):
+                              drift_correct=True, name=None, save=True, save_dir=None):
     """Pool neurons across sessions, run demixed PCA on their per-condition averages,
     print the marginalization variance, and plot the matlab_dpca summary figure and
     the leading condition-dependent components through time.
@@ -72,7 +72,7 @@ def figure_spaces_dpca_pooled(server, processed_server, sessions,
     entries, bin_centers, max_force = pool_neurons(
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
-        filter_sigma=filter_sigma, only_good=only_good)
+        filter_sigma=filter_sigma, only_good=only_good, drift_correct=drift_correct)
     if not entries:
         raise ValueError('No neurons pooled from the requested sessions {}.'.format(sessions))
 

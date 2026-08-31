@@ -123,3 +123,49 @@ def resolve_neuron_selection(unit_ids, neuron_ids):
     if not selection:
         raise ValueError('None of neuron_ids={} matched {}.'.format(neuron_ids, unit_ids))
     return selection, labels
+
+
+def fit_session_drift(spike_per_unit, events_time):
+    """Per-unit linear drift of firing rate across the session.
+
+    Fits, for each unit, its per-trial firing rate (# spikes inside the trial's TTL
+    window / window length) against the window's start time -- a line, i.e. drift
+    assumed linear in time.  Returns (slopes, t_ref): ``slopes[i]`` is unit i's rate
+    trend in Hz per second and ``t_ref`` is the mean window-start time, so the drift
+    offset to SUBTRACT from unit i's rate for a trial whose window starts at ``t`` is
+    ``slopes[i] * (t - t_ref)`` (Hz).  Because the offset is centred on t_ref, the
+    subtraction removes the session-long trend while preserving each unit's overall
+    mean rate.  ``slopes`` is 0 for a unit that cannot be fit (fewer than two trials,
+    no time span, or too few finite per-trial rates).
+    """
+    starts = np.array([float(e[0]) for e in events_time], dtype=float)
+    n_units = len(spike_per_unit)
+    slopes = np.zeros(n_units, dtype=float)
+    t_ref = float(starts.mean()) if starts.size else 0.0
+    if starts.size < 2 or float(np.ptp(starts)) == 0.0:
+        return slopes, t_ref
+
+    durs = np.array([float(e[1] - e[0]) for e in events_time], dtype=float)
+    durs[durs <= 0] = np.nan
+    for i, s in enumerate(spike_per_unit):
+        s = np.asarray(s, dtype=float)
+        counts = np.array([np.count_nonzero((s > e[0]) & (s < e[1])) for e in events_time],
+                          dtype=float)
+        rates = counts / durs
+        good = np.isfinite(rates)
+        if np.count_nonzero(good) >= 2 and float(np.ptp(starts[good])) > 0.0:
+            slopes[i] = float(np.polyfit(starts[good], rates[good], 1)[0])
+    rs('Session drift fit over {} trials for {} units (linear in time).'.format(
+        starts.size, n_units))
+    return slopes, t_ref
+
+
+def drift_offset(slopes, t_ref, unit_index, ttl_start):
+    """Hz to SUBTRACT from unit ``unit_index``'s rate for a trial starting at ``ttl_start``.
+
+    ``slopes``/``t_ref`` come from fit_session_drift; returns 0.0 when slopes is None
+    (drift correction disabled), so callers can subtract unconditionally.
+    """
+    if slopes is None:
+        return 0.0
+    return float(slopes[unit_index]) * (float(ttl_start) - t_ref)

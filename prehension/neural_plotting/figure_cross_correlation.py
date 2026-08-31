@@ -297,8 +297,8 @@ def plot_depth_stacked_cross_correlation(sessions_results, lag_times, pre_lag, p
 def figure_cross_correlation(server, processed_server, sessions, bin_width=BIN_WIDTH,
                              filter_sigma=FILTER_SIGMA, pre_lag=PRE_LAG, post_lag=POST_LAG,
                              force_fraction=FORCE_ACTIVE_FRACTION, only_good=False,
-                             min_rate=MIN_RATE_HZ, processes=1, name=None,
-                             save=True, save_dir=None):
+                             min_rate=MIN_RATE_HZ, processes=1, drift_correct=True,
+                             name=None, save=True, save_dir=None):
     """Cross-correlate each neuron's rate with the summed grasp force, per session.
 
     Runs pool_cross_correlations over `sessions` (empty -> all sessions on the
@@ -325,7 +325,8 @@ def figure_cross_correlation(server, processed_server, sessions, bin_width=BIN_W
     sessions_results, lag_times = pool_cross_correlations(
         server, processed_server, sessions, bin_width=bin_width, filter_sigma=filter_sigma,
         pre_lag=pre_lag, post_lag=post_lag, force_fraction=force_fraction,
-        only_good=only_good, min_rate=min_rate, processes=processes)
+        only_good=only_good, min_rate=min_rate, processes=processes,
+        drift_correct=drift_correct)
     if not sessions_results:
         raise ValueError(
             'No sessions with usable neural + force data among {}.'.format(sessions))

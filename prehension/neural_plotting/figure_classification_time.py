@@ -72,7 +72,8 @@ GROUP_STYLES = [
 
 def _pool_and_classify(server, processed_server, sessions, align_timepoint, group_column,
                        before, after, bin_width, causal_sigma, avg_window, n_folds,
-                       shuffle_percentile, only_good, min_rate, processes, seed):
+                       shuffle_percentile, only_good, min_rate, processes, seed,
+                       drift_correct=True):
     """Pool one set of sessions and classify it per session and as a pooled pseudo-population.
 
     Runs the full pipeline for a single session set: pool_trials -> per-session k-fold
@@ -86,7 +87,7 @@ def _pool_and_classify(server, processed_server, sessions, align_timepoint, grou
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
         causal_sigma=causal_sigma, avg_window=avg_window, only_good=only_good,
-        min_rate=min_rate)
+        min_rate=min_rate, drift_correct=drift_correct)
     if not sessions_data:
         return None
 
@@ -132,6 +133,7 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
                                causal_sigma=CAUSAL_SIGMA, avg_window=None,
                                n_folds=N_FOLDS, shuffle_percentile=SHUFFLE_PERCENTILE,
                                only_good=False, min_rate=MIN_RATE_HZ, processes=1,
+                               drift_correct=True,
                                sessions_label=None, sessions2_label=None, name=None,
                                sustained_duration=SUSTAINED_DURATION_S,
                                save=True, save_dir=None, seed=0):
@@ -165,7 +167,7 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
         return _pool_and_classify(
             server, processed_server, sess, align_timepoint, group_column, before, after,
             bin_width, causal_sigma, avg_window, n_folds, shuffle_percentile, only_good,
-            min_rate, processes, seed)
+            min_rate, processes, seed, drift_correct=drift_correct)
 
     group1 = _run(sessions)
     if group1 is None:

@@ -54,7 +54,7 @@ if __name__ == "__main__":
     cmd_args.add_default_kwarguments(
         parser, {"server": current_preset["default_server"],
                  "processed_server": current_preset["processed_server"]})
-    cmd_args.add_default_arguments(parser, ("sessions", "processes"))
+    cmd_args.add_default_arguments(parser, ("sessions", "processes", "drift_correct"))
     parser.add_argument(
         "--pre_lag", type=float, default=PRE_LAG, metavar="SECONDS",
         help="Cross-correlation lag explored before zero. Default: {}.".format(PRE_LAG))
@@ -87,7 +87,7 @@ if __name__ == "__main__":
         args.server, args.processed_server, sessions,
         pre_lag=args.pre_lag, post_lag=args.post_lag, force_fraction=args.force_fraction,
         only_good=args.only_good, min_rate=args.min_rate, processes=args.processes,
-        name=name, save=args.save)
+        drift_correct=args.drift_correct, name=name, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

@@ -46,7 +46,7 @@ if __name__ == "__main__":
     cmd_args.add_default_kwarguments(
         parser, {"server": current_preset["default_server"],
                  "processed_server": current_preset["processed_server"]})
-    cmd_args.add_default_arguments(parser, ("sessions",))
+    cmd_args.add_default_arguments(parser, ("sessions", "drift_correct"))
     parser.add_argument(
         "--align", type=str, default="first_grasp_start",
         help="Trial timepoint to align to: a timepoints.csv column (e.g. "
@@ -87,7 +87,8 @@ if __name__ == "__main__":
         args.server, args.processed_server, sessions,
         align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after, only_good=args.only_good,
-        min_rate=args.min_rate, n_pcs=args.n_pcs, name=name, save=args.save)
+        min_rate=args.min_rate, n_pcs=args.n_pcs, drift_correct=args.drift_correct,
+        name=name, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

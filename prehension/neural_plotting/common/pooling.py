@@ -45,7 +45,7 @@ from ...neural_processing.common import probe
 from ...neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
     read_nwb_spikes_and_ttl, read_nwb_unit_depths, get_trial_data_spike,
-    resolve_neuron_selection)
+    resolve_neuron_selection, fit_session_drift, drift_offset)
 from ...neural_processing.common.population import MIN_RATE_HZ
 from .behaviour import load_timepoints_into_msession, get_timepoint, get_target_force
 
@@ -60,14 +60,17 @@ MIN_CORE_BINS = 3          # skip a trial whose active-force period spans fewer 
 
 def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                  group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
-                 bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA, only_good=False):
+                 bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA, only_good=False,
+                 drift_correct=True):
     """Pool selected neurons across sessions into one joint structure.
 
     For each session: load its neural NWB + behavioural meta, apply the session's
     meta_neural skip_ttl / recording, window+align spikes to align_key, and compute
     per-neuron force-group PETH averages (mean +/- SEM).  Selection is all units,
-    or -- with only_good -- the session's meta_neural 'good_neurons'.  Sessions that
-    lack neural data / meta / a matching pulse count are skipped with a warning.
+    or -- with only_good -- the session's meta_neural 'good_neurons'.  When
+    drift_correct (default True), a per-unit linear session drift (fit_session_drift)
+    is subtracted from every trial's rate first.  Sessions that lack neural data /
+    meta / a matching pulse count are skipped with a warning.
 
     Returns (entries, bin_centers, max_force) where each entry is
     {'label': '<session>: <unit id>', 'frs_avg': (n_groups, numbins),
@@ -138,6 +141,7 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ttl_start
         for i_trial, trial in zip(range(len(session_spikes)), msession):
             trial.spikes = session_spikes[i_trial]
+            trial.ttl_start = float(events_time[i_trial][0])
         used_msession = [t for t in msession[:len(session_spikes)]
                          if t.success and hasattr(t, 'spikes')]
 
@@ -146,6 +150,9 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
         except ValueError as e:
             ws('Skipping session {}: {}'.format(session, e))
             continue
+
+        # per-unit linear session drift (subtracted from each trial's rate below)
+        slopes, t_ref = fit_session_drift(spikes, events_time) if drift_correct else (None, 0.0)
 
         # trials with a valid alignment timepoint
         trials = [(t, get_timepoint(t, align_key)) for t in used_msession]
@@ -168,7 +175,8 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 s = np.asarray(trial.spikes[sel_idx])
                 s = s[(s > tp - before) & (s < tp + after)] - tp
                 counts, _ = np.histogram(s, bins=bins)
-                frs[i_t, :] = scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
+                frs[i_t, :] = (scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
+                               - drift_offset(slopes, t_ref, sel_idx, trial.ttl_start))
             frs_avg = np.zeros((len(group_ids), len(bin_centers)))
             frs_sem = np.zeros((len(group_ids), len(bin_centers)))
             for i_g, gid in enumerate(group_ids):
@@ -187,7 +195,7 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
 def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 group_column=GROUP_COLUMN, before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
                 causal_sigma=CAUSAL_SIGMA, avg_window=None, only_good=False,
-                min_rate=MIN_RATE_HZ):
+                min_rate=MIN_RATE_HZ, drift_correct=True):
     """Build the per-session, per-trial activity tensors used for classification.
 
     Mirrors pool_neurons' session-handling (probe type, skip_ttl, positional
@@ -195,6 +203,8 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     averages, keeps the single-trial activity.  For every kept neuron and successful
     trial, the spikes in [tp - before, tp + after] are binned, turned into a firing
     rate, smoothed with a causal half-gaussian (SD `causal_sigma`) and square-rooted.
+    When drift_correct (default True), a per-unit linear session drift
+    (fit_session_drift) is subtracted from each trial's rate before the square root.
     When `avg_window` (s) is given, the activity is additionally averaged over a centred
     moving window of that width at each time bin.  Neurons are then kept if their mean
     firing rate over the window exceeds `min_rate` Hz.
@@ -271,6 +281,7 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ttl_start
         for i_trial, trial in zip(range(len(session_spikes)), msession):
             trial.spikes = session_spikes[i_trial]
+            trial.ttl_start = float(events_time[i_trial][0])
         used_msession = [t for t in msession[:len(session_spikes)]
                          if t.success and hasattr(t, 'spikes')]
 
@@ -279,6 +290,9 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
         except ValueError as e:
             ws('Skipping session {}: {}'.format(session, e))
             continue
+
+        # per-unit linear session drift (subtracted from each trial's rate below)
+        slopes, t_ref = fit_session_drift(spikes, events_time) if drift_correct else (None, 0.0)
 
         # successful trials with a valid alignment timepoint
         trials = [(t, get_timepoint(t, align_key)) for t in used_msession]
@@ -302,6 +316,7 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 counts, _ = np.histogram(s, bins=bins)
                 mean_rate[j] += len(s) / duration
                 rate = filters.apply_causal_filter(counts * freq, kernel)
+                rate = rate - drift_offset(slopes, t_ref, sel, trial.ttl_start)
                 activity[i_t, j, :] = np.sqrt(np.clip(rate, 0.0, None))
         mean_rate /= max(n_trials, 1)
 
@@ -375,7 +390,7 @@ def _xcorr_neuron_worker(neuron_trial_spikes):
 def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WIDTH,
                             filter_sigma=FILTER_SIGMA, pre_lag=PRE_LAG, post_lag=POST_LAG,
                             force_fraction=FORCE_ACTIVE_FRACTION, only_good=False,
-                            min_rate=MIN_RATE_HZ, processes=1):
+                            min_rate=MIN_RATE_HZ, processes=1, drift_correct=True):
     """Cross-correlate each neuron's rate with the summed grasp force, per session.
 
     Mirrors pool_neurons / pool_trials for the session handling (probe type, skip_ttl,
@@ -404,6 +419,13 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
     'good_neurons'; neurons whose mean rate over the active periods is at or below
     ``min_rate`` Hz are dropped.  Sessions lacking neural data / meta / a matching
     pulse count / any usable trial / active neurons are skipped with a warning.
+
+    ``drift_correct`` is accepted for a uniform interface with the other pooling
+    functions but has no effect here: the linear session drift is a constant offset
+    within any one trial, and the per-trial cross-correlation is Pearson (each window
+    is mean-subtracted, see stats.lagged_crosscorrelation), so that constant cancels.
+    The mean-rate activity filter uses spike counts, which a mean-preserving drift
+    correction also leaves essentially unchanged.
 
     Returns (sessions_results, lag_times) where each entry of sessions_results is
     {'session': str, 'region': str, 'burr_hole': str, 'xcorr': (n_neurons, n_lags)

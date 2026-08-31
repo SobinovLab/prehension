@@ -78,6 +78,12 @@ def attempt_loading_presets():
 attempt_loading_presets()
 
 
+# The most recently resolved preset (set by get_preset), so helpers like
+# cmd_args.resolve_sessions can read preset-scoped config (e.g. session_selections)
+# without every script threading the preset through.
+_ACTIVE_PRESET = None
+
+
 def is_preset(name):
     '''Checks if name corresponds to an existing preset.'''
     return name in sum([[k] + v['names'] for k, v in PRESETS.items()], [])
@@ -85,12 +91,25 @@ def is_preset(name):
 
 def get_preset(name):
     '''Returns the dictionary corresponding to the requested preset.'''
+    global _ACTIVE_PRESET
     for k, v in PRESETS.items():
         if name == k or name in v['names']:
             v['name'] = k
+            _ACTIVE_PRESET = v
             return k, v
 
     raise ValueError('Preset {} not found.'.format(name))
+
+
+def session_selections():
+    '''Named session lists from the active preset's 'session_selections', or {}.
+
+    Populated once get_preset (hence process_args_for_preset) has run; used by
+    cmd_args.resolve_sessions to expand a 'sel:<name>' --sessions token.
+    '''
+    if _ACTIVE_PRESET is None:
+        return {}
+    return _ACTIVE_PRESET.get('session_selections') or {}
 
 
 def process_args_for_preset():

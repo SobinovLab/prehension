@@ -50,8 +50,8 @@ def figure_spaces_pooled(server, processed_server, sessions,
                          align_timepoint=ALIGN_TIMEPOINT, group_column=GROUP_COLUMN,
                          before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
                          filter_sigma=FILTER_SIGMA, only_good=False,
-                         min_rate=MIN_RATE_HZ, n_pcs=N_PCS, name=None,
-                         save=True, save_dir=None):
+                         min_rate=MIN_RATE_HZ, n_pcs=N_PCS, drift_correct=True,
+                         name=None, save=True, save_dir=None):
     """Pool neurons across sessions, PCA their per-condition averages, and plot the spaces.
 
     `sessions` is a list (empty -> all sessions on the server); per-session
@@ -66,7 +66,7 @@ def figure_spaces_pooled(server, processed_server, sessions,
     entries, bin_centers, max_force = pool_neurons(
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
-        filter_sigma=filter_sigma, only_good=only_good)
+        filter_sigma=filter_sigma, only_good=only_good, drift_correct=drift_correct)
     if not entries:
         raise ValueError('No neurons pooled from the requested sessions {}.'.format(sessions))
 

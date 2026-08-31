@@ -77,9 +77,10 @@ def add_default_arguments(parser, arguments):
             '--sessions',
             type=str, default=[], nargs='*', metavar='SESSION',
             help='List of session directories to process. If empty, find all unprocessed '
-            'directories (empty by default). A token may also be a selector '
-            '"region:<value>" or "burr_hole:<value>" (case-insensitive) that expands, via '
-            'resolve_sessions(), to every session whose meta_neural.json matches.')
+            'directories (empty by default). A token may also be a selector that expands '
+            'via resolve_sessions(): "sel:<name>" -> the named list in the preset\'s '
+            '"session_selections"; "region:<value>" or "burr_hole:<value>" '
+            '(case-insensitive) -> every session whose meta_neural.json matches.')
 
     if 'sessions2' in arguments:
         parser.add_argument(
@@ -88,7 +89,7 @@ def add_default_arguments(parser, arguments):
             help='A second, independent list of session directories, processed separately '
             'from --sessions (e.g. pooled on its own and overlaid on the same plot for '
             'comparison). Same token syntax as --sessions (literal names or '
-            '"region:<value>"/"burr_hole:<value>" selectors expanded via '
+            '"sel:<name>"/"region:<value>"/"burr_hole:<value>" selectors expanded via '
             'resolve_sessions()). Empty by default (no second set).')
 
     if 'trials' in arguments:
@@ -150,6 +151,13 @@ def add_default_arguments(parser, arguments):
             help='Run script in debug mode'
         )
 
+    if 'drift_correct' in arguments:
+        parser.add_argument(
+            '--no_drift_correction', dest='drift_correct', action='store_false',
+            help='Do not subtract each unit\'s linear session drift (rate trend across '
+                 'the session) before analysis/plotting. Drift correction is ON by '
+                 'default.')
+
 
 def add_default_kwargument(parser, k, v):
     if k == 'server':
@@ -186,15 +194,23 @@ _SESSION_SELECTOR_KEYS = {
 }
 
 
-def resolve_sessions(sessions, processed_server):
-    '''Expand 'region:'/'burr_hole:' selectors in a --sessions list.
+def resolve_sessions(sessions, processed_server, session_selections=None):
+    '''Expand 'sel:'/'region:'/'burr_hole:' selectors in a --sessions list.
 
     Each token in ``sessions`` is either a literal session directory name or a
-    selector 'region:<value>' or 'burr_hole:<value>'.  A selector expands to every
-    session that has a meta_neural.json whose matching field equals <value>
-    (capitalization-invariant).  Literal names and all selector matches are merged,
-    order-preserving and de-duplicated; multiple selectors are OR'd (union).  An
-    empty list is returned unchanged (downstream treats empty as "all sessions").
+    selector:
+      * 'sel:<name>' expands to the named list under the preset's 'session_selections'
+        (in the order given in the preset), e.g. 'sel:good_neuropixel'.  A 'sel:' that
+        is undefined or maps to an empty list raises (rather than silently expanding to
+        nothing / falling back to "all sessions").
+      * 'region:<value>' / 'burr_hole:<value>' expands to every session whose
+        meta_neural.json field equals <value> (capitalization-invariant).
+    Literal names and all selector expansions are merged, order-preserving and
+    de-duplicated; multiple selectors are OR'd (union).  An empty list is returned
+    unchanged (downstream treats empty as "all sessions").
+
+    ``session_selections`` is the {name: [session, ...]} map backing 'sel:'; None
+    reads it from the active preset (preset.session_selections()).
 
     Needed modules are imported lazily so importing cmd_args stays cheap and free of
     heavy / circular dependencies.
@@ -202,42 +218,64 @@ def resolve_sessions(sessions, processed_server):
     if not sessions:
         return sessions
 
-    selectors, literals = [], []
+    sel_names, meta_selectors, literals = [], [], []
     for tok in sessions:
         if ':' in tok:
             key, _, val = tok.partition(':')
-            mapped = _SESSION_SELECTOR_KEYS.get(key.strip().lower())
+            key = key.strip().lower()
+            if key == 'sel':
+                sel_names.append(val.strip())
+                continue
+            mapped = _SESSION_SELECTOR_KEYS.get(key)
             if mapped is not None:
-                selectors.append((mapped, val.strip()))
+                meta_selectors.append((mapped, val.strip()))
                 continue
         literals.append(tok)
 
-    if not selectors:
+    if not sel_names and not meta_selectors:
         return sessions
 
     # lazy imports (avoid heavy / circular deps at module import time)
-    from .. import meta_session
-    from ..neural_processing import config as npconfig
     from .logs import rs, ws
 
+    # 'sel:' named lists from the preset (order preserved as written there).
+    if session_selections is None:
+        from .. import preset
+        session_selections = preset.session_selections()
+    named = []
+    for nm in sel_names:
+        lst = session_selections.get(nm)
+        if not lst:  # undefined (None) or empty list -> the selector yields nothing
+            raise ValueError(
+                "Session selection 'sel:{}' is undefined or empty; refusing to run on "
+                "any sessions (a failed 'sel:' must not fall back to all sessions). "
+                "Defined selections in the preset's 'session_selections': {}.".format(
+                    nm, sorted(session_selections)))
+        named.extend(lst)
+
+    # 'region:'/'burr_hole:' selectors matched against each session's meta_neural.json.
     matched = []
-    for session in meta_session.find_session_dirs(processed_server):
-        try:
-            meta = npconfig.load_meta_neural(processed_server, session)
-        except ValueError:
-            continue  # no meta_neural.json for this session
-        for field, val in selectors:
-            mv = meta.get(field, None)
-            if mv is not None and str(mv).strip().lower() == val.lower():
-                matched.append(session)
-                break
+    if meta_selectors:
+        from .. import meta_session
+        from ..neural_processing import config as npconfig
+        for session in meta_session.find_session_dirs(processed_server):
+            try:
+                meta = npconfig.load_meta_neural(processed_server, session)
+            except ValueError:
+                continue  # no meta_neural.json for this session
+            for field, val in meta_selectors:
+                mv = meta.get(field, None)
+                if mv is not None and str(mv).strip().lower() == val.lower():
+                    matched.append(session)
+                    break
+        if not matched:
+            ws('No sessions with a meta_neural.json matched {}.'.format(
+                ['{}:{}'.format(k, v) for k, v in meta_selectors]))
 
-    label = ['{}:{}'.format(k, v) for k, v in selectors]
-    if not matched:
-        ws('No sessions with a meta_neural.json matched {}.'.format(label))
-
+    label = (['sel:{}'.format(n) for n in sel_names] +
+             ['{}:{}'.format(k, v) for k, v in meta_selectors])
     out, seen = [], set()
-    for s in literals + matched:
+    for s in literals + named + matched:
         if s not in seen:
             seen.add(s)
             out.append(s)

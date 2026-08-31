@@ -48,7 +48,7 @@ GENERAL_PROC_FILES = ()
 # We want to upload the following dirs and folder PER session directory
 SESSION_RAW_DIRS = (
     'behavior',
-    'neural_processed_nwb',
+    # 'neural_processed_nwb',
 )
 
 SESSION_RAW_FILES = (
@@ -69,7 +69,9 @@ SESSION_PROC_FILES = (
     'meta_object.csv',
     'meta_session.csv',
     'meta_structure.json',
-    'timepoints.csv'
+    'meta_neural.json',
+    'timepoints.csv',
+    'neural_processed/neural.nwb'
 )
 
 

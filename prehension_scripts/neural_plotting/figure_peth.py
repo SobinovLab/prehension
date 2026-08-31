@@ -41,7 +41,7 @@ if __name__ == "__main__":
     cmd_args.add_default_kwarguments(
         parser, {"server": current_preset["default_server"],
                  "processed_server": current_preset["processed_server"]})
-    cmd_args.add_default_arguments(parser, ("session",))
+    cmd_args.add_default_arguments(parser, ("session", "drift_correct"))
     parser.add_argument(
         "--units", type=str, default=None, nargs="*", metavar="UNIT_ID",
         help="Unit ids to plot. If empty, plot all units.")
@@ -111,7 +111,8 @@ if __name__ == "__main__":
         before=args.before, after=args.after, filter_sigma=args.filter_sigma,
         skip_ttl=args.skip_ttl, skip_ttl_last=args.skip_ttl_last,
         recording=args.recording, only_good=args.only_good, min_rate=args.min_rate,
-        modulation_alpha=args.modulation_alpha, save=args.save)
+        modulation_alpha=args.modulation_alpha, drift_correct=args.drift_correct,
+        save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

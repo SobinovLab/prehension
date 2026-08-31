@@ -42,7 +42,8 @@ from ..tools.logs import rs, ws
 from ..neural_processing import config as npconfig
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
-    read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection)
+    read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection,
+    fit_session_drift, drift_offset)
 from .common.behaviour import (
     load_timepoints_into_msession, get_timepoint, get_target_force)
 from .common.traces import resolve_session_save_dir, figure_filename
@@ -57,7 +58,7 @@ MAX_UNITS_PER_FIGURE = 42
 
 
 def _filter_by_rate(msession, neuron_selection, neuron_labels, align_key, before, after,
-                    min_rate):
+                    min_rate, slopes=None, t_ref=0.0):
     """Keep neurons whose mean firing rate over the aligned window exceeds min_rate Hz."""
     trials = [(t, get_timepoint(t, align_key)) for t in msession]
     trials = [(t, tp) for t, tp in trials if tp is not None]
@@ -67,7 +68,8 @@ def _filter_by_rate(msession, neuron_selection, neuron_labels, align_key, before
         rates = []
         for t, tp in trials:
             s = np.asarray(t.spikes[sel])
-            rates.append(np.sum((s > tp - before) & (s < tp + after)) / dur)
+            rates.append(np.sum((s > tp - before) & (s < tp + after)) / dur
+                         - drift_offset(slopes, t_ref, sel, t.ttl_start))
         if rates and float(np.mean(rates)) > min_rate:
             keep_sel.append(sel)
             keep_lab.append(lab)
@@ -79,7 +81,8 @@ def _filter_by_rate(msession, neuron_selection, neuron_labels, align_key, before
 
 
 def _filter_by_modulation(msession, mobject, neuron_selection, neuron_labels, align_key,
-                          group_column, before, after, bin_width, filter_sigma, alpha):
+                          group_column, before, after, bin_width, filter_sigma, alpha,
+                          slopes=None, t_ref=0.0):
     """Keep neurons whose rate is modulated by group_column (Kruskal-Wallis p < alpha).
 
     Mirrors the neuron modulation test in prehension_methods_paper figure_neural
@@ -116,7 +119,8 @@ def _filter_by_modulation(msession, mobject, neuron_selection, neuron_labels, al
             s = np.asarray(t.spikes[sel])
             s = s[(s > tp - before) & (s < tp + after)] - tp
             counts, _ = np.histogram(s, bins=bins)
-            fr = scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
+            fr = (scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
+                  - drift_offset(slopes, t_ref, sel, t.ttl_start))
             means[i_t] = np.mean(fr[:half]) if half > 0 else np.mean(fr)
         samples = [means[[i for i, g in enumerate(group) if g == gid]] for gid in group_ids]
         try:
@@ -140,7 +144,7 @@ def _filter_by_modulation(msession, mobject, neuron_selection, neuron_labels, al
 
 def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
                group_column, before, after, bin_width, filter_sigma, save_dir,
-               individual_traces=False):
+               individual_traces=False, slopes=None, t_ref=0.0):
     """PETH traces aligned to align_key, colour-coded by group_column.
 
     Units are drawn at most MAX_UNITS_PER_FIGURE per figure; any beyond that are
@@ -171,9 +175,11 @@ def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
 
     frs = np.zeros((len(neuron_selection), len(used), numbins))
     for i_n, neuron_spikes in enumerate(spikes):
+        sel = neuron_selection[i_n]
         for i_t, nt_spikes in enumerate(neuron_spikes):
             counts, _ = np.histogram(nt_spikes, bins=bins)
-            frs[i_n, i_t, :] = scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
+            frs[i_n, i_t, :] = (scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
+                                - drift_offset(slopes, t_ref, sel, used[i_t].ttl_start))
 
     group = [get_target_force(mobject, t.object_id, group_column) for t in used]
     group_ids = sorted(set(group))
@@ -271,7 +277,7 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
                               skip_ttl=None, skip_ttl_last=None, recording=None,
                               only_good=False, min_rate=None, modulation_alpha=None,
-                              save=True, save_dir=None):
+                              drift_correct=True, save=True, save_dir=None):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -309,6 +315,10 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             (Recording1, Recording2, ...), passed to NeuralConfig. The NWB is
             per-session, so this does not change what is read; kept for a uniform
             interface with the processing pipeline. None -> probe default.
+        drift_correct {bool} --- When True (default), subtract each unit's linear
+            session drift (fit_session_drift: rate trend across the session's TTL
+            windows) from every trial's rate before filtering/plotting, so slow
+            across-session drift is not read as condition structure.
         save {bool} --- Save the figure(s) as PNG (default True). The averages figure
             is <processed_server>/<session>/prehension_plots/figure_peth.png, and the
             optional individual-traces figure adds a '_traces' suffix. When more than
@@ -402,19 +412,26 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
 
     for i_trial, trial in zip(range(len(session_spikes)), msession):
         trial.spikes = session_spikes[i_trial]
+        trial.ttl_start = float(events_time[i_trial][0])
     msession = [t for t in msession[:len(session_spikes)]
                 if t.success and hasattr(t, 'spikes')]
+
+    # per-unit linear session drift, subtracted from every trial's rate below.
+    slopes, t_ref = fit_session_drift(spikes, events_time) if drift_correct else (None, 0.0)
 
     neuron_selection, neuron_labels = resolve_neuron_selection(unit_ids, neuron_ids)
     if min_rate is not None:
         neuron_selection, neuron_labels = _filter_by_rate(
-            msession, neuron_selection, neuron_labels, align_timepoint, before, after, min_rate)
+            msession, neuron_selection, neuron_labels, align_timepoint, before, after, min_rate,
+            slopes=slopes, t_ref=t_ref)
     if modulation_alpha is not None:
         neuron_selection, neuron_labels = _filter_by_modulation(
             msession, mobject, neuron_selection, neuron_labels, align_timepoint,
-            group_column, before, after, bin_width, filter_sigma, modulation_alpha)
+            group_column, before, after, bin_width, filter_sigma, modulation_alpha,
+            slopes=slopes, t_ref=t_ref)
     rs('Plotting {} unit(s): {}'.format(len(neuron_selection), neuron_labels))
 
     save_dir = resolve_session_save_dir(processed_server, session, save, save_dir)
     _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_timepoint,
-               group_column, before, after, bin_width, filter_sigma, save_dir)
+               group_column, before, after, bin_width, filter_sigma, save_dir,
+               slopes=slopes, t_ref=t_ref)
