@@ -51,6 +51,11 @@ from .common.traces import resolve_session_save_dir, figure_filename
 # ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
+# Cap on units drawn per figure; more units are split across successive figures
+# (one page each) so no single figure becomes an unreadable grid of tiny subplots.
+MAX_UNITS_PER_FIGURE = 42
+
+
 def _filter_by_rate(msession, neuron_selection, neuron_labels, align_key, before, after,
                     min_rate):
     """Keep neurons whose mean firing rate over the aligned window exceeds min_rate Hz."""
@@ -73,10 +78,75 @@ def _filter_by_rate(msession, neuron_selection, neuron_labels, align_key, before
     return keep_sel, keep_lab
 
 
+def _filter_by_modulation(msession, mobject, neuron_selection, neuron_labels, align_key,
+                          group_column, before, after, bin_width, filter_sigma, alpha):
+    """Keep neurons whose rate is modulated by group_column (Kruskal-Wallis p < alpha).
+
+    Mirrors the neuron modulation test in prehension_methods_paper figure_neural
+    (plot_binned_averaged_activity): for each neuron, the aligned per-trial firing
+    rate is binned and Gaussian-smoothed, the mean rate over the FIRST HALF of the
+    window is taken per trial (the pre-event half for a symmetric window), trials are
+    grouped by group_column, and a Kruskal-Wallis test across those groups gives a
+    p-value.  Neurons with p < alpha are kept and returned ranked by ascending p (most
+    strongly modulated first), matching figure_neural's neuron ordering.  A neuron
+    whose test is degenerate (a single group, or a group with no trials) gets p = NaN
+    and is dropped.
+
+    Off by default: called only when a modulation_alpha is given.
+    """
+    import scipy.stats
+
+    trials = [(t, get_timepoint(t, align_key)) for t in msession]
+    trials = [(t, tp) for t, tp in trials if tp is not None]
+    used = [t for t, _ in trials]
+    tps = [tp for _, tp in trials]
+    group = [get_target_force(mobject, t.object_id, group_column) for t in used]
+    group_ids = sorted(set(group))
+
+    bins = np.arange(-before - bin_width / 2, after + bin_width / 2, bin_width)
+    numbins = len(bins) - 1
+    freq = 1.0 / bin_width
+    sigma_bins = filter_sigma / bin_width
+    half = int(numbins / 2)   # figure_neural: mean over the first half of the window
+
+    pvals = []
+    for sel in neuron_selection:
+        means = np.zeros(len(used))
+        for i_t, (t, tp) in enumerate(zip(used, tps)):
+            s = np.asarray(t.spikes[sel])
+            s = s[(s > tp - before) & (s < tp + after)] - tp
+            counts, _ = np.histogram(s, bins=bins)
+            fr = scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
+            means[i_t] = np.mean(fr[:half]) if half > 0 else np.mean(fr)
+        samples = [means[[i for i, g in enumerate(group) if g == gid]] for gid in group_ids]
+        try:
+            _, p = scipy.stats.kruskal(*samples)
+        except ValueError:
+            p = np.nan   # <2 groups, or a group with all-identical / no values
+        pvals.append(float(p))
+
+    order = sorted(range(len(neuron_selection)),
+                   key=lambda i: (np.isnan(pvals[i]), pvals[i]))
+    keep = [i for i in order if not np.isnan(pvals[i]) and pvals[i] < alpha]
+    rs('Modulation filter: kept {} / {} unit(s) with Kruskal-Wallis p < {} across {}.'.format(
+        len(keep), len(neuron_selection), alpha, group_column))
+    if not keep:
+        raise ValueError(
+            'No units are modulated by {} at p < {}.'.format(group_column, alpha))
+    keep_sel = [neuron_selection[i] for i in keep]
+    keep_lab = [neuron_labels[i] for i in keep]
+    return keep_sel, keep_lab
+
+
 def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
                group_column, before, after, bin_width, filter_sigma, save_dir,
                individual_traces=False):
-    """PETH traces aligned to align_key, colour-coded by group_column."""
+    """PETH traces aligned to align_key, colour-coded by group_column.
+
+    Units are drawn at most MAX_UNITS_PER_FIGURE per figure; any beyond that are
+    split across successive figures (one page each), saved with a '_pN' page suffix
+    (a single page keeps the un-suffixed name).
+    """
     trials = [(t, get_timepoint(t, align_key)) for t in msession]
     trials = [(t, tp) for t, tp in trials if tp is not None]
     if not trials:
@@ -122,51 +192,77 @@ def _plot_peth(msession, mobject, neuron_selection, neuron_labels, align_key,
                                     / np.sqrt(len(ingroup)))
 
     sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
-    xn, yn = plotting.xy_numsubplots(len(neuron_selection))
 
-    if individual_traces:
-        fig1, axs1 = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9))
-        axs1 = np.atleast_1d(axs1).flatten()
-        for i_n, ax in enumerate(axs1):
-            if i_n >= len(neuron_selection):
+    # Split the units into pages of at most MAX_UNITS_PER_FIGURE, one figure per page.
+    n_units = len(neuron_selection)
+    pages = [range(p, min(p + MAX_UNITS_PER_FIGURE, n_units))
+             for p in range(0, n_units, MAX_UNITS_PER_FIGURE)]
+    multipage = len(pages) > 1
+    if multipage:
+        rs('{} units > {} per figure: splitting into {} figure(s).'.format(
+            n_units, MAX_UNITS_PER_FIGURE, len(pages)))
+    if save_dir is not None:
+        os.makedirs(save_dir, exist_ok=True)
+
+    def _page_suffix(base_suffix, i_page):
+        """Filename suffix for a page: page tag appended only when multi-page."""
+        page = 'p{}'.format(i_page + 1)
+        if not multipage:
+            return base_suffix
+        return '{}_{}'.format(base_suffix, page) if base_suffix else page
+
+    for i_page, page in enumerate(pages):
+        page_units = list(page)
+        xn, yn = plotting.xy_numsubplots(len(page_units))
+        page_tag = ' ({}/{})'.format(i_page + 1, len(pages)) if multipage else ''
+
+        if individual_traces:
+            fig1, axs1 = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9))
+            axs1 = np.atleast_1d(axs1).flatten()
+            for ax_i, ax in enumerate(axs1):
+                if ax_i >= len(page_units):
+                    ax.axis('off')
+                    continue
+                i_n = page_units[ax_i]
+                for i_t, color in enumerate(trial_colors):
+                    ax.plot(bin_centers, frs[i_n, i_t, :], color=color, linewidth=0.7, alpha=0.7)
+                ax.axvline(0.0, color='k', linewidth=0.8, linestyle='--')
+                ax.set_title('unit {}'.format(neuron_labels[i_n]), fontsize=8)
+                ax.tick_params(labelsize=6)
+            fig1.suptitle('PETH per trial, aligned to {}, coloured by {}{}'.format(
+                align_key, group_column, page_tag))
+            fig1.tight_layout(rect=(0, 0, 0.94, 0.96))
+            fig1.colorbar(sm, ax=axs1.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
+
+        fig2, axs2 = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9))
+        axs2 = np.atleast_1d(axs2).flatten()
+        for ax_i, ax in enumerate(axs2):
+            if ax_i >= len(page_units):
                 ax.axis('off')
                 continue
-            for i_t, color in enumerate(trial_colors):
-                ax.plot(bin_centers, frs[i_n, i_t, :], color=color, linewidth=0.7, alpha=0.7)
+            i_n = page_units[ax_i]
+            for i_g, color in enumerate(group_colors):
+                m, e = frs_avg[i_n, i_g, :], frs_sem[i_n, i_g, :]
+                ax.fill_between(bin_centers, m - e, m + e, color=color, alpha=0.3)
+                ax.plot(bin_centers, m, color=color, linewidth=1.8)
             ax.axvline(0.0, color='k', linewidth=0.8, linestyle='--')
             ax.set_title('unit {}'.format(neuron_labels[i_n]), fontsize=8)
             ax.tick_params(labelsize=6)
-        fig1.suptitle('PETH per trial, aligned to {}, coloured by {}'.format(
-            align_key, group_column))
-        fig1.tight_layout(rect=(0, 0, 0.94, 0.96))
-        fig1.colorbar(sm, ax=axs1.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
+        fig2.suptitle('PETH force-group averages (mean +/- SEM), aligned to {}{}'.format(
+            align_key, page_tag))
+        fig2.tight_layout(rect=(0, 0, 0.94, 0.96))
+        fig2.colorbar(sm, ax=axs2.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
 
-    fig2, axs2 = plt.subplots(nrows=yn, ncols=xn, figsize=(16, 9))
-    axs2 = np.atleast_1d(axs2).flatten()
-    for i_n, ax in enumerate(axs2):
-        if i_n >= len(neuron_selection):
-            ax.axis('off')
-            continue
-        for i_g, color in enumerate(group_colors):
-            m, e = frs_avg[i_n, i_g, :], frs_sem[i_n, i_g, :]
-            ax.fill_between(bin_centers, m - e, m + e, color=color, alpha=0.3)
-            ax.plot(bin_centers, m, color=color, linewidth=1.8)
-        ax.axvline(0.0, color='k', linewidth=0.8, linestyle='--')
-        ax.set_title('unit {}'.format(neuron_labels[i_n]), fontsize=8)
-        ax.tick_params(labelsize=6)
-    fig2.suptitle('PETH force-group averages (mean +/- SEM), aligned to {}'.format(align_key))
-    fig2.tight_layout(rect=(0, 0, 0.94, 0.96))
-    fig2.colorbar(sm, ax=axs2.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
-
-    if save_dir is not None:
-        os.makedirs(save_dir, exist_ok=True)
-        if individual_traces:
-            f1 = os.path.join(save_dir, figure_filename('figure_peth', 'traces'))
-            fig1.savefig(f1, dpi=150, bbox_inches='tight')
-            rs('Saved {}'.format(f1))
-        f2 = os.path.join(save_dir, figure_filename('figure_peth'))
-        fig2.savefig(f2, dpi=150, bbox_inches='tight')
-        rs('Saved {}'.format(f2))
+        if save_dir is not None:
+            if individual_traces:
+                f1 = os.path.join(save_dir, figure_filename(
+                    'figure_peth', _page_suffix('traces', i_page)))
+                fig1.savefig(f1, dpi=150, bbox_inches='tight')
+                rs('Saved {}'.format(f1))
+            f2 = os.path.join(save_dir, figure_filename(
+                'figure_peth', _page_suffix(None, i_page)))
+            fig2.savefig(f2, dpi=150, bbox_inches='tight')
+            rs('Saved {}'.format(f2))
 
 
 def plot_perievent_histograms(server, processed_server, session, probe_type,
@@ -174,7 +270,8 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
                               skip_ttl=None, skip_ttl_last=None, recording=None,
-                              only_good=False, min_rate=None, save=True, save_dir=None):
+                              only_good=False, min_rate=None, modulation_alpha=None,
+                              save=True, save_dir=None):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
@@ -188,6 +285,12 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         min_rate {float} --- Optional average-activity threshold (Hz): drop units
             whose mean firing rate over the aligned window is at or below this.
             None (default) -> meta_neural.json 'min_rate' if present, else no filter.
+        modulation_alpha {float} --- Optional force-modulation filter matching
+            prehension_methods_paper figure_neural: keep only units whose firing rate
+            is modulated by group_column (Kruskal-Wallis across force groups on the
+            first-half-window mean rate) at p < modulation_alpha, ordered by ascending
+            p.  OFF by default: None -> meta_neural.json 'modulation_alpha' if present,
+            else no modulation filter.
         align_timepoint {str} --- Trial timepoint to align to. Either a timepoints
             CSV column (e.g. first_grasp_start) or a meta_session 'ttl_to_*' column
             (e.g. ttl_to_success_grasp, ttl_to_reach, ttl_to_force_target_start).
@@ -208,7 +311,9 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             interface with the processing pipeline. None -> probe default.
         save {bool} --- Save the figure(s) as PNG (default True). The averages figure
             is <processed_server>/<session>/prehension_plots/figure_peth.png, and the
-            optional individual-traces figure adds a '_traces' suffix.
+            optional individual-traces figure adds a '_traces' suffix. When more than
+            MAX_UNITS_PER_FIGURE units are plotted they are split across pages, each
+            saved with a '_pN' suffix (e.g. figure_peth_p1.png).
         save_dir {str} --- Explicit output folder overriding the default
             <session>/prehension_plots location. None -> the default (see save).
     """
@@ -219,6 +324,8 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     skip_ttl_last = resolve_meta_arg(
         skip_ttl_last, cfg.meta_neural, 'skip_ttl_last', 0)
     min_rate = resolve_meta_arg(min_rate, cfg.meta_neural, 'min_rate', None)
+    modulation_alpha = resolve_meta_arg(
+        modulation_alpha, cfg.meta_neural, 'modulation_alpha', None)
 
     # --only_good: restrict to the good_neurons listed in meta_neural.json
     if only_good and not neuron_ids:
@@ -302,6 +409,10 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     if min_rate is not None:
         neuron_selection, neuron_labels = _filter_by_rate(
             msession, neuron_selection, neuron_labels, align_timepoint, before, after, min_rate)
+    if modulation_alpha is not None:
+        neuron_selection, neuron_labels = _filter_by_modulation(
+            msession, mobject, neuron_selection, neuron_labels, align_timepoint,
+            group_column, before, after, bin_width, filter_sigma, modulation_alpha)
     rs('Plotting {} unit(s): {}'.format(len(neuron_selection), neuron_labels))
 
     save_dir = resolve_session_save_dir(processed_server, session, save, save_dir)

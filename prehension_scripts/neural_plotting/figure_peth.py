@@ -30,7 +30,8 @@ import matplotlib.pyplot as plt
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.neural_processing.common import probe
-from prehension.neural_plotting.figure_peth import plot_perievent_histograms, BEFORE, AFTER
+from prehension.neural_plotting.figure_peth import (
+    plot_perievent_histograms, BEFORE, AFTER, FILTER_SIGMA)
 
 if __name__ == "__main__":
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
@@ -60,6 +61,11 @@ if __name__ == "__main__":
         "--after", type=float, default=AFTER, metavar="SECONDS",
         help="Seconds after the alignment event to plot. Default: {}.".format(AFTER))
     parser.add_argument(
+        "--filter_sigma", type=float, default=FILTER_SIGMA, metavar="SECONDS",
+        help="SD (s) of the Gaussian smoothing applied to the firing-rate traces "
+             "(and to the --modulation_alpha test). Default: {}. Use 0.1 to match "
+             "figure_neural.".format(FILTER_SIGMA))
+    parser.add_argument(
         "--skip_ttl", type=int, default=None, metavar="N",
         help="Positional pulse<->trial alignment offset. Positive N drops the "
              "first N TTL pulses; negative N drops the first |N| behavioural "
@@ -83,6 +89,12 @@ if __name__ == "__main__":
         help="Optional threshold: drop units with mean rate at or below this (Hz). "
              "Default: from meta_neural.json 'min_rate' if present, else no filter.")
     parser.add_argument(
+        "--modulation_alpha", type=float, default=None, metavar="P",
+        help="Optional force-modulation filter (matches figure_neural): keep only "
+             "units modulated by --group_column (Kruskal-Wallis across force groups "
+             "on the first-half-window mean rate) at p < this, ordered by ascending "
+             "p. OFF by default; also reads meta_neural.json 'modulation_alpha'.")
+    parser.add_argument(
         "--no_save", dest="save", action="store_false",
         help="Do not save the figure (saving is on by default, into "
              "<processed_server>/<session>/prehension_plots/figure_peth.png).")
@@ -96,10 +108,10 @@ if __name__ == "__main__":
     plot_perievent_histograms(
         args.server, args.processed_server, args.session, probe_type,
         neuron_ids=args.units, align_timepoint=args.align, group_column=args.group_column,
-        before=args.before, after=args.after,
+        before=args.before, after=args.after, filter_sigma=args.filter_sigma,
         skip_ttl=args.skip_ttl, skip_ttl_last=args.skip_ttl_last,
         recording=args.recording, only_good=args.only_good, min_rate=args.min_rate,
-        save=args.save)
+        modulation_alpha=args.modulation_alpha, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()
