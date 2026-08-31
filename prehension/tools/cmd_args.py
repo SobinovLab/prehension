@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 import re
+import argparse
 
 
 def sessions_name_stub(sessions, sessions2=None):
@@ -58,6 +59,28 @@ def resolve_meta_arg(cli_value, meta, key, default=None):
     return default if v is None or v == '' else v
 
 
+class _ResolveSessionsAction(argparse.Action):
+    '''argparse action that expands session selectors at parse time.
+
+    Applied to --sessions / --sessions2 so every script gets flexible selection
+    (sel:/region:/burr_hole:) for free.  The token list is passed through
+    resolve_sessions using the active preset's processed_server and session_selections
+    (set by preset.get_preset before the parser runs), so sessions without a
+    meta_neural.json are simply skipped by the region:/burr_hole: selectors rather than
+    erroring.  A bad selector (e.g. an unknown sel:name) is reported cleanly via
+    parser.error.  processed_server is taken from the preset, not a --processed_server
+    override, which only matters for the rare region:/burr_hole: + override combination.
+    '''
+    def __call__(self, parser, namespace, values, option_string=None):
+        from .. import preset
+        try:
+            resolved = resolve_sessions(values, preset.active_processed_server(),
+                                        session_selections=preset.session_selections())
+        except ValueError as e:
+            parser.error(str(e))
+        setattr(namespace, self.dest, resolved)
+
+
 def add_default_arguments(parser, arguments):
     '''Possible arguments:
         sessions
@@ -76,16 +99,19 @@ def add_default_arguments(parser, arguments):
         parser.add_argument(
             '--sessions',
             type=str, default=[], nargs='*', metavar='SESSION',
+            action=_ResolveSessionsAction,
             help='List of session directories to process. If empty, find all unprocessed '
             'directories (empty by default). A token may also be a selector that expands '
             'via resolve_sessions(): "sel:<name>" -> the named list in the preset\'s '
             '"session_selections"; "region:<value>" or "burr_hole:<value>" '
-            '(case-insensitive) -> every session whose meta_neural.json matches.')
+            '(case-insensitive) -> every session whose meta_neural.json matches (sessions '
+            'without a meta_neural.json are skipped).')
 
     if 'sessions2' in arguments:
         parser.add_argument(
             '--sessions2',
             type=str, default=[], nargs='*', metavar='SESSION',
+            action=_ResolveSessionsAction,
             help='A second, independent list of session directories, processed separately '
             'from --sessions (e.g. pooled on its own and overlaid on the same plot for '
             'comparison). Same token syntax as --sessions (literal names or '
@@ -261,8 +287,8 @@ def resolve_sessions(sessions, processed_server, session_selections=None):
         for session in meta_session.find_session_dirs(processed_server):
             try:
                 meta = npconfig.load_meta_neural(processed_server, session)
-            except ValueError:
-                continue  # no meta_neural.json for this session
+            except Exception:  # noqa: BLE001 - missing/unreadable neural config -> skip
+                continue  # session has no usable meta_neural.json; not added to the list
             for field, val in meta_selectors:
                 mv = meta.get(field, None)
                 if mv is not None and str(mv).strip().lower() == val.lower():

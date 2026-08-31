@@ -71,7 +71,7 @@ SESSION_PROC_FILES = (
     'meta_structure.json',
     'meta_neural.json',
     'timepoints.csv',
-    'neural_processed/neural.nwb'
+    # 'neural_processed/neural.nwb'
 )
 
 

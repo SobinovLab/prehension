@@ -112,6 +112,17 @@ def session_selections():
     return _ACTIVE_PRESET.get('session_selections') or {}
 
 
+def active_processed_server():
+    '''Processed-data server of the active preset, or None if none is set.
+
+    Used by cmd_args to resolve 'region:'/'burr_hole:' --sessions selectors (which
+    scan each session's meta_neural.json under the processed server) at parse time.
+    '''
+    if _ACTIVE_PRESET is None:
+        return None
+    return _ACTIVE_PRESET.get('processed_server')
+
+
 def process_args_for_preset():
     '''Check if the first argument corresponds to a preset and loads its dictionary.'''
     argv = copy.deepcopy(sys.argv)[1:]
