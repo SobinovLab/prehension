@@ -213,11 +213,22 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
     mstruct['neural'] = ''
     neural_dir = os.path.join(raw_ss, 'neural')
     if os.path.isdir(neural_dir):
-        continuous = os.path.join(neural_dir, '*', 'Record Node *', 'experiment1',
-                                  'recording1', 'continuous')
-        if glob.glob(os.path.join(continuous, 'Acquisition_Board*')):
+        # 'Record Node *' can sit directly under neural/ or under an intermediate timestamp
+        # folder (neural/TIMESTAMP/Record Node *), so look for the continuous folder in both.
+        continuous_patterns = [
+            os.path.join(neural_dir, '*', 'Record Node *', 'experiment1',
+                         'recording1', 'continuous'),
+            os.path.join(neural_dir, 'Record Node *', 'experiment1',
+                         'recording1', 'continuous'),
+        ]
+        acquisition_board = []
+        neuropix = []
+        for continuous in continuous_patterns:
+            acquisition_board += glob.glob(os.path.join(continuous, 'Acquisition_Board*'))
+            neuropix += glob.glob(os.path.join(continuous, 'Neuropix*'))
+        if acquisition_board:
             mstruct['neural'] = 'vprobe'
-        elif glob.glob(os.path.join(continuous, 'Neuropix*')):
+        elif neuropix:
             mstruct['neural'] = 'neuropixel'
 
 
