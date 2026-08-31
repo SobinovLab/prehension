@@ -71,8 +71,28 @@ SESSION_PROC_FILES = (
     'meta_structure.json',
     'meta_neural.json',
     'timepoints.csv',
-    # 'neural_processed/neural.nwb'
+    'neural_processed/neural.nwb'
 )
+
+
+def _ensure_file_subdirs(src_dir, target_dir, file_names, dry_run):
+    """Create target sub-directories for any file entries that live in a sub-directory.
+
+    SESSION_RAW_FILES / SESSION_PROC_FILES may reference a file inside a sub-directory
+    (e.g. 'neural_processed/neural.nwb').  shutil.copy2 (the copy step in
+    filesystem.copy_folder_contents) does not create the destination sub-directory, so
+    it is made here first.  Only sub-directories whose source file actually exists are
+    created (the copy step warns/skips missing ones, so no empty target dir is made),
+    and nothing is created on a dry run.
+    """
+    for fname in file_names:
+        subdir = os.path.dirname(fname)
+        if not subdir:
+            continue
+        if not os.path.isfile(os.path.join(src_dir, fname)):
+            continue
+        if not dry_run:
+            os.makedirs(os.path.join(target_dir, subdir), exist_ok=True)
 
 
 def upload_data(current_preset, sessions, temp, target_dir, dry_run, overwrite):
@@ -130,12 +150,19 @@ def upload_data(current_preset, sessions, temp, target_dir, dry_run, overwrite):
             ws('Session {} does not exist on the server.'.format(session))
             continue
 
+        target_ss = os.path.join(target_dir, session)
+
+        # files listed under a sub-directory (e.g. 'neural_processed/neural.nwb') need
+        # their target sub-directory created before the copy step (shutil.copy2 does not).
+        _ensure_file_subdirs(raw_ss, target_ss, SESSION_RAW_FILES, dry_run)
+        _ensure_file_subdirs(proc_ss, target_ss, SESSION_PROC_FILES, dry_run)
+
         filesystem.copy_folder_contents(
-            raw_ss, os.path.join(target_dir, session),
+            raw_ss, target_ss,
             dir_names=SESSION_RAW_DIRS, file_names=SESSION_RAW_FILES, copy_function=copy_function,
             overwrite=overwrite, box=True)
         filesystem.copy_folder_contents(
-            proc_ss, os.path.join(target_dir, session),
+            proc_ss, target_ss,
             dir_names=SESSION_PROC_DIRS, file_names=SESSION_PROC_FILES, copy_function=copy_function,
             overwrite=overwrite, box=True)
 
