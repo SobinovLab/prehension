@@ -41,14 +41,17 @@ def cv_lda_accuracy(features, labels, n_folds, seed):
     from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
     from sklearn.model_selection import StratifiedKFold, cross_val_score
 
-    classes, counts = np.unique(labels, return_counts=True)
+    # Integer-encode the labels: float class values (e.g. target forces like 0.5,
+    # 1.4, ...) are otherwise read as a 'continuous' target and rejected by
+    # StratifiedKFold/LDA, even though they are discrete classes.
+    classes, encoded, counts = np.unique(labels, return_inverse=True, return_counts=True)
     if classes.size < 2 or counts.min() < 2:
         return np.nan
     folds = int(min(n_folds, counts.min()))
     if folds < 2:
         return np.nan
     skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
-    scores = cross_val_score(LinearDiscriminantAnalysis(), features, labels, cv=skf)
+    scores = cross_val_score(LinearDiscriminantAnalysis(), features, encoded, cv=skf)
     return float(np.mean(scores))
 
 
