@@ -58,9 +58,9 @@ from ..tools.logs import rs, ws
 from ..tools.cmd_args import sessions_name_stub
 from ..neural_processing.common.spikes import BIN_WIDTH, FILTER_SIGMA
 from ..neural_processing.common.population import MIN_RATE_HZ
-from .common.pooling import (
+from ..neural_plotting.common.pooling import (
     pool_cross_correlations, PRE_LAG, POST_LAG, FORCE_ACTIVE_FRACTION)
-from .common.traces import resolve_pooled_save_dir, figure_filename
+from ..neural_plotting.common.traces import resolve_pooled_save_dir, figure_filename
 
 
 def _peak_lags(xcorr_r2, lag_times):
@@ -297,7 +297,8 @@ def plot_depth_stacked_cross_correlation(sessions_results, lag_times, pre_lag, p
 def figure_cross_correlation(server, processed_server, sessions, bin_width=BIN_WIDTH,
                              filter_sigma=FILTER_SIGMA, pre_lag=PRE_LAG, post_lag=POST_LAG,
                              force_fraction=FORCE_ACTIVE_FRACTION, only_good=False,
-                             min_rate=MIN_RATE_HZ, processes=1, drift_correct=True,
+                             min_rate=MIN_RATE_HZ, use_threshold_crossings=False,
+                             processes=1, drift_correct=True,
                              name=None, save=True, save_dir=None):
     """Cross-correlate each neuron's rate with the summed grasp force, per session.
 
@@ -325,7 +326,8 @@ def figure_cross_correlation(server, processed_server, sessions, bin_width=BIN_W
     sessions_results, lag_times = pool_cross_correlations(
         server, processed_server, sessions, bin_width=bin_width, filter_sigma=filter_sigma,
         pre_lag=pre_lag, post_lag=post_lag, force_fraction=force_fraction,
-        only_good=only_good, min_rate=min_rate, processes=processes,
+        only_good=only_good, min_rate=min_rate,
+        use_threshold_crossings=use_threshold_crossings, processes=processes,
         drift_correct=drift_correct)
     if not sessions_results:
         raise ValueError(

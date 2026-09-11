@@ -95,6 +95,11 @@ if __name__ == "__main__":
              "on the first-half-window mean rate) at p < this, ordered by ascending "
              "p. OFF by default; also reads meta_neural.json 'modulation_alpha'.")
     parser.add_argument(
+        "--threshold_crossings", action="store_true",
+        help="Read the threshold-crossing product (neural_threshold_crossings.nwb) instead "
+             "of the sorted neural.nwb (the sorted file is used by default, or the threshold "
+             "crossings automatically, with a warning, when it is missing).")
+    parser.add_argument(
         "--no_save", dest="save", action="store_false",
         help="Do not save the figure (saving is on by default, into "
              "<processed_server>/<session>/prehension_plots/figure_peth.png).")
@@ -112,7 +117,7 @@ if __name__ == "__main__":
         skip_ttl=args.skip_ttl, skip_ttl_last=args.skip_ttl_last,
         recording=args.recording, only_good=args.only_good, min_rate=args.min_rate,
         modulation_alpha=args.modulation_alpha, drift_correct=args.drift_correct,
-        save=args.save)
+        use_threshold_crossings=args.threshold_crossings, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

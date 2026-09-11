@@ -39,8 +39,8 @@ import matplotlib.pyplot as plt
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.neural_plotting.figure_peth import BEFORE, AFTER
-from prehension.neural_plotting.figure_spaces_pooled import MIN_RATE_HZ
-from prehension.neural_plotting.figure_spaces_dpca_pooled import (
+from prehension.analysis.figure_spaces_pooled import MIN_RATE_HZ
+from prehension.analysis.figure_spaces_dpca_pooled import (
     figure_spaces_dpca_pooled, N_COMPONENTS)
 
 if __name__ == "__main__":
@@ -81,6 +81,11 @@ if __name__ == "__main__":
         help="Demixed components kept overall (top 3 condition-dependent are traced). "
              "Default: {}.".format(N_COMPONENTS))
     parser.add_argument(
+        "--threshold_crossings", action="store_true",
+        help="Read the threshold-crossing product (neural_threshold_crossings.nwb) instead "
+             "of the sorted neural.nwb (the sorted file is used by default, or the threshold "
+             "crossings automatically, with a warning, when it is missing).")
+    parser.add_argument(
         "--no_save", dest="save", action="store_false",
         help="Do not save the figures (saving is on by default, into "
              "<processed_server>/pooled_figures/figure_spaces_dpca_pooled, named after "
@@ -96,7 +101,8 @@ if __name__ == "__main__":
         align_timepoint=args.align, group_column=args.group_column,
         before=args.before, after=args.after, only_good=args.only_good,
         min_rate=args.min_rate, n_components=args.n_components,
-        drift_correct=args.drift_correct, name=name, save=args.save)
+        drift_correct=args.drift_correct,
+        use_threshold_crossings=args.threshold_crossings, name=name, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

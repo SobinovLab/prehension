@@ -37,11 +37,12 @@ import scipy.ndimage
 import tqdm
 
 from ... import meta_session
-from ...tools import filters, forces, stats
+from ...tools import filters, forces, stats, io
 from ...tools.cmd_args import resolve_meta_arg
 from ...tools.logs import rs, ws
 from ...neural_processing import config
 from ...neural_processing.common import probe
+from ...neural_processing.import_kilosorted import resolve_neural_nwb_path
 from ...neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
     read_nwb_spikes_and_ttl, read_nwb_unit_depths, get_trial_data_spike,
@@ -58,10 +59,37 @@ FORCE_ACTIVE_FRACTION = 0.05   # active-grasp threshold, fraction of the trial's
 MIN_CORE_BINS = 3          # skip a trial whose active-force period spans fewer bins
 
 
+def _session_neural_context(server, processed_server, session, use_threshold_crossings=False):
+    """Resolve a session's neural source NWB + meta_neural, tolerant of non-probe sessions.
+
+    The neural source is the sorted neural.nwb by default, or the threshold-crossing
+    product when use_threshold_crossings is set (or when only that product exists) --
+    resolve_neural_nwb_path.  meta_neural comes from a NeuralConfig when the probe type is
+    known (V-probe / Neuropixels); for Utah-array sessions (no probe meta) it is read
+    directly from meta_neural.json, or {} when absent, so those sessions still pool.
+    Returns (nwb_path, meta_neural, rserv, pserv); raises for a probe session whose meta /
+    recording cannot be resolved, so the caller skips it exactly as before.
+    """
+    nwb_path = resolve_neural_nwb_path(processed_server, session, use_threshold_crossings)
+    rserv = os.path.join(server, session)
+    pserv = os.path.join(processed_server, session)
+    try:
+        probe_type = probe.probe_type_from_meta(server, processed_server, session)
+    except ValueError:
+        probe_type = None
+    if probe_type is not None:
+        meta_neural = config.NeuralConfig(
+            server, processed_server, session, probe_type).meta_neural
+    else:
+        meta_path = config.meta_neural_path(processed_server, session)
+        meta_neural = io.load_json(meta_path) if os.path.exists(meta_path) else {}
+    return nwb_path, meta_neural, rserv, pserv
+
+
 def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                  group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                  bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA, only_good=False,
-                 drift_correct=True):
+                 use_threshold_crossings=False, drift_correct=True):
     """Pool selected neurons across sessions into one joint structure.
 
     For each session: load its neural NWB + behavioural meta, apply the session's
@@ -70,7 +98,9 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     or -- with only_good -- the session's meta_neural 'good_neurons'.  When
     drift_correct (default True), a per-unit linear session drift (fit_session_drift)
     is subtracted from every trial's rate first.  Sessions that lack neural data /
-    meta / a matching pulse count are skipped with a warning.
+    meta / a matching pulse count are skipped with a warning.  With
+    use_threshold_crossings the threshold-crossing product is read instead of the sorted
+    neural.nwb (also used automatically, with a warning, when the sorted file is missing).
 
     Returns (entries, bin_centers, max_force) where each entry is
     {'label': '<session>: <unit id>', 'frs_avg': (n_groups, numbins),
@@ -90,14 +120,14 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     max_force = 0.0
     for session in found:
         try:
-            probe_type = probe.probe_type_from_meta(server, processed_server, session)
-            cfg = config.NeuralConfig(server, processed_server, session, probe_type)
-        except ValueError as e:
+            nwb_path, meta_neural, rserv, pserv = _session_neural_context(
+                server, processed_server, session, use_threshold_crossings)
+        except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
 
         if only_good:
-            neuron_ids = cfg.meta_neural.get('good_neurons') or []
+            neuron_ids = meta_neural.get('good_neurons') or []
             if not neuron_ids:
                 ws("Skipping session {}: only_good set but 'good_neurons' is empty.".format(
                     session))
@@ -105,14 +135,13 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
         else:
             neuron_ids = None
 
-        skip_ttl = resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl', 0)
-        skip_ttl_last = resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl_last', 0)
+        skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
+        skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
 
         try:
-            mstruct, _, mobject, msession = meta_session.load_meta_information(
-                cfg.rserv, cfg.pserv)
+            mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
             load_timepoints_into_msession(msession, mstruct)
-            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
+            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
@@ -195,7 +224,7 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
 def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 group_column=GROUP_COLUMN, before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
                 causal_sigma=CAUSAL_SIGMA, avg_window=None, only_good=False,
-                min_rate=MIN_RATE_HZ, drift_correct=True):
+                min_rate=MIN_RATE_HZ, use_threshold_crossings=False, drift_correct=True):
     """Build the per-session, per-trial activity tensors used for classification.
 
     Mirrors pool_neurons' session-handling (probe type, skip_ttl, positional
@@ -213,7 +242,9 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     {'session': str, 'X': (n_trials, n_neurons, n_time) sqrt-rate activity,
     'labels': (n_trials,) condition per trial, 'neuron_labels': [unit id, ...]}.
     Sessions lacking neural data / meta / a matching pulse count / active neurons /
-    a valid alignment timepoint are skipped with a warning.
+    a valid alignment timepoint are skipped with a warning.  With use_threshold_crossings
+    the threshold-crossing product is read instead of the sorted neural.nwb (also used
+    automatically, with a warning, when the sorted file is missing).
     """
     found = ([s for s in sessions if os.path.isdir(os.path.join(server, s))]
              if sessions else meta_session.find_session_dirs(server))
@@ -230,14 +261,14 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     sessions_data = []
     for session in found:
         try:
-            probe_type = probe.probe_type_from_meta(server, processed_server, session)
-            cfg = config.NeuralConfig(server, processed_server, session, probe_type)
-        except ValueError as e:
+            nwb_path, meta_neural, rserv, pserv = _session_neural_context(
+                server, processed_server, session, use_threshold_crossings)
+        except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
 
         if only_good:
-            neuron_ids = cfg.meta_neural.get('good_neurons') or []
+            neuron_ids = meta_neural.get('good_neurons') or []
             if not neuron_ids:
                 ws("Skipping session {}: only_good set but 'good_neurons' is empty.".format(
                     session))
@@ -245,14 +276,13 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
         else:
             neuron_ids = None
 
-        skip_ttl = resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl', 0)
-        skip_ttl_last = resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl_last', 0)
+        skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
+        skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
 
         try:
-            mstruct, _, mobject, msession = meta_session.load_meta_information(
-                cfg.rserv, cfg.pserv)
+            mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
             load_timepoints_into_msession(msession, mstruct)
-            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
+            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
@@ -390,7 +420,8 @@ def _xcorr_neuron_worker(neuron_trial_spikes):
 def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WIDTH,
                             filter_sigma=FILTER_SIGMA, pre_lag=PRE_LAG, post_lag=POST_LAG,
                             force_fraction=FORCE_ACTIVE_FRACTION, only_good=False,
-                            min_rate=MIN_RATE_HZ, processes=1, drift_correct=True):
+                            min_rate=MIN_RATE_HZ, use_threshold_crossings=False,
+                            processes=1, drift_correct=True):
     """Cross-correlate each neuron's rate with the summed grasp force, per session.
 
     Mirrors pool_neurons / pool_trials for the session handling (probe type, skip_ttl,
@@ -418,7 +449,9 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
     Selection is all units, or -- with only_good -- the session's meta_neural
     'good_neurons'; neurons whose mean rate over the active periods is at or below
     ``min_rate`` Hz are dropped.  Sessions lacking neural data / meta / a matching
-    pulse count / any usable trial / active neurons are skipped with a warning.
+    pulse count / any usable trial / active neurons are skipped with a warning.  With
+    use_threshold_crossings the threshold-crossing product is read instead of the sorted
+    neural.nwb (also used automatically, with a warning, when the sorted file is missing).
 
     ``drift_correct`` is accepted for a uniform interface with the other pooling
     functions but has no effect here: the linear session drift is a constant offset
@@ -448,14 +481,14 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
     sessions_results = []
     for session in found:
         try:
-            probe_type = probe.probe_type_from_meta(server, processed_server, session)
-            cfg = config.NeuralConfig(server, processed_server, session, probe_type)
-        except ValueError as e:
+            nwb_path, meta_neural, rserv, pserv = _session_neural_context(
+                server, processed_server, session, use_threshold_crossings)
+        except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
 
         if only_good:
-            neuron_ids = cfg.meta_neural.get('good_neurons') or []
+            neuron_ids = meta_neural.get('good_neurons') or []
             if not neuron_ids:
                 ws("Skipping session {}: only_good set but 'good_neurons' is empty.".format(
                     session))
@@ -463,13 +496,13 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
         else:
             neuron_ids = None
 
-        skip_ttl = resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl', 0)
-        skip_ttl_last = resolve_meta_arg(None, cfg.meta_neural, 'skip_ttl_last', 0)
+        skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
+        skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
 
         try:
-            _, _, _, msession = meta_session.load_meta_information(cfg.rserv, cfg.pserv)
-            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
-            unit_depths = read_nwb_unit_depths(cfg.nwb_path)
+            _, _, _, msession = meta_session.load_meta_information(rserv, pserv)
+            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
+            unit_depths = read_nwb_unit_depths(nwb_path)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
@@ -591,8 +624,8 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
         kept_labels = [neuron_labels[j] for j in keep]
         sessions_results.append({
             'session': session,
-            'region': cfg.meta_neural.get('region', '') or '',
-            'burr_hole': cfg.meta_neural.get('burr_hole', '') or '',
+            'region': meta_neural.get('region', '') or '',
+            'burr_hole': meta_neural.get('burr_hole', '') or '',
             'xcorr': xcorr[keep, :],
             'neuron_labels': kept_labels,
             # depth (um along the probe) of each kept neuron, aligned to xcorr rows;

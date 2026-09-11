@@ -43,8 +43,8 @@ import matplotlib.pyplot as plt
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.neural_plotting.figure_peth import BEFORE, AFTER
-from prehension.neural_plotting.figure_spaces_pooled import MIN_RATE_HZ
-from prehension.neural_plotting.figure_classification_time import (
+from prehension.analysis.figure_spaces_pooled import MIN_RATE_HZ
+from prehension.analysis.figure_classification_time import (
     figure_classification_time, CAUSAL_SIGMA, N_FOLDS, SUSTAINED_DURATION_S)
 
 if __name__ == "__main__":
@@ -93,6 +93,11 @@ if __name__ == "__main__":
         "--min_rate", type=float, default=MIN_RATE_HZ, metavar="HZ",
         help="Keep only neurons with mean rate above this (Hz). Default: {}.".format(MIN_RATE_HZ))
     parser.add_argument(
+        "--threshold_crossings", action="store_true",
+        help="Read the threshold-crossing product (neural_threshold_crossings.nwb) instead "
+             "of the sorted neural.nwb (the sorted file is used by default, or the threshold "
+             "crossings automatically, with a warning, when it is missing).")
+    parser.add_argument(
         "--sustained_ms", type=float, default=SUSTAINED_DURATION_S * 1e3, metavar="MS",
         help="Report the sessions whose accuracy stays above their own shuffle chance "
              "threshold for a contiguous stretch longer than this (ms). "
@@ -120,7 +125,7 @@ if __name__ == "__main__":
         before=args.before, after=args.after, causal_sigma=args.causal_sigma,
         avg_window=args.avg_window, n_folds=args.n_folds,
         only_good=args.only_good, min_rate=args.min_rate, processes=args.processes,
-        drift_correct=args.drift_correct,
+        drift_correct=args.drift_correct, use_threshold_crossings=args.threshold_crossings,
         sessions_label=sessions_label, sessions2_label=sessions2_label,
         name=name, sustained_duration=args.sustained_ms / 1e3, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

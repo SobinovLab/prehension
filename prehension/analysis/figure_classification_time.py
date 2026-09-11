@@ -36,8 +36,8 @@ from ..tools.decoding import classify_through_time, chance_level
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH)
 from ..neural_processing.common.population import MIN_RATE_HZ, build_pooled_pseudopopulation
-from .common.pooling import pool_trials, CAUSAL_SIGMA
-from .common.traces import plot_classification_time, resolve_pooled_save_dir
+from ..neural_plotting.common.pooling import pool_trials, CAUSAL_SIGMA
+from ..neural_plotting.common.traces import plot_classification_time, resolve_pooled_save_dir
 
 # defaults; overridable through the calling function / script
 N_FOLDS = 5                # cross-validation folds (trials held out)
@@ -73,7 +73,7 @@ GROUP_STYLES = [
 def _pool_and_classify(server, processed_server, sessions, align_timepoint, group_column,
                        before, after, bin_width, causal_sigma, avg_window, n_folds,
                        shuffle_percentile, only_good, min_rate, processes, seed,
-                       drift_correct=True):
+                       drift_correct=True, use_threshold_crossings=False):
     """Pool one set of sessions and classify it per session and as a pooled pseudo-population.
 
     Runs the full pipeline for a single session set: pool_trials -> per-session k-fold
@@ -87,7 +87,8 @@ def _pool_and_classify(server, processed_server, sessions, align_timepoint, grou
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
         causal_sigma=causal_sigma, avg_window=avg_window, only_good=only_good,
-        min_rate=min_rate, drift_correct=drift_correct)
+        min_rate=min_rate, use_threshold_crossings=use_threshold_crossings,
+        drift_correct=drift_correct)
     if not sessions_data:
         return None
 
@@ -133,7 +134,7 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
                                causal_sigma=CAUSAL_SIGMA, avg_window=None,
                                n_folds=N_FOLDS, shuffle_percentile=SHUFFLE_PERCENTILE,
                                only_good=False, min_rate=MIN_RATE_HZ, processes=1,
-                               drift_correct=True,
+                               drift_correct=True, use_threshold_crossings=False,
                                sessions_label=None, sessions2_label=None, name=None,
                                sustained_duration=SUSTAINED_DURATION_S,
                                save=True, save_dir=None, seed=0):
@@ -167,7 +168,8 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
         return _pool_and_classify(
             server, processed_server, sess, align_timepoint, group_column, before, after,
             bin_width, causal_sigma, avg_window, n_folds, shuffle_percentile, only_good,
-            min_rate, processes, seed, drift_correct=drift_correct)
+            min_rate, processes, seed, drift_correct=drift_correct,
+            use_threshold_crossings=use_threshold_crossings)
 
     group1 = _run(sessions)
     if group1 is None:

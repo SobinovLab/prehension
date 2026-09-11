@@ -41,7 +41,7 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.neural_plotting.figure_cross_correlation import (
+from prehension.analysis.figure_cross_correlation import (
     figure_cross_correlation, PRE_LAG, POST_LAG, FORCE_ACTIVE_FRACTION, MIN_RATE_HZ)
 
 if __name__ == "__main__":
@@ -73,6 +73,11 @@ if __name__ == "__main__":
         help="Keep only neurons with mean rate above this (Hz) over the active periods. "
              "Default: {} (the same activity floor as the dPCA figure).".format(MIN_RATE_HZ))
     parser.add_argument(
+        "--threshold_crossings", action="store_true",
+        help="Read the threshold-crossing product (neural_threshold_crossings.nwb) instead "
+             "of the sorted neural.nwb (the sorted file is used by default, or the threshold "
+             "crossings automatically, with a warning, when it is missing).")
+    parser.add_argument(
         "--no_save", dest="save", action="store_false",
         help="Do not save the figure (saving is on by default, into "
              "<processed_server>/pooled_figures/figure_cross_correlation, named after "
@@ -87,7 +92,8 @@ if __name__ == "__main__":
         args.server, args.processed_server, sessions,
         pre_lag=args.pre_lag, post_lag=args.post_lag, force_fraction=args.force_fraction,
         only_good=args.only_good, min_rate=args.min_rate, processes=args.processes,
-        drift_correct=args.drift_correct, name=name, save=args.save)
+        drift_correct=args.drift_correct, use_threshold_crossings=args.threshold_crossings,
+        name=name, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()
