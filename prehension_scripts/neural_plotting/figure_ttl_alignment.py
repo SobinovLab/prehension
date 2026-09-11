@@ -45,6 +45,10 @@ if __name__ == "__main__":
         help="Pulses to skip for alignment. If negative, that many trials are "
              "skipped instead. Default: from meta_neural.json 'skip_ttl' (then 0).")
     parser.add_argument(
+        "--ignore", type=int, default=None, metavar="N",
+        help="Drop the first N TTL pulses and first N trial starts before aligning "
+             "(applied before --skip). Default: from meta_neural.json 'ignore' (then 0).")
+    parser.add_argument(
         "--recording", type=str, default=None, metavar="N",
         help="Open Ephys recording within experiment1 to read, 1-based "
              "(Recording1, Recording2, ...); accepts 2 or 'Recording2'. "
@@ -61,8 +65,8 @@ if __name__ == "__main__":
 
     start_time = time.time()
     plot_ttl_trial_alignment(args.server, args.processed_server, args.session,
-                             probe_type, skip=args.skip, recording=args.recording,
-                             save=args.save)
+                             probe_type, skip=args.skip, ignore=args.ignore,
+                             recording=args.recording, save=args.save)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()
