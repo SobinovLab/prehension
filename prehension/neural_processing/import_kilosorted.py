@@ -82,6 +82,9 @@ PROCESSED_NWB_SUBDIR = 'neural_processed_nwb'
 KILOSORTED_NAME = 'kilosorted.nwb'
 WORK_SUBDIR = 'neural_processed'
 NEURAL_NWB_NAME = 'neural.nwb'
+# Threshold-crossing product, written alongside neural.nwb with the same Units /
+# ttl_pulses schema (see import_utah), so read_nwb_spikes_and_ttl consumes either.
+NEURAL_TX_NWB_NAME = 'neural_threshold_crossings.nwb'
 
 # Phy curation output on the raw server (server/<session>/neural/final_phy), holding
 # cluster_info.tsv -- the source of per-unit depth used to order the units by depth
@@ -103,6 +106,31 @@ def kilosorted_path(processed_server, session):
 def neural_nwb_path(processed_server, session):
     """Path to a session's neural.nwb product (same as config.NeuralConfig.nwb_path)."""
     return os.path.join(processed_server, session, WORK_SUBDIR, NEURAL_NWB_NAME)
+
+
+def threshold_crossings_nwb_path(processed_server, session):
+    """Path to a session's threshold-crossing product neural_threshold_crossings.nwb."""
+    return os.path.join(processed_server, session, WORK_SUBDIR, NEURAL_TX_NWB_NAME)
+
+
+def resolve_neural_nwb_path(processed_server, session, use_threshold_crossings=False):
+    """Neural source NWB for a session: sorted neural.nwb by default, else threshold crossings.
+
+    Returns the sorted neural.nwb unless use_threshold_crossings is set, or the sorted
+    product is missing while the threshold-crossing product exists -- then the threshold
+    crossings path is returned with a warning.  Both files share the Units / ttl_pulses
+    schema, so read_nwb_spikes_and_ttl consumes either.  Returns the sorted path unchanged
+    when neither exists (the caller reports the missing file).
+    """
+    sorted_path = neural_nwb_path(processed_server, session)
+    tx_path = threshold_crossings_nwb_path(processed_server, session)
+    if use_threshold_crossings:
+        return tx_path
+    if not os.path.exists(sorted_path) and os.path.exists(tx_path):
+        ws('No sorted neural.nwb for session {}; using threshold crossings {}.'.format(
+            session, tx_path))
+        return tx_path
+    return sorted_path
 
 
 def final_phy_dir(server, session):
@@ -194,6 +222,13 @@ def _norm_label(value):
     return str(value).strip().lower()
 
 
+def _as_str(value):
+    """Decode an HDF5 string cell (bytes or str) to a stripped str (no case change)."""
+    if isinstance(value, bytes):
+        value = value.decode('utf-8', 'replace')
+    return str(value).strip()
+
+
 def _fmt_unit_id(value):
     """Format an original sorter unit id as a string (integral floats -> '12').
 
@@ -245,6 +280,20 @@ def _h5_col(group, name, n_expected):
     return arr
 
 
+def _h5_col_any(group, names, n_expected):
+    """Read the first present of several electrode-column aliases (or None).
+
+    The externally-produced NWBs name the same column differently across export
+    generations (e.g. 'channel_id' vs 'chan_id', 'channel_row' vs 'chan_row'); this
+    tries each alias in order via _h5_col and returns the first that fits n_expected.
+    """
+    for name in names:
+        arr = _h5_col(group, name, n_expected)
+        if arr is not None:
+            return arr
+    return None
+
+
 def _parse_start_time(value):
     """Parse the NWB session_start_time string to a timezone-aware datetime.
 
@@ -286,7 +335,9 @@ def read_kilosorted(source_path):
         session_id          {str | None}
         units {list[dict]} --- one entry per source unit, in Units-table row order:
             {'spike_times': ndarray(s), 'unit_id': str, 'unit_label': str,
-             'channel_id': float|nan, 'mean_frate': float|nan}
+             'channel_id': float|nan, 'channel_label': str, 'channel_row': float|nan,
+             'channel_col': float|nan, 'mean_frate': float|nan}
+            (channel_row/col are the 0-based Utah-grid coordinates when present, else NaN)
         trials {list[dict]} --- one entry per source trial:
             {'start_time': float, 'stop_time': float, 'correct': float|nan}
     """
@@ -309,12 +360,18 @@ def read_kilosorted(source_path):
         row_ids = (f['units/id'][()] if 'units/id' in f
                    else np.arange(n_units, dtype='int64'))
 
-        # Per-unit annotations (one row per unit, positionally aligned to Units).
+        # Per-unit annotations (one row per unit, positionally aligned to Units).  Column
+        # names vary across export generations, so each is read by an alias set; the Utah
+        # arrays store geometry as channel row/col (0-based on the 10x10 grid), absent in
+        # the V-probe/Neuropixels kilosorted.nwb (left NaN, harmless to the kilosort path).
         el = f[ELECTRODES_GROUP] if ELECTRODES_GROUP in f else None
-        unit_id_col = _h5_col(el, 'unit_id', n_units)
-        label_col = _h5_col(el, 'unit_label', n_units)
-        channel_col = _h5_col(el, 'channel_id', n_units)
-        frate_col = _h5_col(el, 'mean_frate', n_units)
+        unit_id_col = _h5_col_any(el, ('unit_id',), n_units)
+        label_col = _h5_col_any(el, ('unit_label',), n_units)
+        channel_col = _h5_col_any(el, ('channel_id', 'chan_id'), n_units)
+        chan_label_col = _h5_col_any(el, ('channel_label', 'chan_label'), n_units)
+        row_col = _h5_col_any(el, ('channel_row', 'chan_row'), n_units)
+        col_col = _h5_col_any(el, ('channel_col', 'chan_col'), n_units)
+        frate_col = _h5_col_any(el, ('mean_frate',), n_units)
 
         units = []
         for i in range(n_units):
@@ -324,6 +381,9 @@ def read_kilosorted(source_path):
                 'unit_id': _fmt_unit_id(uid),
                 'unit_label': _norm_label(label_col[i]) if label_col is not None else '',
                 'channel_id': float(channel_col[i]) if channel_col is not None else np.nan,
+                'channel_label': _as_str(chan_label_col[i]) if chan_label_col is not None else '',
+                'channel_row': float(row_col[i]) if row_col is not None else np.nan,
+                'channel_col': float(col_col[i]) if col_col is not None else np.nan,
                 'mean_frate': float(frate_col[i]) if frate_col is not None else np.nan,
             })
 

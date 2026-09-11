@@ -23,6 +23,12 @@ kilosorted.nwb source order instead.
 
 Sessions already having a neural.nwb are skipped unless --overwrite is given.
 
+For the Utah-array presets (mojito/pimms right hemisphere) this dispatches instead to
+import_utah.reexport_utah, which reads the Blackrock/Plexon sources
+(manually_sorted/plexonsorted/kilosorted and raw_threshold_crossings/unsorted) and writes
+neural.nwb (sorted) plus neural_threshold_crossings.nwb, preserving the Utah channel/unit
+coordinates.  Pass --no_threshold_crossings to write only neural.nwb.
+
 Copyright (C) 2026 Anton Sobinov
 https://github.com/SobinovLab/prehension
 
@@ -47,6 +53,7 @@ from prehension import preset
 from prehension.tools import cmd_args
 from prehension.neural_processing.import_kilosorted import (
     reexport_kilosorted, DEFAULT_SELECTED_LABELS)
+from prehension.neural_processing import import_utah
 
 if __name__ == "__main__":
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
@@ -64,6 +71,10 @@ if __name__ == "__main__":
         "--no_depth_order", dest="order_by_depth", action="store_false",
         help="Keep the kilosorted.nwb source order instead of ordering the written "
              "units by ascending probe depth (final_phy/cluster_info.tsv).")
+    parser.add_argument(
+        "--no_threshold_crossings", dest="threshold_crossings", action="store_false",
+        help="Utah presets only: skip writing neural_threshold_crossings.nwb alongside "
+             "neural.nwb (the label / depth-order options apply only to the kilosort path).")
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -78,7 +89,12 @@ if __name__ == "__main__":
         help="Keep every unit regardless of its label.")
 
     args = parser.parse_args(args=argv)
-    sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
+    # 'good' sentinel: reexport the preset's good_sessions (the sessions whose neural
+    # activity was already exported), matching the legacy convention in other scripts.
+    if args.sessions and args.sessions[0].lower() == 'good':
+        sessions = current_preset.get('good_sessions', [])
+    else:
+        sessions = cmd_args.resolve_sessions(args.sessions, args.processed_server)
 
     if args.all_units:
         selected_labels = None
@@ -90,7 +106,14 @@ if __name__ == "__main__":
         selected_labels = DEFAULT_SELECTED_LABELS
 
     start_time = time.time()
-    reexport_kilosorted(args.server, args.processed_server, sessions, args.temp,
-                        selected_labels=selected_labels, overwrite=args.overwrite,
-                        order_by_depth=args.order_by_depth)
+    if import_utah.is_utah_preset(current_preset_name):
+        # Utah-array datasets (mojito/pimms): Blackrock/Plexon sources, coordinates and
+        # threshold crossings preserved (see import_utah).
+        import_utah.reexport_utah(
+            args.server, args.processed_server, sessions, args.temp,
+            include_threshold_crossings=args.threshold_crossings, overwrite=args.overwrite)
+    else:
+        reexport_kilosorted(args.server, args.processed_server, sessions, args.temp,
+                            selected_labels=selected_labels, overwrite=args.overwrite,
+                            order_by_depth=args.order_by_depth)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

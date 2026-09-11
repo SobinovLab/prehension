@@ -60,13 +60,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args(args=argv)
 
-    # probe type is read from the session meta_structure ('neural' field), not the command line
-    probe_type = probe.probe_type_from_meta(args.server, args.processed_server, args.session)
-
-    start_time = time.time()
-    plot_ttl_trial_alignment(args.server, args.processed_server, args.session,
-                             probe_type, skip=args.skip, ignore=args.ignore,
-                             recording=args.recording, save=args.save)
-    print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
-
-    plt.show()
+    # Utah arrays are externally sorted and have no Open Ephys TTL stream to extract; the
+    # reexported ttl_pulses come from the source, so this Open Ephys alignment diagnostic
+    # does not apply.
+    if probe.is_utah_session(args.server, args.processed_server, args.session):
+        print("Session {} is a Utah array (externally sorted); TTL alignment is an Open "
+              "Ephys diagnostic and does not apply. Skipping.".format(args.session))
+    else:
+        # probe type is read from the session meta_structure ('neural' field), not the CLI
+        probe_type = probe.probe_type_from_meta(args.server, args.processed_server, args.session)
+        start_time = time.time()
+        plot_ttl_trial_alignment(args.server, args.processed_server, args.session,
+                                 probe_type, skip=args.skip, ignore=args.ignore,
+                                 recording=args.recording, save=args.save)
+        print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
+        plt.show()

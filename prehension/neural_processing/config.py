@@ -116,6 +116,29 @@ def meta_neural_path(processed_server, session):
     return os.path.join(processed_server, session, META_NEURAL_NAME)
 
 
+def default_meta_neural_utah():
+    """Default meta_neural for a Utah-array session (externally sorted; no SI pipeline).
+
+    Utah sessions are reexported from Blackrock/Plexon NWBs (import_utah), not sorted by
+    the Open Ephys -> SpikeInterface pipeline, so only the annotation / reader fields the
+    product neural.nwb and the analysis code use apply: region/burr_hole/depth_um/notes,
+    good_neurons, and the positional pulse<->trial skip_ttl offsets, plus the Utah geometry
+    for provenance.  The Open Ephys / sorter / preprocessing fields are intentionally omitted.
+    """
+    return {
+        'probe_type': 'utah',
+        'array': '10x10_utah',
+        'pitch_um': 400,   # = neural_processing.common.probe.UTAH_PITCH_UM
+        'region': '',
+        'burr_hole': '',
+        'depth_um': '',
+        'notes': '',
+        'good_neurons': [],   # unit ids used when a figure is run with --only_good
+        'skip_ttl': 0,
+        'skip_ttl_last': 0,
+    }
+
+
 def default_meta_neural(probe_type):
     """Default meta_neural dict for a probe type, from the module constants.
 
@@ -123,8 +146,11 @@ def default_meta_neural(probe_type):
     a complete, editable snapshot: annotations (region/burr_hole/depth_um/notes),
     the CLI-backed args (recording/skip_ttl/sorter/nwb_units), the shared
     processing constants, and the resolved PROBE_DEFAULTS.  The V-probe geometry /
-    wiring block is added only for probe_type == 'vprobe'.
+    wiring block is added only for probe_type == 'vprobe'.  probe_type 'utah' returns
+    the reduced, externally-sorted snapshot (default_meta_neural_utah).
     """
+    if probe_type == 'utah':
+        return default_meta_neural_utah()
     if probe_type not in PROBE_DEFAULTS:
         raise ValueError('Unknown probe_type {!r} (expected {}).'.format(
             probe_type, list(PROBE_DEFAULTS)))

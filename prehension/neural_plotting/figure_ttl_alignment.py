@@ -43,7 +43,7 @@ from .common.traces import resolve_session_save_dir, figure_filename
 # max gap for a trial start to count as having a matching rising TTL pulse
 # Larger value does not matter because each trial is aligned separately
 # this needs to be small enough to not confuse multiple trials, which are >1 s long
-TTL_MATCH_TOL_S = 0.050  # 50 ms
+TTL_MATCH_TOL_S = 0.100  # 100 ms
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ def read_trial_sync_times(cfg):
 # Main
 # ---------------------------------------------------------------------------
 def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip=None,
-                             recording=None, save=True, save_dir=None):
+                             ignore=None, recording=None, save=True, save_dir=None):
     """Plot TTL pulses over trial windows, aligned by the first pulse-trial.
 
     Arguments:
@@ -105,6 +105,10 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
             are skipped instead.  The reference (t=0) becomes rising[skip] and
             trial_start[0] (skip >= 0) or rising[0] and trial_start[-skip] (skip < 0).
             None -> meta_neural.json 'skip_ttl' then 0.
+        ignore {int} --- Drop the first N TTL pulses and the first N trial starts
+            outright before aligning (applied before `skip`), for sessions whose
+            leading pulses/trials are spurious.  None -> meta_neural.json 'ignore'
+            then 0.
         recording {int|str} --- Open Ephys recording within experiment1 to read,
             1-based (Recording1, Recording2, ...); selects which recording's TTL
             events are read. None -> probe default.
@@ -117,6 +121,8 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
                                 recording=recording)
     # skip: CLI kwarg > meta_neural.json 'skip_ttl' > 0
     skip = resolve_meta_arg(skip, cfg.meta_neural, 'skip_ttl', 0)
+    # ignore: CLI kwarg > meta_neural.json 'ignore' > 0
+    ignore = resolve_meta_arg(ignore, cfg.meta_neural, 'ignore', 0)
 
     # neural TTL edges (times only; no recording load needed)
     edges = events.extract_ttl_edge_times(cfg, verbose=True)
@@ -127,8 +133,18 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
 
     # behavioural trial windows (in recording order, aligned positionally with the pulses)
     trial_num, dup_index, start_s, end_s = read_trial_sync_times(cfg)
-    rs('{} TTL pulses; {} behavioural trials; skip={}.'.format(
-        len(rising), len(start_s), skip))
+
+    # ignore: drop the first N pulses and first N trials outright before aligning
+    if ignore and ignore > 0:
+        rising = rising[ignore:]
+        falling = falling[ignore:]
+        trial_num = trial_num[ignore:]
+        dup_index = dup_index[ignore:]
+        start_s = start_s[ignore:]
+        end_s = end_s[ignore:]
+
+    rs('{} TTL pulses; {} behavioural trials; skip={}; ignore={}.'.format(
+        len(rising), len(start_s), skip, ignore))
     if len(rising) == 0 or len(start_s) == 0:
         raise ValueError('Need at least one TTL pulse and one trial to align.')
 
@@ -161,7 +177,10 @@ def plot_ttl_trial_alignment(server, processed_server, session, probe_type, skip
             len(start_s) - len(trial_idx)))
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(16, 6))
-    plotting.plot_interval_track(ax1, rising_a, falling_a, np.arange(len(rising)),
+    # label pulses by their ORIGINAL index (offset by ignore) so the numbering matches
+    # the behavioural trial numbers, which are not rebased by the ignore slice
+    plotting.plot_interval_track(ax1, rising_a, falling_a,
+                                 np.arange(ignore, ignore + len(rising)),
                                  'TTL pulses', 'rising', 'falling')
     ax1.set_title('TTL pulses (n={}) vs trials (n={}); aligned by pulse {} <-> '
                   'trial {} (skip={})'.format(len(rising), len(start_s), pulse_ref,

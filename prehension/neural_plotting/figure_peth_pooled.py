@@ -97,6 +97,7 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
                                      group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                                      bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
                                      only_good=False, min_rate=None, drift_correct=True,
+                                     use_threshold_crossings=False,
                                      name=None, save=True, save_dir=None):
     """Pool the selected neurons across `sessions` and plot them on one figure.
 
@@ -113,7 +114,8 @@ def plot_perievent_histograms_pooled(server, processed_server, sessions,
     entries, bin_centers, max_force = pool_neurons(
         server, processed_server, sessions, align_key=align_timepoint,
         group_column=group_column, before=before, after=after, bin_width=bin_width,
-        filter_sigma=filter_sigma, only_good=only_good, drift_correct=drift_correct)
+        filter_sigma=filter_sigma, only_good=only_good,
+        use_threshold_crossings=use_threshold_crossings, drift_correct=drift_correct)
     if not entries:
         raise ValueError('No neurons pooled from the requested sessions {}.'.format(sessions))
     if min_rate is not None:

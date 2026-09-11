@@ -106,8 +106,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args(args=argv)
 
-    # probe type is read from the session meta_structure ('neural' field), not the command line
-    probe_type = probe.probe_type_from_meta(args.server, args.processed_server, args.session)
+    # probe type is read from the session meta_structure ('neural' field), not the command line;
+    # Utah sessions have no Open Ephys probe type, so pass None (the reader falls back to
+    # meta_neural.json and reads the reexported per-session NWB).
+    if probe.is_utah_session(args.server, args.processed_server, args.session):
+        probe_type = None
+    else:
+        probe_type = probe.probe_type_from_meta(args.server, args.processed_server, args.session)
 
     start_time = time.time()
     plot_perievent_histograms(

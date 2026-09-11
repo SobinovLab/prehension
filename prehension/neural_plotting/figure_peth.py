@@ -40,6 +40,7 @@ from ..tools import plotting
 from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..neural_processing import config as npconfig
+from .common.pooling import session_neural_context
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
     read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection,
@@ -277,14 +278,17 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
                               bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA,
                               skip_ttl=None, skip_ttl_last=None, recording=None,
                               only_good=False, min_rate=None, modulation_alpha=None,
-                              drift_correct=True, save=True, save_dir=None):
+                              drift_correct=True, use_threshold_crossings=False,
+                              save=True, save_dir=None):
     """Plot PETH traces for one session from its NWB and prehension meta.
 
     Arguments:
         server {str} --- Folder where the raw sessions are located.
         processed_server {str} --- Folder where the processed data is located.
         session {str} --- Session directory name.
-        probe_type {str} --- 'neuropixels' or 'vprobe'.
+        probe_type {str} --- 'neuropixels', 'vprobe', or 'utah'. Retained for a uniform
+            interface; the per-session NWB is read via session_neural_context regardless, so
+            for 'utah' (or None) the read falls back to meta_neural.json.
         neuron_ids {list} --- Unit ids to plot; None/empty -> all units.
         only_good {bool} --- When True and neuron_ids is empty, plot the unit ids
             listed in meta_neural.json 'good_neurons'.
@@ -319,6 +323,10 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             session drift (fit_session_drift: rate trend across the session's TTL
             windows) from every trial's rate before filtering/plotting, so slow
             across-session drift is not read as condition structure.
+        use_threshold_crossings {bool} --- Read the threshold-crossing product
+            (neural_threshold_crossings.nwb) instead of the sorted neural.nwb; the sorted
+            file is used by default, or the threshold crossings (with a warning) when it
+            is missing.
         save {bool} --- Save the figure(s) as PNG (default True). The averages figure
             is <processed_server>/<session>/prehension_plots/figure_peth.png, and the
             optional individual-traces figure adds a '_traces' suffix. When more than
@@ -327,19 +335,23 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         save_dir {str} --- Explicit output folder overriding the default
             <session>/prehension_plots location. None -> the default (see save).
     """
-    cfg = npconfig.NeuralConfig(server, processed_server, session, probe_type,
-                                recording=recording)
+    # Neural source (sorted neural.nwb, or threshold crossings) + meta_neural, resolved
+    # tolerantly: a Utah session (no Open Ephys probe) falls back to meta_neural.json
+    # instead of a NeuralConfig, so probe_type / recording are not needed to read the
+    # per-session product NWB.
+    nwb_path, meta_neural, rserv, pserv = session_neural_context(
+        server, processed_server, session, use_threshold_crossings)
     # skip_ttl / skip_ttl_last: CLI kwarg > meta_neural.json > 0
-    skip_ttl = resolve_meta_arg(skip_ttl, cfg.meta_neural, 'skip_ttl', 0)
+    skip_ttl = resolve_meta_arg(skip_ttl, meta_neural, 'skip_ttl', 0)
     skip_ttl_last = resolve_meta_arg(
-        skip_ttl_last, cfg.meta_neural, 'skip_ttl_last', 0)
-    min_rate = resolve_meta_arg(min_rate, cfg.meta_neural, 'min_rate', None)
+        skip_ttl_last, meta_neural, 'skip_ttl_last', 0)
+    min_rate = resolve_meta_arg(min_rate, meta_neural, 'min_rate', None)
     modulation_alpha = resolve_meta_arg(
-        modulation_alpha, cfg.meta_neural, 'modulation_alpha', None)
+        modulation_alpha, meta_neural, 'modulation_alpha', None)
 
     # --only_good: restrict to the good_neurons listed in meta_neural.json
     if only_good and not neuron_ids:
-        neuron_ids = cfg.meta_neural.get('good_neurons') or []
+        neuron_ids = meta_neural.get('good_neurons') or []
         if not neuron_ids:
             raise ValueError(
                 "only_good=True but meta_neural.json 'good_neurons' is empty; fill it "
@@ -348,15 +360,14 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
             len(neuron_ids)))
 
     # behavioural meta
-    mstruct, _, mobject, msession = meta_session.load_meta_information(
-        cfg.rserv, cfg.pserv)
+    mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
     load_timepoints_into_msession(msession, mstruct)
 
     # neural + TTL windows from the NWB.
     # The pulses carry no trial IDs: pulse i is paired to trial i strictly by position, so
     # msession MUST be in recording (chronological) order - which create_meta now guarantees,
     # including for duplicate-recording trials. With duplicates preserved, the counts should match.
-    spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(cfg.nwb_path)
+    spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
     if skip_ttl > 0:
         # drop leading TTL pulses: pulse skip_ttl pairs to trial 0
         if skip_ttl >= len(events_time):

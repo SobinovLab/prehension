@@ -71,6 +71,44 @@ def probe_type_from_meta(server, processed_server, session):
     return NEURAL_TO_PROBE_TYPE[neural]
 
 
+def neural_type_from_meta(server, processed_server, session):
+    """Raw neural modality from meta_structure.json ('' | 'vprobe' | 'neuropixel' | 'utah').
+
+    Unlike probe_type_from_meta (which maps to an Open Ephys probe type and raises for a
+    modality that has none, e.g. Utah), this returns the modality string as recorded, so
+    callers can branch on it -- e.g. route a Utah session to the reexport path rather than
+    the Open Ephys -> SpikeInterface pipeline.  Returns '' when the meta is missing or has
+    no neural field.
+    """
+    meta_path = os.path.join(processed_server, session, 'meta_structure.json')
+    if not os.path.exists(meta_path):
+        return ''
+    return (io.load_json(meta_path).get('neural') or '').strip()
+
+
+def is_utah_session(server, processed_server, session):
+    """True when a session's neural modality is a Utah array (externally sorted)."""
+    return neural_type_from_meta(server, processed_server, session) == 'utah'
+
+
+# Utah electrode array geometry (Blackrock): a 10x10 grid at 400 um pitch.  The reexport
+# (import_utah) reads each channel's 0-based row/col from the source NWB and multiplies by
+# the pitch; utah_positions builds the full canonical grid for any consumer that needs the
+# layout without a source file.
+UTAH_N_ROWS = 10
+UTAH_N_COLS = 10
+UTAH_PITCH_UM = 400.0
+
+
+def utah_positions(n_rows=UTAH_N_ROWS, n_cols=UTAH_N_COLS, pitch_um=UTAH_PITCH_UM):
+    """(n_rows*n_cols, 2) in-plane x=col*pitch, y=row*pitch (um) for a Utah grid, row-major."""
+    pos = np.zeros((n_rows * n_cols, 2), dtype=float)
+    for i in range(n_rows * n_cols):
+        row, col = divmod(i, n_cols)
+        pos[i] = [col * pitch_um, row * pitch_um]
+    return pos
+
+
 def _contact_positions(cfg):
     n = cfg.expected_n_channels
     pos = np.zeros((n, 2), dtype=float)

@@ -110,7 +110,8 @@ def get_default_meta_structure():
         'calibration': 'calibration',  # local calibration directory
         'hand': 'right',
         # type of neural recording present in the session, filled by fill_meta_structure:
-        # '' (no neural data), 'vprobe', or 'neuropixel'
+        # '' (no neural data), 'vprobe', 'neuropixel', or 'utah' (Blackrock Utah array,
+        # externally sorted -> reexported by import_utah, not the SI pipeline)
         'neural': '',
         # experiment type inferred from the raw behaviour-log filename in create_meta:
         # 'prehension' (default), 'prehension_multiforce', 'prehension_kinforce', or 'transport'
@@ -230,6 +231,12 @@ def fill_meta_structure(mstruct, raw_ss, session, log_rel_dir='behavior'):
             mstruct['neural'] = 'vprobe'
         elif neuropix:
             mstruct['neural'] = 'neuropixel'
+        elif (glob.glob(os.path.join(neural_dir, '*.nev')) or
+              glob.glob(os.path.join(raw_ss, 'neural_processed_nwb', '*.nwb'))):
+            # Blackrock Utah array (Cerebus .nev in neural/, externally sorted to the sibling
+            # neural_processed_nwb/*.nwb); no Open Ephys continuous folder.  Handled by
+            # import_utah, not the SI pipeline.
+            mstruct['neural'] = 'utah'
 
 
 def normjoinpath(dirname, p):

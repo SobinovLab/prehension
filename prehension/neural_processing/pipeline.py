@@ -86,16 +86,25 @@ def create_meta_neural(server, processed_server, sessions, temp):
                 session, raw_neural_dir))
             continue
 
+        path = config.meta_neural_path(processed_server, session)
+        if os.path.exists(path):
+            rs('  {}: meta_neural.json already exists; leaving it unchanged.'.format(session))
+            continue
+
+        # Utah arrays are externally sorted (Blackrock/Plexon -> import_utah), not run
+        # through the Open Ephys -> SpikeInterface pipeline: write the reduced meta and
+        # skip the Open Ephys recording enumeration below.
+        if probe.neural_type_from_meta(server, processed_server, session) == 'utah':
+            tools.io.save_json(config.default_meta_neural('utah'), path)
+            rs('  {}: wrote {} (utah; externally sorted).'.format(session, path))
+            created_sessions.append(session)
+            continue
+
         # probe type comes from meta_structure; sessions without neural data are skipped
         try:
             probe_type = probe.probe_type_from_meta(server, processed_server, session)
         except ValueError as e:
             ws('Skipping session {}: {}'.format(session, e))
-            continue
-
-        path = config.meta_neural_path(processed_server, session)
-        if os.path.exists(path):
-            rs('  {}: meta_neural.json already exists; leaving it unchanged.'.format(session))
             continue
 
         meta = config.default_meta_neural(probe_type)
