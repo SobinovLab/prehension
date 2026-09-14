@@ -59,7 +59,7 @@ FORCE_ACTIVE_FRACTION = 0.05   # active-grasp threshold, fraction of the trial's
 MIN_CORE_BINS = 3          # skip a trial whose active-force period spans fewer bins
 
 
-def _session_neural_context(server, processed_server, session, use_threshold_crossings=False):
+def session_neural_context(server, processed_server, session, use_threshold_crossings=False):
     """Resolve a session's neural source NWB + meta_neural, tolerant of non-probe sessions.
 
     The neural source is the sorted neural.nwb by default, or the threshold-crossing
@@ -120,7 +120,7 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     max_force = 0.0
     for session in found:
         try:
-            nwb_path, meta_neural, rserv, pserv = _session_neural_context(
+            nwb_path, meta_neural, rserv, pserv = session_neural_context(
                 server, processed_server, session, use_threshold_crossings)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
@@ -261,7 +261,7 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     sessions_data = []
     for session in found:
         try:
-            nwb_path, meta_neural, rserv, pserv = _session_neural_context(
+            nwb_path, meta_neural, rserv, pserv = session_neural_context(
                 server, processed_server, session, use_threshold_crossings)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
@@ -481,7 +481,7 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
     sessions_results = []
     for session in found:
         try:
-            nwb_path, meta_neural, rserv, pserv = _session_neural_context(
+            nwb_path, meta_neural, rserv, pserv = session_neural_context(
                 server, processed_server, session, use_threshold_crossings)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
