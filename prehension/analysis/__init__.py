@@ -27,7 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 __all__ = [
     'figure_spaces_pooled', 'figure_spaces_dpca_pooled', 'figure_cross_correlation',
     'figure_classification_time', 'behavior_pooling', 'spaces_behavior', 'encoding',
-    'encoding_scatter']
+    'encoding_scatter', 'encoding_summary', 'figure_umap', 'decoding']
 
 from . import figure_spaces_pooled
 from . import figure_spaces_dpca_pooled
@@ -37,3 +37,6 @@ from . import behavior_pooling
 from . import spaces_behavior
 from . import encoding
 from . import encoding_scatter
+from . import encoding_summary
+from . import figure_umap
+from . import decoding

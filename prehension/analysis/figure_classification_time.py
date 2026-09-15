@@ -137,7 +137,7 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
                                drift_correct=True, use_threshold_crossings=False,
                                sessions_label=None, sessions2_label=None, name=None,
                                sustained_duration=SUSTAINED_DURATION_S,
-                               save=True, save_dir=None, seed=0):
+                               save=True, save_dir=None, seed=None):
     """Classify the condition (`group_column`) through time for one or two session sets.
 
     Pools per-trial, causally-smoothed, square-rooted activity (pool_trials), then runs

@@ -146,7 +146,7 @@ def run_dpca(R, n_components=10, combined_params=DPCA_COMBINED_PARAMS):
     return W, V, which_marg, expl_var
 
 
-def build_pooled_pseudopopulation(sessions_data, seed=0):
+def build_pooled_pseudopopulation(sessions_data, seed=None):
     """Concatenate neurons across sessions into one condition-matched pseudo-population.
 
     Because sessions do not share trials, a pseudo-population is built per condition:

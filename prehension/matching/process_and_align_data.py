@@ -213,9 +213,8 @@ def plot_some_dofs(label, times, dofs, dofs_prefilter, mdof, dof_names, figsize=
 
 
 def ja_filter(data):
-    # butterworth filter
-    sos = scipy.signal.butter(2, 20, btype='lowpass', output='sos', fs=JA_FREQUENCY)
-    data = scipy.signal.sosfilt(sos, data)
+    # butterworth low-pass (shared with tools.filters.joint_velocity)
+    data = tools.filters.lowpass_butter(data, 20, JA_FREQUENCY, order=2)
 
     # gaussian
     gaussian_sd = 100  # ms

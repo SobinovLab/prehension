@@ -107,6 +107,35 @@ def downsample(ps_times, data, ja_period):
     return ps_times_new, data
 
 
+def lowpass_butter(data, cutoff, fs, order=2, axis=-1):
+    '''Butterworth low-pass filter (scipy.signal.butter -> sosfilt) along `axis`.
+
+    The shared low-pass used by matching.process_and_align_data.ja_filter (on the joint
+    angles) and, optionally, by joint_velocity.  `cutoff` and `fs` are in Hz.  Causal
+    (sosfilt), matching the existing joint-angle filtering.
+    '''
+    sos = scipy.signal.butter(order, cutoff, btype='lowpass', output='sos', fs=fs)
+    return scipy.signal.sosfilt(sos, data, axis=axis)
+
+
+def joint_velocity(angles, times, do_filter=False, cutoff=5.0, order=4):
+    '''Time derivative of joint-angle traces, optionally low-pass filtered.
+
+    `angles` is (n_channels, n_times) or (n_times,); `times` the matching time vector (s).
+    Returns the derivative (same shape) via np.gradient over `times`.  With
+    do_filter=True the derivative is low-pass filtered with lowpass_butter at `cutoff` Hz
+    (the manuscript uses 5 Hz) -- the same Butterworth used to filter the joint angles.
+    Filtering is OFF by default.
+    '''
+    angles = np.asarray(angles, dtype=float)
+    times = np.asarray(times, dtype=float)
+    vel = np.gradient(angles, times, axis=-1)
+    if do_filter:
+        fs = 1.0 / float(np.median(np.diff(times)))
+        vel = lowpass_butter(vel, cutoff, fs, order=order)
+    return vel
+
+
 def nanmedianfilt(input_vector, kernel_width):
     '''Median filter that ignores nan values'''
     if kernel_width % 2 == 0:
