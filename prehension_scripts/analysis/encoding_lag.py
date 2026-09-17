@@ -37,7 +37,8 @@ import time
 from prehension import preset
 from prehension.tools import cmd_args
 from prehension.analysis.encoding import (
-    optimal_lag, ALL_PREDICTORS, PERIODS, LAG_MIN, LAG_MAX, LAG_MIN_RATE_HZ, MIN_ADJ_R2)
+    optimal_lag, ALL_PREDICTORS, PERIODS, LAG_MIN, LAG_MAX, LAG_MIN_RATE_HZ, MIN_ADJ_R2,
+    JOINT_GROUPS, DEFAULT_JOINT_GROUP)
 
 if __name__ == "__main__":
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
@@ -95,6 +96,13 @@ if __name__ == "__main__":
              "retreat), or 'active_grasp' (first grasp -> release). Default (per modality): "
              "kinematics/torques -> active_movement, forces -> active_grasp.")
     parser.add_argument(
+        "--joint_group", "--joints", dest="joint_group", choices=sorted(JOINT_GROUPS),
+        default=DEFAULT_JOINT_GROUP, metavar="GROUP",
+        help="Restrict the per-DOF predictors (positions, velocities, torques) to a joint group: "
+             "'hand' (distal DOFs), 'proximal' (shoulder + elbow) or 'all' (every independent "
+             "right-arm DOF). Must match the group encoding.py will fit. Default: {}.".format(
+                 DEFAULT_JOINT_GROUP))
+    parser.add_argument(
         "--threshold_crossings", action="store_true",
         help="Use the threshold-crossing channels instead of the sorted units.")
     parser.add_argument(
@@ -114,5 +122,5 @@ if __name__ == "__main__":
         n_pcs=args.n_pcs, min_rate=args.min_rate, min_adj_r2=args.min_adj_r2,
         bin_width=args.bin_width, use_threshold_crossings=args.threshold_crossings,
         processes=args.processes, overwrite=args.overwrite, period=args.period,
-        write_encoding=args.write_encoding)
+        write_encoding=args.write_encoding, joint_group=args.joint_group)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))

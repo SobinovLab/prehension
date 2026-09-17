@@ -33,7 +33,8 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.analysis.encoding import ALL_PREDICTORS, PERIODS, MIN_ADJ_R2
+from prehension.analysis.encoding import (
+    ALL_PREDICTORS, PERIODS, MIN_ADJ_R2, JOINT_GROUPS, DEFAULT_JOINT_GROUP)
 from prehension.analysis.encoding_scatter import encoding_scatter, encoding_difference_hist
 
 if __name__ == "__main__":
@@ -64,6 +65,11 @@ if __name__ == "__main__":
              "forces -> active_grasp (so paired predictors may differ in period; pass one "
              "period for a like-for-like comparison).")
     parser.add_argument(
+        "--joint_group", "--joints", dest="joint_group", choices=sorted(JOINT_GROUPS),
+        default=DEFAULT_JOINT_GROUP, metavar="GROUP",
+        help="Which joint-group encoding files to scatter: 'hand', 'proximal' or 'all'. Must "
+             "match the group encoding.py fit. Default: {}.".format(DEFAULT_JOINT_GROUP))
+    parser.add_argument(
         "--threshold_crossings", action="store_true",
         help="Scatter the threshold-crossing encoding files instead of the sorted-unit ones.")
     parser.add_argument(
@@ -81,11 +87,11 @@ if __name__ == "__main__":
     encoding_scatter(
         args.processed_server, sessions, predictors=args.predictors,
         min_adj_r2=args.min_adj_r2, use_threshold_crossings=args.threshold_crossings,
-        save=args.save, period=args.period)
+        save=args.save, period=args.period, joint_group=args.joint_group)
     encoding_difference_hist(
         args.processed_server, sessions, predictors=args.predictors,
         min_adj_r2=args.min_adj_r2, use_threshold_crossings=args.threshold_crossings,
-        save=args.save, period=args.period, bins=args.bins)
+        save=args.save, period=args.period, bins=args.bins, joint_group=args.joint_group)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

@@ -38,7 +38,7 @@ from ..tools.logs import rs, ws
 from ..neural_plotting.common.traces import resolve_pooled_save_dir
 from .encoding import (
     encoding_json_path, lag_json_path, resolve_period, ALL_PREDICTORS, MIN_ADJ_R2, _suffix,
-    _period_suffix)
+    _period_suffix, _joint_group_suffix, DEFAULT_JOINT_GROUP)
 
 
 LAG_EDGE_S = 1.0   # per-unit lags at +/- this (the sweep edges) are excluded from the median
@@ -55,28 +55,30 @@ def _central_lag(lags_s):
     return float(np.median(a)) if a.size else np.nan
 
 
-def _read_summary(processed_server, sessions, predictors, use_threshold_crossings, period):
+def _read_summary(processed_server, sessions, predictors, use_threshold_crossings, period,
+                  joint_group):
     """Pool per-unit best lags (s) and adjusted pR2 across sessions, per predictor.
 
     Each predictor is read for its effective period (resolve_period(predictor, period); None
-    -> the predictor's default).  Returns (lags, adj) dicts keyed by predictor: lags[p] the
-    list of per-unit best_lag_s and adj[p] the list of per-unit adj_pr2, over the sessions
-    that have the files.  When a predictor has one side (lag or encoding) for its period but
-    not the other, a warning names the missing side / period and the script that generates it,
-    so a half-empty panel is explained rather than silent.
+    -> the predictor's default) and the requested `joint_group`.  Returns (lags, adj) dicts
+    keyed by predictor: lags[p] the list of per-unit best_lag_s and adj[p] the list of per-unit
+    adj_pr2, over the sessions that have the files.  When a predictor has one side (lag or
+    encoding) for its period but not the other, a warning names the missing side / period and the
+    script that generates it, so a half-empty panel is explained rather than silent.
     """
     lags, adj = {}, {}
     for predictor in predictors:
         eff = resolve_period(predictor, period)
         pl, pa, n_lag, n_enc = [], [], 0, 0
         for session in sessions:
-            lp = lag_json_path(processed_server, session, predictor, use_threshold_crossings, eff)
+            lp = lag_json_path(processed_server, session, predictor, use_threshold_crossings, eff,
+                               joint_group)
             if os.path.exists(lp):
                 n_lag += 1
                 pl += [u['best_lag_s'] for u in io.load_json(lp).get('units', [])
                        if u.get('best_lag_s') is not None]
             ep = encoding_json_path(processed_server, session, predictor,
-                                    use_threshold_crossings, eff)
+                                    use_threshold_crossings, eff, joint_group)
             if os.path.exists(ep):
                 n_enc += 1
                 pa += [u['adj_pr2'] for u in io.load_json(ep).get('units', [])
@@ -99,7 +101,7 @@ def _read_summary(processed_server, sessions, predictors, use_threshold_crossing
 
 def encoding_summary(processed_server, sessions, predictors=None, min_adj_r2=MIN_ADJ_R2,
                      use_threshold_crossings=False, name=None, save=True, save_dir=None,
-                     period=None):
+                     period=None, joint_group=DEFAULT_JOINT_GROUP):
     """Plot per-unit optimal lags (top) and adjusted pR2 (bottom) per predictor, across sessions.
 
     Pools the units saved for `sessions` (empty -> all sessions under processed_server) from
@@ -119,7 +121,8 @@ def encoding_summary(processed_server, sessions, predictors=None, min_adj_r2=MIN
     found = sessions if sessions else meta_session.find_session_dirs(processed_server)
     preds = list(predictors) if predictors else list(ALL_PREDICTORS)
 
-    lags, adj = _read_summary(processed_server, found, preds, use_threshold_crossings, period)
+    lags, adj = _read_summary(processed_server, found, preds, use_threshold_crossings, period,
+                              joint_group)
     shown = [p for p in preds if p in lags or p in adj]
     if not shown:
         want = sorted({resolve_period(p, period) for p in preds})
@@ -183,8 +186,9 @@ def encoding_summary(processed_server, sessions, predictors=None, min_adj_r2=MIN
     fig.tight_layout()
     if save_dir is not None:
         os.makedirs(save_dir, exist_ok=True)
-        name = name or 'encoding_summary{}{}'.format(
-            _period_suffix(period), _suffix(use_threshold_crossings))
+        name = name or 'encoding_summary{}{}{}'.format(
+            _period_suffix(period), _joint_group_suffix(joint_group),
+            _suffix(use_threshold_crossings))
         plotting.savefig(save_dir, name, fig=fig)
         rs('Saved encoding summary ({} predictor(s), {} session(s)).'.format(
             len(shown), len(found)))

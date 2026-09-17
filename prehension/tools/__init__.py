@@ -1,6 +1,7 @@
 __all__ = [
     'cmd_args', 'constants', 'decoding', 'encoding', 'filesystem', 'filters', 'forces',
-    'io', 'logs', 'materialsio_colors', 'misc', 'opensim_io', 'plotting', 'video', 'stats']
+    'io', 'logs', 'materialsio_colors', 'misc', 'opensim_io', 'plotting', 'space_similarity',
+    'video', 'stats']
 
 from . import cmd_args
 from . import constants
@@ -15,5 +16,6 @@ from . import materialsio_colors
 from . import misc
 from . import opensim_io
 from . import plotting
+from . import space_similarity
 from . import video
 from . import stats

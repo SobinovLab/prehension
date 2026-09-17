@@ -31,7 +31,8 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.analysis.encoding import ALL_PREDICTORS, PERIODS, MIN_ADJ_R2
+from prehension.analysis.encoding import (
+    ALL_PREDICTORS, PERIODS, MIN_ADJ_R2, JOINT_GROUPS, DEFAULT_JOINT_GROUP)
 from prehension.analysis.encoding_summary import encoding_summary
 
 if __name__ == "__main__":
@@ -60,6 +61,12 @@ if __name__ == "__main__":
              "'active_grasp'. Default (per modality): kinematics/torques -> active_movement, "
              "forces -> active_grasp (each column's period is shown in its x tick label).")
     parser.add_argument(
+        "--joint_group", "--joints", dest="joint_group", choices=sorted(JOINT_GROUPS),
+        default=DEFAULT_JOINT_GROUP, metavar="GROUP",
+        help="Which joint-group encoding / lag files to summarize: 'hand', 'proximal' or 'all'. "
+             "Must match the group encoding.py / encoding_lag.py produced. Default: {}.".format(
+                 DEFAULT_JOINT_GROUP))
+    parser.add_argument(
         "--threshold_crossings", action="store_true",
         help="Summarize the threshold-crossing encoding files instead of the sorted-unit ones.")
     parser.add_argument(
@@ -74,7 +81,7 @@ if __name__ == "__main__":
     encoding_summary(
         args.processed_server, sessions, predictors=args.predictors,
         min_adj_r2=args.min_adj_r2, use_threshold_crossings=args.threshold_crossings,
-        save=args.save, period=args.period)
+        save=args.save, period=args.period, joint_group=args.joint_group)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     plt.show()

@@ -27,7 +27,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 __all__ = [
     'figure_spaces_pooled', 'figure_spaces_dpca_pooled', 'figure_cross_correlation',
     'figure_classification_time', 'behavior_pooling', 'spaces_behavior', 'encoding',
-    'encoding_scatter', 'encoding_summary', 'figure_umap', 'decoding']
+    'encoding_scatter', 'encoding_summary', 'figure_umap', 'decoding',
+    'neural_kinematic_alignment']
 
 from . import figure_spaces_pooled
 from . import figure_spaces_dpca_pooled
@@ -40,3 +41,4 @@ from . import encoding_scatter
 from . import encoding_summary
 from . import figure_umap
 from . import decoding
+from . import neural_kinematic_alignment

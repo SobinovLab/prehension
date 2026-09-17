@@ -39,7 +39,8 @@ import matplotlib.pyplot as plt
 
 from prehension import preset
 from prehension.tools import cmd_args
-from prehension.analysis.encoding import encoding_models, ALL_PREDICTORS, PERIODS
+from prehension.analysis.encoding import (
+    encoding_models, ALL_PREDICTORS, PERIODS, JOINT_GROUPS, DEFAULT_JOINT_GROUP)
 
 if __name__ == "__main__":
     current_preset_name, current_preset, argv = preset.process_args_for_preset()
@@ -83,6 +84,14 @@ if __name__ == "__main__":
              "same period. Default (per modality): kinematics/torques -> active_movement, "
              "forces -> active_grasp.")
     parser.add_argument(
+        "--joint_group", "--joints", dest="joint_group", choices=sorted(JOINT_GROUPS),
+        default=DEFAULT_JOINT_GROUP, metavar="GROUP",
+        help="Restrict the per-DOF predictors (positions, velocities, torques) to a joint group: "
+             "'hand' (distal DOFs), 'proximal' (shoulder + elbow), or 'all' (every independent "
+             "right-arm DOF). Applied identically to all three; forces are unaffected. Non-'all' "
+             "groups are appended to the output file names. Default: {}.".format(
+                 DEFAULT_JOINT_GROUP))
+    parser.add_argument(
         "--units", nargs="+", default=None, metavar="UNIT_ID",
         help="Compute encoding for only these unit ids and report them to the log WITHOUT "
              "reading or writing the saved encoding JSON (no existence check, no overwrite). "
@@ -106,7 +115,8 @@ if __name__ == "__main__":
         n_folds=args.n_folds, alpha=args.alpha, max_predictors=args.max_predictors,
         n_pcs=args.n_pcs, bin_width=args.bin_width, units=args.units,
         plot_units=args.plot_units, use_threshold_crossings=args.threshold_crossings,
-        processes=args.processes, overwrite=args.overwrite, period=args.period)
+        processes=args.processes, overwrite=args.overwrite, period=args.period,
+        joint_group=args.joint_group)
     print("Program took {}.".format(datetime.timedelta(seconds=time.time() - start_time)))
 
     if args.plot_units:

@@ -53,6 +53,7 @@ import scipy.ndimage
 
 from .. import meta_session
 from ..tools import io, filters
+from ..tools.constants import DISTAL_DOFS, PROXIMAL_DOFS, ALL_DOFS
 from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..tools.stats import run_pca
@@ -84,6 +85,17 @@ ALL_PREDICTORS = PREDICTORS + tuple(PREDICTOR_GROUPS)
 # dependent/coupled '_d' coordinates (see _filter_ra_dofs).  Positions, velocities and torques all
 # live on the same joint DOFs, so all three are restricted the same way.
 RA_DOF_PREDICTORS = ('joint_angles', 'joint_velocity', 'torques')
+
+# Joint-group selection for the per-DOF predictors (positions, velocities, torques): each group
+# is an explicit list of DOF names from tools.constants, applied identically to all three.
+#   'hand'     -- the distal DOFs (wrist + thumb + fingers; constants.DISTAL_DOFS)
+#   'proximal' -- the shoulder + elbow DOFs (constants.PROXIMAL_DOFS)
+#   'all'      -- every independent right-arm DOF (constants.ALL_DOFS); i.e. the previous
+#                 behaviour, still ignoring the dependent '_d' and thorax / object columns.
+# The 'all' group keeps the historic ra_* (non-_d) pattern filter, so its output is unchanged and
+# its files stay unsuffixed (_joint_group_suffix); 'hand' is the default (JOINT_GROUPS order aside).
+JOINT_GROUPS = {'hand': DISTAL_DOFS, 'proximal': PROXIMAL_DOFS, 'all': ALL_DOFS}
+DEFAULT_JOINT_GROUP = 'hand'
 
 ENCODING_SUBDIR = 'encoding'
 
@@ -136,6 +148,15 @@ def _period_suffix(period):
     return '' if not period or period == PERIOD_ALL else '_{}'.format(period)
 
 
+def _joint_group_suffix(joint_group):
+    """Filename suffix identifying the joint group; the default 'all' group -> '' (unsuffixed).
+
+    Keeping 'all' unsuffixed means the previous (all-DOF) outputs keep their names, and only the
+    restricted groups ('hand', 'proximal') get a distinguishing suffix so groups never clobber.
+    """
+    return '' if not joint_group or joint_group == 'all' else '_{}'.format(joint_group)
+
+
 def resolve_period(predictor, period):
     """Effective period for a predictor: the requested `period`, or -- when it is falsy --
     the predictor's default from DEFAULT_PERIODS (PERIOD_ALL if the predictor has none)."""
@@ -143,23 +164,25 @@ def resolve_period(predictor, period):
 
 
 def encoding_json_path(processed_server, session, predictor, use_threshold_crossings=False,
-                       period=PERIOD_ALL):
-    """Path to the saved encoding performance for one predictor (neural source and period).
+                       period=PERIOD_ALL, joint_group='all'):
+    """Path to the saved encoding performance for one predictor (neural source, period, group).
 
-    The period suffix precedes the '_tx' neural-source suffix so the '_tx' tag stays last
-    (downstream readers detect the source with a trailing '_tx.json' check).
+    The period and joint-group suffixes precede the '_tx' neural-source suffix so the '_tx' tag
+    stays last (downstream readers detect the source with a trailing '_tx.json' check).
     """
     return os.path.join(encoding_dir(processed_server, session),
-                        'encoding_{}{}{}.json'.format(
-                            predictor, _period_suffix(period), _suffix(use_threshold_crossings)))
+                        'encoding_{}{}{}{}.json'.format(
+                            predictor, _period_suffix(period), _joint_group_suffix(joint_group),
+                            _suffix(use_threshold_crossings)))
 
 
 def lag_json_path(processed_server, session, predictor, use_threshold_crossings=False,
-                  period=PERIOD_ALL):
-    """Path to the saved optimal-lag analysis for one predictor (neural source and period)."""
+                  period=PERIOD_ALL, joint_group='all'):
+    """Path to the saved optimal-lag analysis for one predictor (neural source, period, group)."""
     return os.path.join(encoding_dir(processed_server, session),
-                        '{}_lag{}{}.json'.format(
-                            predictor, _period_suffix(period), _suffix(use_threshold_crossings)))
+                        '{}_lag{}{}{}.json'.format(
+                            predictor, _period_suffix(period), _joint_group_suffix(joint_group),
+                            _suffix(use_threshold_crossings)))
 
 
 def _load_meta_neural(processed_server, session):
@@ -186,31 +209,40 @@ def _predictor_exists(trial, predictor):
     return all(_component_exists(trial, c) for c in _group_components(predictor))
 
 
-def _filter_ra_dofs(predictor, names, values):
-    """Restrict a per-DOF predictor to the right-arm independent joint DOFs.
+def _filter_ra_dofs(predictor, names, values, joint_group='all'):
+    """Restrict a per-DOF predictor to the right-arm independent joint DOFs (and a joint group).
 
     joint_angles / joint_velocity / torques carry the model's thorax and object (ps_) columns and
     the dependent (coupled) coordinates; the encoding uses only the independent right-arm joint
-    coordinates -- channel names starting 'ra_' and not ending '_d'.  `values` is
-    (n_channels, n_times).  Predictors not in RA_DOF_PREDICTORS are returned unchanged.
+    coordinates -- channel names starting 'ra_' and not ending '_d'.  `joint_group` further
+    restricts those to a group from JOINT_GROUPS ('hand' -> the distal DOFs, 'proximal' -> the
+    shoulder + elbow DOFs); 'all' keeps every independent ra_ DOF (the historic behaviour).  The
+    same group is applied to positions, velocities and torques (they share these DOFs).  `values`
+    is (n_channels, n_times).  Predictors not in RA_DOF_PREDICTORS are returned unchanged.
     """
     if predictor not in RA_DOF_PREDICTORS:
         return names, values
+    if joint_group not in JOINT_GROUPS:
+        raise ValueError('Unknown joint_group {!r}; expected one of {}.'.format(
+            joint_group, sorted(JOINT_GROUPS)))
     keep = [i for i, n in enumerate(names) if n.startswith('ra_') and not n.endswith('_d')]
+    if joint_group != 'all':
+        allowed = set(JOINT_GROUPS[joint_group])
+        keep = [i for i in keep if names[i] in allowed]
     if not keep:
-        raise ValueError('No ra_* (non-_d) DOFs among the {} {} channels.'.format(
-            len(names), predictor))
+        raise ValueError('No ra_* (non-_d) DOFs in group {!r} among the {} {} channels.'.format(
+            joint_group, len(names), predictor))
     return [names[i] for i in keep], np.asarray(values)[keep]
 
 
-def _load_predictor(trial, predictor):
+def _load_predictor(trial, predictor, joint_group='all'):
     """Load one trial's base predictor as (times, channel_names, values (n_channels, n_times)).
 
     joint_velocity is the time derivative of the joint angles (tools.filters.joint_velocity,
     unfiltered); the other predictors load their signal CSV directly.  Per-DOF predictors
-    (positions, velocities, torques) are restricted to the right-arm independent joint DOFs
-    (_filter_ra_dofs).  Times are seconds since the trial's TTL pulse (the same frame as the
-    zeroed spikes).
+    (positions, velocities, torques) are restricted to the right-arm independent joint DOFs and
+    the requested `joint_group` (_filter_ra_dofs; 'all' by default -- no group restriction).
+    Times are seconds since the trial's TTL pulse (the same frame as the zeroed spikes).
     """
     if predictor == 'joint_velocity':
         times, names, values = io.import_timed_csv(trial.post_kinematic_filename_csv)
@@ -221,7 +253,7 @@ def _load_predictor(trial, predictor):
         times, names, values = io.import_timed_csv(getattr(trial, attr))
         times = np.asarray(times, dtype=float)
         values = np.asarray(values, dtype=float)
-    names, values = _filter_ra_dofs(predictor, names, values)
+    names, values = _filter_ra_dofs(predictor, names, values, joint_group)
     return times, names, values
 
 
@@ -267,7 +299,7 @@ def _lag_pair(X, Y, lag_bins):
 
 def _pool_encoding_trials(server, processed_server, session, predictor, bin_width=None,
                           filter_sigma=FILTER_SIGMA, use_threshold_crossings=False,
-                          period=PERIOD_ALL):
+                          period=PERIOD_ALL, joint_group='all'):
     """Per-trial (design, response) segments for a session, on a shared bin grid.
 
     Reads the neural source (sorted neural.nwb by default, threshold crossings when
@@ -333,7 +365,7 @@ def _pool_encoding_trials(server, processed_server, session, predictor, bin_widt
         if not trial.success or not _predictor_exists(trial, predictor):
             continue
         try:
-            loaded = [_load_predictor(trial, c) for c in components]
+            loaded = [_load_predictor(trial, c, joint_group) for c in components]
         except Exception as e:  # noqa: BLE001
             ws('Session {} trial {}: could not read {} ({}); skipping.'.format(
                 session, trial.trial_number, predictor, e))
@@ -410,18 +442,19 @@ def _maybe_pca(X, names, n_pcs):
 
 def pool_encoding(server, processed_server, session, predictor, bin_width=None,
                   filter_sigma=FILTER_SIGMA, lag=0.0, use_threshold_crossings=False,
-                  period=PERIOD_ALL):
+                  period=PERIOD_ALL, joint_group='all'):
     """Continuous (X, Y) encoding design for a session at a given input->output lag.
 
     Returns (X (n_samples, n_channels), Y (n_samples, n_units), unit_ids, channel_names,
     bin_width, fps).  See _pool_encoding_trials for the assembly (and `period`, the trial
-    sub-period the segments are cropped to); `lag` (s) is applied as round(lag / bin_width)
-    bins (positive = covariate follows firing rate).
+    sub-period the segments are cropped to, and `joint_group`, the DOF group the per-DOF
+    predictors are restricted to); `lag` (s) is applied as round(lag / bin_width) bins
+    (positive = covariate follows firing rate).
     """
     trials_X, trials_Y, unit_ids, names, bw, fps = _pool_encoding_trials(
         server, processed_server, session, predictor, bin_width=bin_width,
         filter_sigma=filter_sigma, use_threshold_crossings=use_threshold_crossings,
-        period=period)
+        period=period, joint_group=joint_group)
     X, Y = _assemble(trials_X, trials_Y, int(round(lag / bw)))
     if X is None:
         raise ValueError('No samples after applying lag {}s to {} / {}.'.format(
@@ -430,18 +463,21 @@ def pool_encoding(server, processed_server, session, predictor, bin_width=None,
 
 
 def read_optimal_lag(processed_server, session, predictor, use_threshold_crossings=False,
-                     period=PERIOD_ALL):
-    """Session mode optimal lag (s) for a predictor (and period) from encoding/, or 0.0."""
-    path = lag_json_path(processed_server, session, predictor, use_threshold_crossings, period)
+                     period=PERIOD_ALL, joint_group='all'):
+    """Session mode optimal lag (s) for a predictor (period, joint group) from encoding/, or 0.0."""
+    path = lag_json_path(processed_server, session, predictor, use_threshold_crossings, period,
+                         joint_group)
     if not os.path.exists(path):
         return 0.0
     lag = io.load_json(path).get('mode_lag_s', 0.0)
-    rs('Using optimal lag {:.3f}s for {} [{}] ({}).'.format(lag, predictor, period, session))
+    rs('Using optimal lag {:.3f}s for {} [{}] {{{}}} ({}).'.format(
+        lag, predictor, period, joint_group, session))
     return float(lag)
 
 
 def _save_encoding(path, session, predictor, use_threshold_crossings, period, bin_width, fps,
-                   lag, n_folds, alpha, max_predictors, n_pcs, names, unit_ids, results):
+                   lag, n_folds, alpha, max_predictors, n_pcs, names, unit_ids, results,
+                   joint_group='all'):
     """Write the per-unit encoding performance + full fit spec as human-readable JSON."""
     units = [{'unit_id': str(uid), 'pr2': _round(r[0]), 'adj_pr2': _round(r[1])}
              for uid, r in zip(unit_ids, results)]
@@ -451,6 +487,7 @@ def _save_encoding(path, session, predictor, use_threshold_crossings, period, bi
         'session': session,
         'predictor': predictor,
         'period': period,
+        'joint_group': joint_group,
         'source': 'threshold_crossings' if use_threshold_crossings else 'sorted',
         'bin_width_s': bin_width,
         'fps': fps,
@@ -486,15 +523,15 @@ def _mode(values):
 def encoding_models(server, processed_server, sessions, predictors=ALL_PREDICTORS, n_folds=5,
                     alpha=1e-4, max_predictors=None, n_pcs=None, bin_width=None,
                     units=None, plot_units=None, use_threshold_crossings=False, processes=1,
-                    overwrite=False, period=None):
+                    overwrite=False, period=None, joint_group=DEFAULT_JOINT_GROUP):
     """Fit and save Poisson GLM encoding models for each session and predictor.
 
     For every session and predictor, applies the session optimal lag if the matching
     <predictor>_lag[...] .json is present (else 0), assembles the design (pool_encoding),
     fits a cross-validated Poisson GLM per unit (tools.encoding.fit_glms_over_units) and
     saves the per-unit pR2 / adjusted-pR2 and the full fit specification to
-    encoding/encoding_<predictor>[_<period>][_tx].json.  When plot_units is given, the
-    actual vs predicted firing-rate traces of those units are also plotted (see
+    encoding/encoding_<predictor>[_<period>][_<joint_group>][_tx].json.  When plot_units is
+    given, the actual vs predicted firing-rate traces of those units are also plotted (see
     plot_encoding_traces).  A predictor with no usable data in a session is skipped with a
     warning; existing outputs are skipped unless overwrite.
 
@@ -503,6 +540,12 @@ def encoding_models(server, processed_server, sessions, predictors=ALL_PREDICTOR
     DEFAULT_PERIODS entry (resolve_period).  The effective period is recorded in each output
     file and, unless PERIOD_ALL, appended to its name; the lag applied is the one saved for
     the same period.
+
+    `joint_group` restricts the per-DOF predictors (positions, velocities, torques) to a joint
+    group (JOINT_GROUPS): 'hand' (the default; distal DOFs), 'proximal' (shoulder + elbow) or
+    'all' (every independent right-arm DOF -- the previous behaviour).  The group is recorded in
+    each output file and, unless 'all', appended to its name, so groups never clobber; the lag
+    read is the one saved for the same group.  Force predictors are unaffected by the group.
 
     When `units` and/or `plot_units` are given, only those unit ids are fit (the union of the
     two, so every requested / plotted unit has its fit) and the result is reported to the log
@@ -519,28 +562,31 @@ def encoding_models(server, processed_server, sessions, predictors=ALL_PREDICTOR
         for predictor in predictors:
             eff_period = resolve_period(predictor, period)
             out = encoding_json_path(processed_server, session, predictor,
-                                     use_threshold_crossings, eff_period)
+                                     use_threshold_crossings, eff_period, joint_group)
             # With an inspect-only unit subset the saved JSON is left untouched (no existence
             # check, no write); otherwise skip predictors whose output already exists.
             if not subset and os.path.exists(out) and not overwrite:
-                rs('  {} / {} [{}]: {} exists; skipping (use --overwrite).'.format(
-                    session, predictor, eff_period, os.path.basename(out)))
+                rs('  {} / {} [{}] {{{}}}: {} exists; skipping (use --overwrite).'.format(
+                    session, predictor, eff_period, joint_group, os.path.basename(out)))
                 continue
             lag = read_optimal_lag(processed_server, session, predictor,
-                                   use_threshold_crossings, eff_period)
+                                   use_threshold_crossings, eff_period, joint_group)
             try:
                 X, Y, unit_ids, names, bin_width_used, fps = pool_encoding(
                     server, processed_server, session, predictor, bin_width=bin_width,
-                    lag=lag, use_threshold_crossings=use_threshold_crossings, period=eff_period)
+                    lag=lag, use_threshold_crossings=use_threshold_crossings, period=eff_period,
+                    joint_group=joint_group)
                 if subset:
                     sel, unit_ids = resolve_neuron_selection(unit_ids, subset)
                     Y = Y[:, sel]
             except Exception as e:  # noqa: BLE001
-                ws('Skipping {} / {} [{}]: {}'.format(session, predictor, eff_period, e))
+                ws('Skipping {} / {} [{}] {{{}}}: {}'.format(
+                    session, predictor, eff_period, joint_group, e))
                 continue
             X, names, n_pcs_used = _maybe_pca(X, names, n_pcs)
-            rs('Encoding {} / {} [{}]: {} samples, {} predictors, {} units (lag {:.3f}s).'.format(
-                session, predictor, eff_period, X.shape[0], X.shape[1], Y.shape[1], lag))
+            rs('Encoding {} / {} [{}] {{{}}}: {} samples, {} predictors, {} units '
+               '(lag {:.3f}s).'.format(session, predictor, eff_period, joint_group, X.shape[0],
+                                       X.shape[1], Y.shape[1], lag))
             results = fit_glms_over_units(X, Y, n_folds=n_folds, alpha=alpha,
                                           max_predictors=max_predictors, processes=processes)
             if subset:
@@ -550,7 +596,7 @@ def encoding_models(server, processed_server, sessions, predictors=ALL_PREDICTOR
             else:
                 _save_encoding(out, session, predictor, use_threshold_crossings, eff_period,
                                bin_width_used, fps, lag, n_folds, alpha, max_predictors,
-                               n_pcs_used, names, unit_ids, results)
+                               n_pcs_used, names, unit_ids, results, joint_group)
             if plot_units:
                 plot_encoding_traces(processed_server, session, predictor, X, Y, unit_ids,
                                      names, plot_units, bin_width_used, alpha,
@@ -596,7 +642,7 @@ def optimal_lag(server, processed_server, sessions, predictors=ALL_PREDICTORS, l
                 lag_max=LAG_MAX, lag_step=None, n_folds=5, alpha=1e-4, max_predictors=None,
                 n_pcs=None, min_rate=LAG_MIN_RATE_HZ, min_adj_r2=MIN_ADJ_R2, bin_width=None,
                 use_threshold_crossings=False, processes=1, overwrite=False, period=None,
-                write_encoding=True):
+                write_encoding=True, joint_group=DEFAULT_JOINT_GROUP):
     """Find and save the pR2-maximizing input->output lag per unit (and its session mode).
 
     For each session and predictor the per-trial segments are assembled once, then:
@@ -620,7 +666,9 @@ def optimal_lag(server, processed_server, sessions, predictors=ALL_PREDICTORS, l
     segments (encoding/encoding_<predictor>[...] .json -- the identical output encoding_models
     would produce), so a single lag run yields both files without a separate encoding pass.
     Existing lag / encoding outputs are skipped unless overwrite (a run can back-fill just the
-    missing one -- e.g. write the encoding for a period whose lag already exists).
+    missing one -- e.g. write the encoding for a period whose lag already exists).  `joint_group`
+    restricts the per-DOF predictors to a JOINT_GROUPS group ('hand' default; see encoding_models);
+    it is recorded / appended to the file names so the lag matches the group encoding_models fits.
     """
     import tqdm
 
@@ -629,21 +677,23 @@ def optimal_lag(server, processed_server, sessions, predictors=ALL_PREDICTORS, l
         for predictor in predictors:
             eff_period = resolve_period(predictor, period)
             lag_out = lag_json_path(processed_server, session, predictor,
-                                    use_threshold_crossings, eff_period)
+                                    use_threshold_crossings, eff_period, joint_group)
             enc_out = encoding_json_path(processed_server, session, predictor,
-                                         use_threshold_crossings, eff_period)
+                                         use_threshold_crossings, eff_period, joint_group)
             need_lag = overwrite or not os.path.exists(lag_out)
             need_enc = write_encoding and (overwrite or not os.path.exists(enc_out))
             if not need_lag and not need_enc:
-                rs('  {} / {} [{}]: lag and encoding exist; skipping (use --overwrite).'.format(
-                    session, predictor, eff_period))
+                rs('  {} / {} [{}] {{{}}}: lag and encoding exist; skipping (use '
+                   '--overwrite).'.format(session, predictor, eff_period, joint_group))
                 continue
             try:
                 trials_X, trials_Y, unit_ids, names, bw, fps = _pool_encoding_trials(
                     server, processed_server, session, predictor, bin_width=bin_width,
-                    use_threshold_crossings=use_threshold_crossings, period=eff_period)
+                    use_threshold_crossings=use_threshold_crossings, period=eff_period,
+                    joint_group=joint_group)
             except Exception as e:  # noqa: BLE001
-                ws('Skipping {} / {} [{}]: {}'.format(session, predictor, eff_period, e))
+                ws('Skipping {} / {} [{}] {{{}}}: {}'.format(
+                    session, predictor, eff_period, joint_group, e))
                 continue
 
             if need_lag:
@@ -694,11 +744,11 @@ def optimal_lag(server, processed_server, sessions, predictors=ALL_PREDICTORS, l
 
                 mode_lag = _save_lag(lag_out, session, predictor, use_threshold_crossings,
                                      eff_period, bw, fps, lags, unit_ids, best_lag, best_pr2,
-                                     min_rate, min_adj_r2)
+                                     min_rate, min_adj_r2, joint_group)
             else:
                 # lag already computed; reuse its session mode to back-fill the encoding file
                 mode_lag = read_optimal_lag(processed_server, session, predictor,
-                                            use_threshold_crossings, eff_period)
+                                            use_threshold_crossings, eff_period, joint_group)
 
             # populate the encoding file at the session mode lag from the same pooled segments,
             # so a lag run yields the encoding too, without a separate encoding pass
@@ -706,11 +756,11 @@ def optimal_lag(server, processed_server, sessions, predictors=ALL_PREDICTORS, l
                 _encode_at_lag_and_save(
                     enc_out, trials_X, trials_Y, unit_ids, names, session, predictor,
                     use_threshold_crossings, eff_period, bw, fps, mode_lag, n_folds, alpha,
-                    max_predictors, n_pcs, processes)
+                    max_predictors, n_pcs, processes, joint_group)
 
 
 def _save_lag(path, session, predictor, use_threshold_crossings, period, bin_width, fps, lags,
-              unit_ids, best_lag, best_pr2, min_rate, min_adj_r2):
+              unit_ids, best_lag, best_pr2, min_rate, min_adj_r2, joint_group='all'):
     """Write per-unit optimal lags + the session mode lag as human-readable JSON.
 
     best_lag / best_pr2 are per-unit arrays (NaN for units left out of the search -- below
@@ -731,6 +781,7 @@ def _save_lag(path, session, predictor, use_threshold_crossings, period, bin_wid
         'session': session,
         'predictor': predictor,
         'period': period,
+        'joint_group': joint_group,
         'source': 'threshold_crossings' if use_threshold_crossings else 'sorted',
         'bin_width_s': bin_width,
         'fps': fps,
@@ -753,7 +804,7 @@ def _save_lag(path, session, predictor, use_threshold_crossings, period, bin_wid
 
 def _encode_at_lag_and_save(path, trials_X, trials_Y, unit_ids, names, session, predictor,
                             use_threshold_crossings, period, bin_width, fps, lag,
-                            n_folds, alpha, max_predictors, n_pcs, processes):
+                            n_folds, alpha, max_predictors, n_pcs, processes, joint_group='all'):
     """Fit a per-unit Poisson GLM at `lag` on already-pooled trials and save the encoding JSON.
 
     Lets optimal_lag populate the encoding file at the session mode lag from the segments it
@@ -770,7 +821,8 @@ def _encode_at_lag_and_save(path, trials_X, trials_Y, unit_ids, names, session, 
     results = fit_glms_over_units(X, Y, n_folds=n_folds, alpha=alpha,
                                   max_predictors=max_predictors, processes=processes)
     _save_encoding(path, session, predictor, use_threshold_crossings, period, bin_width, fps,
-                   lag, n_folds, alpha, max_predictors, n_pcs_used, names, unit_ids, results)
+                   lag, n_folds, alpha, max_predictors, n_pcs_used, names, unit_ids, results,
+                   joint_group)
     return True
 
 
