@@ -56,7 +56,7 @@ from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..neural_processing.common.spikes import (
     GROUP_COLUMN, read_nwb_spikes_and_ttl, get_trial_data_spike, fit_session_drift, drift_offset)
-from ..neural_plotting.common.pooling import session_neural_context
+from ..neural_plotting.common.pooling import session_neural_context, pair_pulses_to_trials
 from ..neural_plotting.common.behaviour import (
     load_timepoints_into_msession, get_timepoint, get_target_force)
 from .behavior_pooling import SIGNAL_SPECS
@@ -215,16 +215,17 @@ def _neural_point_features(neural_trials, timepoint, window, slopes, t_ref):
 
 
 def _load_session_spikes(server, processed_server, session, msession, use_threshold_crossings,
-                         drift_correct):
+                         drift_correct, skip_trials=None):
     """Attach per-trial, TTL-zeroed spikes to a session's trials for the neural modality.
 
     Reads the neural source (session_neural_context), pairs TTL pulses to trials positionally
-    (meta_neural skip_ttl / skip_ttl_last, as in neural_plotting.common.pooling) and zeroes
-    each trial's spikes to its TTL start.  Returns (trials, slopes, t_ref): trials the paired
-    trials (each with .spikes and .ttl_start), and the linear session-drift fit (slopes None
-    when drift_correct is False).  Returns (None, None, 0.0) when the neural source / pulse
-    pairing is unusable, so the caller drops the neural modality for the session.  Slicing acts
-    on a local list, so the shared msession the behavioural modalities use is left intact.
+    (meta_neural skip_ttl / skip_ttl_last / skip_ttl_intermediate and meta_structure skip_trials,
+    as in neural_plotting.common.pooling) and zeroes each trial's spikes to its TTL start.
+    Returns (trials, slopes, t_ref): trials the paired trials (each with .spikes and .ttl_start),
+    and the linear session-drift fit (slopes None when drift_correct is False).  Returns
+    (None, None, 0.0) when the neural source / pulse pairing is unusable, so the caller drops the
+    neural modality for the session.  Pairing acts on a local list, so the shared msession the
+    behavioural modalities use is left intact.
     """
     try:
         nwb_path, meta_neural, _, _ = session_neural_context(
@@ -236,15 +237,10 @@ def _load_session_spikes(server, processed_server, session, msession, use_thresh
 
     skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
     skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
-    trials = msession
-    if skip_ttl and skip_ttl > 0:
-        events_time = events_time[skip_ttl:]
-    elif skip_ttl and skip_ttl < 0:
-        trials = trials[-skip_ttl:]
-    if skip_ttl_last and skip_ttl_last > 0:
-        events_time = events_time[:-skip_ttl_last]
-    elif skip_ttl_last and skip_ttl_last < 0:
-        trials = trials[:skip_ttl_last]
+    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
+    events_time, trials = pair_pulses_to_trials(
+        events_time, msession, skip_ttl, skip_ttl_last,
+        skip_ttl_intermediate=skip_ttl_intermediate, skip_trials=skip_trials)
     if len(events_time) != len(trials):
         ws('No neural for session {}: {} TTL pulses vs {} trials (skip_ttl={}, '
            'skip_ttl_last={}).'.format(session, len(events_time), len(trials), skip_ttl,
@@ -535,7 +531,7 @@ def figure_umap(server, processed_server, sessions, modalities=MODALITIES, timep
         if 'neural' in mods:
             neural_trials, slopes, t_ref = _load_session_spikes(
                 server, processed_server, session, msession, use_threshold_crossings,
-                drift_correct)
+                drift_correct, skip_trials=mstruct.get('skip_trials', []))
 
         # embed every (modality, timepoint) once; every figure reuses these embeddings, so only
         # the colouring differs.  Each panel keeps its per-trial object ids for the colourings.

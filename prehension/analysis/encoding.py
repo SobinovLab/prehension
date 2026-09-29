@@ -63,6 +63,7 @@ from ..neural_processing.common.spikes import (
 from ..neural_processing.import_kilosorted import resolve_neural_nwb_path
 from ..neural_processing.config import meta_neural_path
 from ..neural_plotting.common.behaviour import load_timepoints_into_msession, get_timepoint
+from ..neural_plotting.common.pooling import pair_pulses_to_trials
 from . import behavior_pooling
 
 # Predictor signals the GLM supports.  joint_velocity is derived from the joint angles
@@ -304,7 +305,8 @@ def _pool_encoding_trials(server, processed_server, session, predictor, bin_widt
 
     Reads the neural source (sorted neural.nwb by default, threshold crossings when
     requested / when the sorted file is missing), pairs TTL pulses to trials positionally
-    (meta_neural skip_ttl / skip_ttl_last), and for every successful trial that has the
+    (meta_neural skip_ttl / skip_ttl_last / skip_ttl_intermediate and meta_structure
+    skip_trials), and for every successful trial that has the
     predictor: bins + Gaussian-smooths each unit's rate and resamples every predictor
     channel onto the same bin centres (seconds-since-TTL frame).  A combined-group predictor
     (PREDICTOR_GROUPS) concatenates its base predictors' channels, over their overlapping time
@@ -321,6 +323,7 @@ def _pool_encoding_trials(server, processed_server, session, predictor, bin_widt
     meta_neural = _load_meta_neural(processed_server, session)
     skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
     skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
+    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
 
     mstruct, _, _, msession = meta_session.load_meta_information(
         os.path.join(server, session), os.path.join(processed_server, session))
@@ -336,15 +339,13 @@ def _pool_encoding_trials(server, processed_server, session, predictor, bin_widt
                 session))
         bin_width = 1.0 / fps
 
-    # positional pulse<->trial pairing (as in neural_plotting.common.pooling)
-    if skip_ttl and skip_ttl > 0:
-        events_time = events_time[skip_ttl:]
-    elif skip_ttl and skip_ttl < 0:
-        msession = msession[-skip_ttl:]
-    if skip_ttl_last and skip_ttl_last > 0:
-        events_time = events_time[:-skip_ttl_last]
-    elif skip_ttl_last and skip_ttl_last < 0:
-        msession = msession[:skip_ttl_last]
+    # positional pulse<->trial pairing (as in neural_plotting.common.pooling): skip_ttl /
+    # skip_ttl_last offset, plus the meta_neural 'skip_ttl_intermediate' pulse drops and
+    # meta_structure 'skip_trials' trial drops.
+    events_time, msession = pair_pulses_to_trials(
+        events_time, msession, skip_ttl, skip_ttl_last,
+        skip_ttl_intermediate=skip_ttl_intermediate,
+        skip_trials=mstruct.get('skip_trials', []))
     if len(events_time) != len(msession):
         raise ValueError('{} TTL pulses vs {} trials (skip_ttl={}, skip_ttl_last={}).'.format(
             len(events_time), len(msession), skip_ttl, skip_ttl_last))

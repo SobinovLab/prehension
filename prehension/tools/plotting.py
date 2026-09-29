@@ -98,6 +98,72 @@ def annotated_vspan(ax, xmin, xmax, title,
             ax_.axvspan(xmin, xmax, color=color, alpha=alpha)
 
 
+def plot_spike_raster(ax, spike_times, row_labels=None, color='k', linewidth=0.5,
+                      tick_height=0.8, rasterized=True):
+    '''Draw a spike raster: one row of vertical ticks per unit (a tick per spike).
+
+    ``spike_times`` is a list of 1-D arrays, one per unit, of spike times (any shared
+    time unit).  Row 0 is drawn at the bottom in the order given, so sort the list
+    before calling (e.g. by depth, tip at the bottom).  Uses matplotlib's eventplot;
+    the ticks are rasterized by default so a dense, whole-session raster stays a small
+    figure.  When ``row_labels`` is given it labels the y-ticks (kept sparse if there
+    are many rows); otherwise the y-axis is just the row index.  Returns the eventplot
+    artists.
+    '''
+    positions = [np.asarray(s, dtype=float) for s in spike_times]
+    n = len(positions)
+    offsets = np.arange(n)
+    artists = ax.eventplot(positions, lineoffsets=offsets, linelengths=tick_height,
+                           colors=color, linewidths=linewidth)
+    for a in np.atleast_1d(artists):
+        a.set_rasterized(rasterized)
+    ax.set_ylim(-0.5, n - 0.5 if n else 0.5)
+    if row_labels is not None:
+        step = max(1, int(np.ceil(n / 40)))   # keep at most ~40 tick labels
+        ticks = offsets[::step]
+        ax.set_yticks(ticks)
+        ax.set_yticklabels([row_labels[i] for i in ticks], fontsize=6)
+    return artists
+
+
+def plot_event_lines(axs, xs, color='red', linestyle='--', linewidth=1.0, alpha=0.8,
+                     label=None):
+    '''Draw vertical lines at each x in ``xs`` on every axis in ``axs``.
+
+    Marks shared events (e.g. TTL pulses, reward times) across a stack of subplots that
+    share an x-axis.  ``axs`` may be a single Axes or an iterable of them.  Non-finite
+    xs are skipped, and only the first line drawn on each axis carries ``label`` (so a
+    legend shows a single entry per event type).
+    '''
+    axs = np.atleast_1d(axs)
+    xs = np.asarray(xs, dtype=float)
+    xs = xs[np.isfinite(xs)]
+    for ax in axs:
+        for j, x in enumerate(xs):
+            ax.axvline(x, color=color, linestyle=linestyle, linewidth=linewidth,
+                       alpha=alpha, label=label if j == 0 else None)
+
+
+def stitch_traces_with_gaps(segments):
+    '''Concatenate per-segment (x, y) traces into one x/y pair separated by NaN gaps.
+
+    ``segments`` is an iterable of (x, y) array pairs (e.g. one per trial), each already
+    on a common axis (e.g. absolute time).  A single NaN sample is inserted between
+    consecutive segments so a single ``ax.plot`` of the result draws each segment as a
+    continuous trace without connecting a line across the gaps between them.  Returns
+    (x, y) 1-D numpy arrays (empty arrays when no segments are given).
+    '''
+    xs, ys = [], []
+    for x, y in segments:
+        xs.append(np.asarray(x, dtype=float))
+        ys.append(np.asarray(y, dtype=float))
+        xs.append(np.array([np.nan]))
+        ys.append(np.array([np.nan]))
+    if not xs:
+        return np.array([]), np.array([])
+    return np.concatenate(xs), np.concatenate(ys)
+
+
 ############# Arranging subplots
 def xy_numsubplots(numsubplots):
     '''Calculates the number of columns/rows to fit numsubplots approximately in a square.'''

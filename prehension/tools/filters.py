@@ -24,6 +24,53 @@ import numpy as np
 import scipy
 
 from . import misc
+from . import constants
+
+
+# Joint-group selection for the right-arm DOFs, mirroring the encoding / decoding models
+# (analysis.encoding): each group is an explicit tuple of DOF names from tools.constants.
+#   'hand'     -- the distal DOFs (wrist + thumb + fingers; constants.DISTAL_DOFS)
+#   'proximal' -- the shoulder + elbow DOFs (constants.PROXIMAL_DOFS)
+#   'all'      -- every independent right-arm DOF (constants.ALL_DOFS)
+JOINT_GROUPS = {
+    'hand': constants.DISTAL_DOFS,
+    'proximal': constants.PROXIMAL_DOFS,
+    'all': constants.ALL_DOFS,
+}
+DEFAULT_JOINT_GROUP = 'hand'
+
+
+def filter_ra_dofs(names, values, joint_group='all'):
+    '''Restrict named DOF channels to the right-arm independent joint DOFs (and a group).
+
+    Keeps the channels whose name starts with 'ra_' and does not end with '_d' -- the
+    independent right-arm joint coordinates -- dropping the model's thorax and object
+    (ps_) columns and the dependent (coupled) '_d' coordinates.  `joint_group` further
+    restricts those to a group from JOINT_GROUPS ('hand' -> the distal DOFs, 'proximal'
+    -> shoulder + elbow, 'all' -> every independent ra_ DOF).  This is the same selection
+    the encoding / decoding models apply to the per-DOF signals
+    (analysis.encoding._filter_ra_dofs), factored out here so figures can select joint
+    angles the same way.
+
+    Arguments:
+        names {list of str} --- channel names (e.g. the columns of a joint-angle CSV).
+        values {array-like} --- (n_channels, n_times) values aligned row-wise to `names`.
+        joint_group {str} --- one of JOINT_GROUPS ('all' by default -> no group restriction).
+
+    Returns (kept_names, kept_values) with kept_values an ndarray (n_kept, n_times).
+    Raises ValueError for an unknown joint_group or when no channel matches the group.
+    '''
+    if joint_group not in JOINT_GROUPS:
+        raise ValueError('Unknown joint_group {!r}; expected one of {}.'.format(
+            joint_group, sorted(JOINT_GROUPS)))
+    keep = [i for i, n in enumerate(names) if n.startswith('ra_') and not n.endswith('_d')]
+    if joint_group != 'all':
+        allowed = set(JOINT_GROUPS[joint_group])
+        keep = [i for i in keep if names[i] in allowed]
+    if not keep:
+        raise ValueError('No ra_* (non-_d) DOFs in group {!r} among the {} channels.'.format(
+            joint_group, len(names)))
+    return [names[i] for i in keep], np.asarray(values)[keep]
 
 
 ########### Slices

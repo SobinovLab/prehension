@@ -122,8 +122,9 @@ def default_meta_neural_utah():
     Utah sessions are reexported from Blackrock/Plexon NWBs (import_utah), not sorted by
     the Open Ephys -> SpikeInterface pipeline, so only the annotation / reader fields the
     product neural.nwb and the analysis code use apply: region/burr_hole/depth_um/notes,
-    good_neurons, and the positional pulse<->trial skip_ttl offsets, plus the Utah geometry
-    for provenance.  The Open Ephys / sorter / preprocessing fields are intentionally omitted.
+    good_neurons, and the positional pulse<->trial skip_ttl / skip_ttl_last / skip_ttl_intermediate
+    offsets, plus the Utah geometry for provenance.  The Open Ephys / sorter / preprocessing
+    fields are intentionally omitted.
     """
     return {
         'probe_type': 'utah',
@@ -136,6 +137,13 @@ def default_meta_neural_utah():
         'good_neurons': [],   # unit ids used when a figure is run with --only_good
         'skip_ttl': 0,
         'skip_ttl_last': 0,
+        # 0-based indices of spurious intermediate TTL pulses to drop when pairing pulses to
+        # trials (as numbered in figure_ttl_alignment); empty by default.
+        'skip_ttl_intermediate': [],
+        # 0-based indices of TTL pulses at which figure_ttl_alignment re-anchors the plotted
+        # pulse<->trial correspondence (starts a new aligned trace) without dropping any pulse;
+        # empty by default.
+        'reanchor_ttl': [],
     }
 
 
@@ -173,6 +181,13 @@ def default_meta_neural(probe_type):
         'merge_recordings': [],
         'skip_ttl': 0,
         'skip_ttl_last': 0,
+        # 0-based indices of spurious intermediate TTL pulses to drop when pairing pulses to
+        # trials (as numbered in figure_ttl_alignment); empty by default.
+        'skip_ttl_intermediate': [],
+        # 0-based indices of TTL pulses at which figure_ttl_alignment re-anchors the plotted
+        # pulse<->trial correspondence (starts a new aligned trace) without dropping any pulse;
+        # empty by default.
+        'reanchor_ttl': [],
         'ignore': 0,   # first N TTL pulses and trial starts ignored for alignment
         'sorter': SORTER_NAME,
         'nwb_units': 'noise_excluded',

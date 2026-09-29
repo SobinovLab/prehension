@@ -9,9 +9,13 @@ Two families, both generic and data-agnostic (no prehension model):
     activity tensor -- a stratified k-fold cross-validated accuracy at every time bin (real
     labels plus one label-shuffle for a chance estimate), farmed out to a multiprocessing.Pool,
     and a percentile-based chance level pooled across time;
-  * regression: a Kalman filter decoder (KalmanFilterDecoder, Wu et al. 2006) of a continuous
-    behavioural state from neural firing rates, with trial-wise cross-validation
-    (kalman_decode_cv).
+  * regression: Kalman (KalmanFilterDecoder, Wu et al. 2006) and Wiener / linear-FIR
+    (WienerFilterDecoder) decoders of a continuous behavioural state from neural firing rates,
+    with trial-wise cross-validation -- pooled over held-out trials (kalman_decode_cv) or
+    keeping each held-out trial separate (decode_cv_per_trial, with an optional per-fold PCA
+    reduction of the neural observations).  A time-alignment shuffle (shuffle_trial_alignment)
+    provides a per-trial chance null; coefficient_of_determination / rmse / pearson_r score a
+    single trial.
 
 scikit-learn is imported lazily (inside the workers / functions) so importing this module
 stays cheap.
@@ -221,3 +225,225 @@ def kalman_decode_cv(states, observations, n_folds=5, seed=None):
             trues.append(np.asarray(states[i], dtype=float))
             preds.append(decoder.predict(observations[i]))
     return np.vstack(trues), np.vstack(preds)
+
+
+class WienerFilterDecoder:
+    """Wiener (linear FIR) filter decoder: continuous state = behaviour, obs = firing rates.
+
+    A regularized least-squares (ridge) map from the neural observation z_t to the continuous
+    state x_t.  The observation can be augmented with `n_history_taps` preceding bins so the map
+    is a finite-impulse-response filter over recent neural history (the classic Wiener filter for
+    neural decoding, e.g. Carmena et al. 2003); n_history_taps=0 makes it an instantaneous linear
+    regression.  The design columns are standardized (mean / std learned on the training samples)
+    so the ridge penalty `alpha` is scale-invariant across units / principal components, and a
+    bias term is always included and left unpenalized.  fit() solves the normal equations over all
+    aligned training samples; predict() applies the filter to one trial.  Pure numpy (linear
+    algebra only), so it stays in tools alongside KalmanFilterDecoder and shares its fit(states,
+    observations) / predict(observations) interface (usable through make_decoder /
+    decode_cv_per_trial).
+    """
+
+    def __init__(self, n_history_taps=0, alpha=1.0):
+        self.n_history_taps = int(n_history_taps)
+        self.alpha = float(alpha)
+        self.W = None            # (n_features + 1, n_state), last row the bias
+        self._mean = self._std = None
+
+    def _lagged(self, observations):
+        """One trial's (T, n_obs) observations -> (T, n_obs * (n_history_taps + 1)) design.
+
+        Column block k (k = 0..n_history_taps) is the observation delayed by k bins, the leading
+        k rows edge-padded with the first sample so every row is defined.
+        """
+        Z = np.asarray(observations, dtype=float)
+        if Z.ndim == 1:
+            Z = Z[:, np.newaxis]
+        blocks = [Z]
+        for k in range(1, self.n_history_taps + 1):
+            shifted = np.empty_like(Z)
+            shifted[k:] = Z[:-k]
+            shifted[:k] = Z[0]   # edge-pad the leading bins with the first sample
+            blocks.append(shifted)
+        return np.hstack(blocks) if len(blocks) > 1 else Z
+
+    def _design(self, observations):
+        """Standardized lagged design with a trailing bias column (predict path)."""
+        feats = (self._lagged(observations) - self._mean) / self._std
+        return np.hstack([feats, np.ones((feats.shape[0], 1))])
+
+    def fit(self, states, observations):
+        """Fit from per-trial sequences: `states` (T_i, n_state), `observations` (T_i, n_obs).
+
+        Standardizes the (lagged) design by the training mean / std, then solves the ridge normal
+        equations (X^T X + alpha I) W = X^T Y with no penalty on the bias.  Trial boundaries need
+        no special handling -- every aligned sample contributes one row.
+        """
+        feats = np.vstack([self._lagged(z) for z in observations])
+        self._mean = feats.mean(axis=0)
+        self._std = feats.std(axis=0)
+        self._std[self._std == 0] = 1.0
+        X = np.hstack([(feats - self._mean) / self._std, np.ones((feats.shape[0], 1))])
+        Y = np.vstack([np.asarray(s, dtype=float) for s in states])
+        reg = self.alpha * np.eye(X.shape[1])
+        reg[-1, -1] = 0.0        # do not penalize the bias term
+        try:
+            self.W = np.linalg.solve(X.T @ X + reg, X.T @ Y)
+        except np.linalg.LinAlgError:
+            self.W = np.linalg.pinv(X.T @ X + reg) @ (X.T @ Y)
+        return self
+
+    def predict(self, observations):
+        """Decode one trial: (T, n_obs) observations -> (T, n_state) state estimate."""
+        return self._design(observations) @ self.W
+
+
+DECODE_METHODS = ('wiener', 'kalman')
+
+
+def make_decoder(method='wiener', wiener_taps=0, wiener_alpha=1.0):
+    """Zero-argument factory returning a fresh decoder of the requested method.
+
+    'wiener' -> WienerFilterDecoder(n_history_taps=wiener_taps, alpha=wiener_alpha);
+    'kalman' -> KalmanFilterDecoder().  Returned as a callable so each cross-validation fold gets
+    an independent decoder (decode_cv_per_trial calls it once per fold).
+    """
+    method = str(method).lower()
+    if method == 'wiener':
+        return lambda: WienerFilterDecoder(n_history_taps=wiener_taps, alpha=wiener_alpha)
+    if method == 'kalman':
+        return lambda: KalmanFilterDecoder()
+    raise ValueError('Unknown decode method {!r}; expected one of {}.'.format(
+        method, DECODE_METHODS))
+
+
+def _identity_transform(observations):
+    """No-op neural-observation transform (used when no PCA reduction is requested)."""
+    return np.asarray(observations, dtype=float)
+
+
+def _fit_neural_reducer(train_observations, n_pcs, seed=None):
+    """Standardize-then-PCA reducer fit on the training observations only (leak-free per fold).
+
+    Fits a StandardScaler and PCA(n_components=min(n_pcs, n_features, n_samples)) on the stacked
+    training observations and returns a transform(obs) -> (T, k) callable; when `n_pcs` is falsy
+    returns the identity transform (raw rates).  scikit-learn is imported lazily.
+    """
+    if not n_pcs:
+        return _identity_transform
+
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+
+    X = np.vstack([np.asarray(z, dtype=float) for z in train_observations])
+    scaler = StandardScaler().fit(X)
+    k = int(min(n_pcs, X.shape[1], X.shape[0]))
+    pca = PCA(n_components=k, random_state=seed).fit(scaler.transform(X))
+
+    def transform(observations):
+        return pca.transform(scaler.transform(np.asarray(observations, dtype=float)))
+    return transform
+
+
+def decode_cv_per_trial(states, observations, decoder_factory, n_folds=5, n_pcs=None, seed=None):
+    """Trial-wise k-fold cross-validated decoding that keeps each held-out trial's (true, pred).
+
+    `states` / `observations` are per-trial arrays (T_i, n_state) and (T_i, n_obs).  Whole trials
+    are held out (shuffled k-fold, capped at the trial count): on each fold a fresh decoder from
+    the `decoder_factory()` callable (zero-arg, returning a fit()/predict() object; see
+    make_decoder) is fit on the training trials and run on each held-out trial.  When `n_pcs` is
+    set the neural observations are reduced to their top n_pcs principal components by a
+    scaler + PCA fit on that fold's training trials only (_fit_neural_reducer; no leakage).
+    Unlike kalman_decode_cv, the held-out results are not concatenated: returns
+    (trues, preds, order) where trues[k] / preds[k] are one held-out trial's (T_k, n_state) true
+    and decoded state and order[k] is that trial's index into the inputs (fold order).  Empty
+    lists when there are fewer than two trials.
+    """
+    from sklearn.model_selection import KFold
+
+    n_trials = len(states)
+    if n_trials < 2:
+        return [], [], []
+
+    folds = int(min(n_folds, n_trials))
+    trues, preds, order = [], [], []
+    for train_idx, test_idx in KFold(n_splits=folds, shuffle=True, random_state=seed).split(
+            range(n_trials)):
+        transform = _fit_neural_reducer([observations[i] for i in train_idx], n_pcs, seed)
+        decoder = decoder_factory().fit(
+            [states[i] for i in train_idx],
+            [transform(observations[i]) for i in train_idx])
+        for i in test_idx:
+            trues.append(np.asarray(states[i], dtype=float))
+            preds.append(decoder.predict(transform(observations[i])))
+            order.append(int(i))
+    return trues, preds, order
+
+
+def shuffle_trial_alignment(states, seed=None, min_shift_fraction=0.1):
+    """Break each trial's within-trial temporal alignment (a time-alignment chance null).
+
+    Circularly rolls every trial's state by an independent random offset, so the neural
+    observation no longer lines up with the behaviour in time while each trial's marginal
+    distribution and autocorrelation -- hence its per-trial coefficient-of-determination baseline
+    -- are preserved.  Offsets are at least `min_shift_fraction` of the trial length away from 0
+    (and from a full wrap) so the alignment is genuinely broken.  Returns a new list; the inputs
+    are not modified.  Feeding the result through the same decode_cv_per_trial as the real states
+    yields the shuffled (chance) distribution of per-trial scores.
+    """
+    rng = np.random.RandomState(seed)
+    shuffled = []
+    for s in states:
+        s = np.asarray(s, dtype=float)
+        n = s.shape[0]
+        if n < 3:
+            shuffled.append(s.copy())
+            continue
+        lo = max(1, int(round(min_shift_fraction * n)))
+        hi = n - lo
+        shift = int(rng.randint(lo, hi + 1)) if hi >= lo else int(rng.randint(1, n))
+        shuffled.append(np.roll(s, shift, axis=0))
+    return shuffled
+
+
+def coefficient_of_determination(true, pred):
+    """Coefficient of determination R2 of a decoded vs true trace, pooled over its dimensions.
+
+    R2 = 1 - SS_res / SS_tot, with SS_tot taken about the true mean per dimension and both sums
+    pooled over dimensions -- the fraction of the true variance the prediction captures.  Ranges
+    from negative (worse than predicting the mean) through 0 to 1 (perfect).  For continuous
+    decoding this is the per-trial 'pseudo-R2' the force-decoding figures report.  Returns NaN
+    when the true trace is constant (SS_tot == 0).
+    """
+    true = np.asarray(true, dtype=float)
+    pred = np.asarray(pred, dtype=float)
+    if true.ndim == 1:
+        true = true[:, np.newaxis]
+    pred = pred.reshape(true.shape)
+    ss_res = float(np.sum((true - pred) ** 2))
+    ss_tot = float(np.sum((true - true.mean(axis=0)) ** 2))
+    if ss_tot <= 0:
+        return np.nan
+    return 1.0 - ss_res / ss_tot
+
+
+def rmse(true, pred):
+    """Root mean squared error between a decoded and true trace (pooled over all samples/dims).
+
+    Divide by a scale (e.g. the signal's range) for a normalized RMSE (NRMSE).
+    """
+    true = np.asarray(true, dtype=float).ravel()
+    pred = np.asarray(pred, dtype=float).ravel()
+    return float(np.sqrt(np.mean((true - pred) ** 2)))
+
+
+def pearson_r(true, pred):
+    """Pearson correlation between a decoded and true trace (both raveled).
+
+    Returns NaN when either is constant (correlation undefined).  Raveling pools all dimensions,
+    so this is the natural per-trial score for a scalar target such as the summed grasp force.
+    """
+    true = np.asarray(true, dtype=float).ravel()
+    pred = np.asarray(pred, dtype=float).ravel()
+    if true.size < 2 or true.std() == 0 or pred.std() == 0:
+        return np.nan
+    return float(np.corrcoef(true, pred)[0, 1])

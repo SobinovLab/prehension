@@ -116,6 +116,10 @@ def get_default_meta_structure():
         # experiment type inferred from the raw behaviour-log filename in create_meta:
         # 'prehension' (default), 'prehension_multiforce', 'prehension_kinforce', or 'transport'
         'experiment_type': 'prehension',
+        # trial_numbers to drop when pairing neural TTL pulses to behavioural trials (e.g. a
+        # trial logged without a neural pulse); empty by default. Companion to the meta_neural
+        # 'skip_ttl_intermediate' pulse drops, applied by the neural analysis / plotting scripts.
+        'skip_trials': [],
         'fps': 50,  # fill in
         'ps_markers': {
             'medial_sensor': ('o_sensor_tb', 'o_sensor_tf', 'o_sensor_bb', 'o_sensor_bf'),

@@ -144,7 +144,7 @@ from ..tools.stats import run_pca
 from ..tools import space_similarity as ss
 from ..neural_processing.common.spikes import (
     FILTER_SIGMA, read_nwb_spikes_and_ttl, get_trial_data_spike, fit_session_drift, drift_offset)
-from ..neural_plotting.common.pooling import session_neural_context
+from ..neural_plotting.common.pooling import session_neural_context, pair_pulses_to_trials
 from ..neural_plotting.common.behaviour import load_timepoints_into_msession
 from .encoding import (
     _load_predictor, _component_exists, _trial_period_window, _suffix, _joint_group_suffix,
@@ -517,7 +517,8 @@ def pool_alignment_trials(server, processed_server, session, signals, bin_width=
 
     Mirrors analysis.encoding._pool_encoding_trials / analysis.decoding.pool_decoding_trials:
     reads the neural source, pairs TTL pulses to trials positionally (meta_neural skip_ttl /
-    skip_ttl_last), and for every successful trial that has ALL the requested `signals`, bins +
+    skip_ttl_last / skip_ttl_intermediate and meta_structure skip_trials), and for every
+    successful trial that has ALL the requested `signals`, bins +
     Gaussian-smooths each unit's rate (subtracting the linear session drift when drift_correct)
     and resamples every behavioural signal's channels onto the same bin centres, over the
     signals' overlapping time range (seconds-since-TTL frame).  The signals are concatenated in
@@ -532,6 +533,7 @@ def pool_alignment_trials(server, processed_server, session, signals, bin_width=
     spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
     skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
     skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
+    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
 
     mstruct, _, _, msession = meta_session.load_meta_information(rserv, pserv)
     if period != PERIOD_ALL:
@@ -544,15 +546,13 @@ def pool_alignment_trials(server, processed_server, session, signals, bin_width=
                 session))
         bin_width = 1.0 / fps
 
-    # positional pulse<->trial pairing (as in neural_plotting.common.pooling)
-    if skip_ttl and skip_ttl > 0:
-        events_time = events_time[skip_ttl:]
-    elif skip_ttl and skip_ttl < 0:
-        msession = msession[-skip_ttl:]
-    if skip_ttl_last and skip_ttl_last > 0:
-        events_time = events_time[:-skip_ttl_last]
-    elif skip_ttl_last and skip_ttl_last < 0:
-        msession = msession[:skip_ttl_last]
+    # positional pulse<->trial pairing (as in neural_plotting.common.pooling): skip_ttl /
+    # skip_ttl_last offset, plus the meta_neural 'skip_ttl_intermediate' pulse drops and
+    # meta_structure 'skip_trials' trial drops.
+    events_time, msession = pair_pulses_to_trials(
+        events_time, msession, skip_ttl, skip_ttl_last,
+        skip_ttl_intermediate=skip_ttl_intermediate,
+        skip_trials=mstruct.get('skip_trials', []))
     if len(events_time) != len(msession):
         raise ValueError('{} TTL pulses vs {} trials (skip_ttl={}, skip_ttl_last={}).'.format(
             len(events_time), len(msession), skip_ttl, skip_ttl_last))

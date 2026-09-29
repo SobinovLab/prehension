@@ -66,6 +66,34 @@ def load_summed_force_trace(ps_filenames):
     return union_times, summed_force
 
 
+def load_per_sensor_force_traces(ps_filenames):
+    '''Per-sensor summed force traces, each kept on its own time base.
+
+    Like load_summed_force_trace, but does NOT combine the sensors: loads each
+    pressure-sensor matrix file (TSM or CSV), sums every frame over its sensels, and
+    returns each sensor's summed force on that sensor's own timestamps.  Useful for
+    inspecting the left/right (medial/lateral) grasp force separately.  The times are
+    returned in the file reference frame: for the filtered/aligned sensor files this is
+    seconds since the trial's TTL pulse, the same frame as the NWB-derived spike times.
+
+    Arguments:
+        ps_filenames {dict or iterable} --- Pressure-sensor matrix files.  A dict maps a
+            sensor name to its file (e.g. trial.get_pre_ps_filenames(), keyed by
+            constants.LPS_NAME / RPS_NAME); an iterable of paths is keyed by the file's
+            base name instead.
+
+    Returns:
+        traces {dict of str: (ndarray, ndarray)} --- sensor name -> (times, summed_force).
+    '''
+    items = (ps_filenames.items() if isinstance(ps_filenames, dict)
+             else [(os.path.splitext(os.path.basename(f))[0], f) for f in ps_filenames])
+    traces = {}
+    for name, filename in items:
+        times, matrices = io.import_matrices(filename)
+        traces[name] = (np.asarray(times, dtype=float), np.sum(matrices, axis=(1, 2)))
+    return traces
+
+
 def active_period_bounds(summed_force, fraction=0.05):
     '''First/last indices of the continuous active-force period, threshold-based.
 

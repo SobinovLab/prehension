@@ -50,7 +50,7 @@ from ..tools.logs import rs, ws
 from ..tools.decoding import kalman_decode_cv
 from ..neural_processing.common.spikes import (
     FILTER_SIGMA, read_nwb_spikes_and_ttl, get_trial_data_spike, fit_session_drift, drift_offset)
-from ..neural_plotting.common.pooling import session_neural_context
+from ..neural_plotting.common.pooling import session_neural_context, pair_pulses_to_trials
 from ..neural_plotting.common.behaviour import load_timepoints_into_msession
 from .encoding import (
     _load_predictor, _component_exists, _trial_period_window, DEFAULT_PERIODS, PERIOD_ALL,
@@ -108,23 +108,26 @@ def _load_decode_target(trial, target):
 
 def pool_decoding_trials(server, processed_server, session, target, bin_width=None,
                          filter_sigma=FILTER_SIGMA, use_threshold_crossings=False,
-                         period=PERIOD_ALL, drift_correct=True):
+                         period=PERIOD_ALL, drift_correct=True, successful_only=True):
     """Per-trial (neural rate, target signal) segments for a session, on a shared bin grid.
 
     Mirrors analysis.encoding._pool_encoding_trials but with the decoding roles: the neural
     firing rate is the observation and `target` (joint_angles / torques / grasp_force) is the
     latent state.  Reads the neural source, pairs TTL pulses to trials positionally (meta_neural
-    skip_ttl / skip_ttl_last), bins + Gaussian-smooths each unit's rate (subtracting the linear
+    skip_ttl / skip_ttl_last / skip_ttl_intermediate and meta_structure skip_trials), bins +
+    Gaussian-smooths each unit's rate (subtracting the linear
     session drift when drift_correct), and resamples the target channels onto the same bin
     centres (seconds-since-TTL frame); `period` optionally crops each trial to a sub-period.
-    Returns (trials_obs, trials_state, unit_ids, target_names, bin_width, fps): per-trial lists of
-    (n_bins_i, n_units) and (n_bins_i, n_target).
+    `successful_only` (default True) keeps only trials flagged successful; set False to also
+    include unsuccessful ones.  Returns (trials_obs, trials_state, unit_ids, target_names,
+    bin_width, fps): per-trial lists of (n_bins_i, n_units) and (n_bins_i, n_target).
     """
     nwb_path, meta_neural, rserv, pserv = session_neural_context(
         server, processed_server, session, use_threshold_crossings)
     spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
     skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
     skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
+    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
 
     mstruct, _, _, msession = meta_session.load_meta_information(rserv, pserv)
     if period != PERIOD_ALL:
@@ -137,15 +140,13 @@ def pool_decoding_trials(server, processed_server, session, target, bin_width=No
                 session))
         bin_width = 1.0 / fps
 
-    # positional pulse<->trial pairing (as in neural_plotting.common.pooling)
-    if skip_ttl and skip_ttl > 0:
-        events_time = events_time[skip_ttl:]
-    elif skip_ttl and skip_ttl < 0:
-        msession = msession[-skip_ttl:]
-    if skip_ttl_last and skip_ttl_last > 0:
-        events_time = events_time[:-skip_ttl_last]
-    elif skip_ttl_last and skip_ttl_last < 0:
-        msession = msession[:skip_ttl_last]
+    # positional pulse<->trial pairing (as in neural_plotting.common.pooling): skip_ttl /
+    # skip_ttl_last offset, plus the meta_neural 'skip_ttl_intermediate' pulse drops and
+    # meta_structure 'skip_trials' trial drops.
+    events_time, msession = pair_pulses_to_trials(
+        events_time, msession, skip_ttl, skip_ttl_last,
+        skip_ttl_intermediate=skip_ttl_intermediate,
+        skip_trials=mstruct.get('skip_trials', []))
     if len(events_time) != len(msession):
         raise ValueError('{} TTL pulses vs {} trials (skip_ttl={}, skip_ttl_last={}).'.format(
             len(events_time), len(msession), skip_ttl, skip_ttl_last))
@@ -163,7 +164,7 @@ def pool_decoding_trials(server, processed_server, session, target, bin_width=No
 
     trials_obs, trials_state, names = [], [], None
     for trial, tspk, ev in zip(msession, session_spikes, events_time):
-        if not trial.success or not _target_exists(trial, target):
+        if (successful_only and not trial.success) or not _target_exists(trial, target):
             continue
         try:
             times_b, ch_names, values = _load_decode_target(trial, target)

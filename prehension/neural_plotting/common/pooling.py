@@ -7,8 +7,9 @@ pool_neurons  --- per-neuron force-group PETH averages (mean +/- SEM), pooled.
 pool_trials   --- per-trial causally-smoothed sqrt-rate activity tensors, pooled.
 
 Both load each session's NWB + behavioural meta, apply the session's meta_neural
-skip_ttl / recording, pair TTL pulses to trials positionally, keep the successful
-trials with a valid alignment timepoint, and select neurons.  They construct a
+skip_ttl / recording, pair TTL pulses to trials positionally (pair_pulses_to_trials,
+including the meta_neural 'skip_ttl_intermediate' / meta_structure 'skip_trials' drops),
+keep the successful trials with a valid alignment timepoint, and select neurons.  They construct a
 NeuralConfig and use the prehension behavioural helpers, so they live in
 neural_plotting rather than the reusable neural_processing.common layer; the pure
 downstream aggregation lives in neural_processing.common.population.
@@ -86,6 +87,45 @@ def session_neural_context(server, processed_server, session, use_threshold_cros
     return nwb_path, meta_neural, rserv, pserv
 
 
+def pair_pulses_to_trials(events_time, msession, skip_ttl=0, skip_ttl_last=0,
+                          skip_ttl_intermediate=None, skip_trials=None):
+    """Positionally trim TTL pulses / trials so pulse i pairs to trial i.
+
+    The neural TTL pulses (``events_time``) and behavioural trials (``msession``) carry no
+    shared id, so they are paired strictly by position; this drops the spurious pulses / trials
+    that would otherwise misalign the correspondence, from the session's two meta files:
+
+      * skip_ttl_intermediate {list} --- spurious intermediate TTL pulses to drop, by their
+        original 0-based index in ``events_time`` (meta_neural 'skip_ttl_intermediate'); the
+        indices match the pulse numbering drawn by figure_ttl_alignment.
+      * skip_trials {list} --- behavioural trials to drop, by trial_number (meta_structure
+        'skip_trials'), e.g. a trial logged without a neural pulse.
+      * skip_ttl {int} --- leading offset: > 0 drops that many leading pulses, < 0 that many
+        leading trials.
+      * skip_ttl_last {int} --- trailing offset: > 0 drops that many trailing pulses, < 0 that
+        many trailing trials.
+
+    The intermediate-pulse / skip_trials drops are applied first, so skip_ttl_intermediate keeps
+    its original-index meaning, then the leading/trailing offset.  Returns the trimmed
+    (events_time, msession); the caller checks that the two counts now match.
+    """
+    if skip_ttl_intermediate:
+        drop = {int(i) for i in skip_ttl_intermediate}
+        events_time = [e for i, e in enumerate(events_time) if i not in drop]
+    if skip_trials:
+        drop_trials = {int(t) for t in skip_trials}
+        msession = [t for t in msession if t.trial_number not in drop_trials]
+    if skip_ttl and skip_ttl > 0:
+        events_time = events_time[skip_ttl:]
+    elif skip_ttl and skip_ttl < 0:
+        msession = msession[-skip_ttl:]
+    if skip_ttl_last and skip_ttl_last > 0:
+        events_time = events_time[:-skip_ttl_last]
+    elif skip_ttl_last and skip_ttl_last < 0:
+        msession = msession[:skip_ttl_last]
+    return events_time, msession
+
+
 def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                  group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                  bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA, only_good=False,
@@ -137,6 +177,8 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
 
         skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
         skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
+        skip_ttl_intermediate = resolve_meta_arg(
+            None, meta_neural, 'skip_ttl_intermediate', None)
 
         try:
             mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
@@ -146,16 +188,13 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
             ws('Skipping session {}: {}'.format(session, e))
             continue
 
-        # positional pulse<->trial offset: skip_ttl >0 drops leading pulses, <0 drops
-        # leading trials; skip_ttl_last trims the end (pulses if >0, trials if <0).
-        if skip_ttl and skip_ttl > 0:
-            events_time = events_time[skip_ttl:]
-        elif skip_ttl and skip_ttl < 0:
-            msession = msession[-skip_ttl:]
-        if skip_ttl_last and skip_ttl_last > 0:
-            events_time = events_time[:-skip_ttl_last]
-        elif skip_ttl_last and skip_ttl_last < 0:
-            msession = msession[:skip_ttl_last]
+        # positional pulse<->trial pairing: skip_ttl / skip_ttl_last leading/trailing offset,
+        # plus the meta_neural 'skip_ttl_intermediate' pulse drops and meta_structure
+        # 'skip_trials' trial drops (pair_pulses_to_trials).
+        events_time, msession = pair_pulses_to_trials(
+            events_time, msession, skip_ttl, skip_ttl_last,
+            skip_ttl_intermediate=skip_ttl_intermediate,
+            skip_trials=mstruct.get('skip_trials', []))
         if len(events_time) != len(msession):
             ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}, '
                'skip_ttl_last={}); inspect with figure_ttl_alignment.'.format(
@@ -278,6 +317,8 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
 
         skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
         skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
+        skip_ttl_intermediate = resolve_meta_arg(
+            None, meta_neural, 'skip_ttl_intermediate', None)
 
         try:
             mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
@@ -287,16 +328,13 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
             ws('Skipping session {}: {}'.format(session, e))
             continue
 
-        # positional pulse<->trial offset: skip_ttl >0 drops leading pulses, <0 drops
-        # leading trials; skip_ttl_last trims the end (pulses if >0, trials if <0).
-        if skip_ttl and skip_ttl > 0:
-            events_time = events_time[skip_ttl:]
-        elif skip_ttl and skip_ttl < 0:
-            msession = msession[-skip_ttl:]
-        if skip_ttl_last and skip_ttl_last > 0:
-            events_time = events_time[:-skip_ttl_last]
-        elif skip_ttl_last and skip_ttl_last < 0:
-            msession = msession[:skip_ttl_last]
+        # positional pulse<->trial pairing: skip_ttl / skip_ttl_last leading/trailing offset,
+        # plus the meta_neural 'skip_ttl_intermediate' pulse drops and meta_structure
+        # 'skip_trials' trial drops (pair_pulses_to_trials).
+        events_time, msession = pair_pulses_to_trials(
+            events_time, msession, skip_ttl, skip_ttl_last,
+            skip_ttl_intermediate=skip_ttl_intermediate,
+            skip_trials=mstruct.get('skip_trials', []))
         if len(events_time) != len(msession):
             ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}, '
                'skip_ttl_last={}); inspect with figure_ttl_alignment.'.format(
@@ -498,25 +536,24 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
 
         skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
         skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
+        skip_ttl_intermediate = resolve_meta_arg(
+            None, meta_neural, 'skip_ttl_intermediate', None)
 
         try:
-            _, _, _, msession = meta_session.load_meta_information(rserv, pserv)
+            mstruct, _, _, msession = meta_session.load_meta_information(rserv, pserv)
             spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
             unit_depths = read_nwb_unit_depths(nwb_path)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
 
-        # positional pulse<->trial offset: skip_ttl >0 drops leading pulses, <0 drops
-        # leading trials; skip_ttl_last trims the end (pulses if >0, trials if <0).
-        if skip_ttl and skip_ttl > 0:
-            events_time = events_time[skip_ttl:]
-        elif skip_ttl and skip_ttl < 0:
-            msession = msession[-skip_ttl:]
-        if skip_ttl_last and skip_ttl_last > 0:
-            events_time = events_time[:-skip_ttl_last]
-        elif skip_ttl_last and skip_ttl_last < 0:
-            msession = msession[:skip_ttl_last]
+        # positional pulse<->trial pairing: skip_ttl / skip_ttl_last leading/trailing offset,
+        # plus the meta_neural 'skip_ttl_intermediate' pulse drops and meta_structure
+        # 'skip_trials' trial drops (pair_pulses_to_trials).
+        events_time, msession = pair_pulses_to_trials(
+            events_time, msession, skip_ttl, skip_ttl_last,
+            skip_ttl_intermediate=skip_ttl_intermediate,
+            skip_trials=mstruct.get('skip_trials', []))
         if len(events_time) != len(msession):
             ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}, '
                'skip_ttl_last={}); inspect with figure_ttl_alignment.'.format(

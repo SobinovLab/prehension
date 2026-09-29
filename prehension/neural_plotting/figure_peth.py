@@ -40,7 +40,7 @@ from ..tools import plotting
 from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..neural_processing import config as npconfig
-from .common.pooling import session_neural_context
+from .common.pooling import session_neural_context, pair_pulses_to_trials
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
     read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection,
@@ -315,6 +315,11 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         skip_ttl_last {int} --- Like skip_ttl but trimming the END: positive drops
             this many trailing TTL pulses, negative drops this many trailing
             behavioural trials. None -> meta_neural.json 'skip_ttl_last' then 0.
+            Spurious intermediate pulses (meta_neural.json 'skip_ttl_intermediate',
+            a list of original pulse indices) and excluded trials (meta_structure
+            'skip_trials', a list of trial_numbers) are additionally dropped, read
+            from the meta files only; both are applied before this leading/trailing
+            offset.
         recording {int|str} --- Open Ephys recording within experiment1, 1-based
             (Recording1, Recording2, ...), passed to NeuralConfig. The NWB is
             per-session, so this does not change what is read; kept for a uniform
@@ -345,6 +350,8 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     skip_ttl = resolve_meta_arg(skip_ttl, meta_neural, 'skip_ttl', 0)
     skip_ttl_last = resolve_meta_arg(
         skip_ttl_last, meta_neural, 'skip_ttl_last', 0)
+    # spurious intermediate TTL pulses to drop, from meta_neural.json (no CLI override)
+    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
     min_rate = resolve_meta_arg(min_rate, meta_neural, 'min_rate', None)
     modulation_alpha = resolve_meta_arg(
         modulation_alpha, meta_neural, 'modulation_alpha', None)
@@ -368,6 +375,12 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
     # msession MUST be in recording (chronological) order - which create_meta now guarantees,
     # including for duplicate-recording trials. With duplicates preserved, the counts should match.
     spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
+    # Drop the spurious intermediate TTL pulses (meta_neural 'skip_ttl_intermediate', by their
+    # original figure_ttl_alignment index) and the excluded trials (meta_structure 'skip_trials',
+    # by trial_number) before the leading/trailing offset below.
+    events_time, msession = pair_pulses_to_trials(
+        events_time, msession, skip_ttl_intermediate=skip_ttl_intermediate,
+        skip_trials=mstruct.get('skip_trials', []))
     if skip_ttl > 0:
         # drop leading TTL pulses: pulse skip_ttl pairs to trial 0
         if skip_ttl >= len(events_time):
