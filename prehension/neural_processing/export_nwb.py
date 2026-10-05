@@ -43,6 +43,7 @@ import numpy as np
 from . import config
 from ..tools.logs import rs, ws
 from .common import openephys, streams, probe
+from .common import events as events_mod
 
 
 def _sorting_from_phy(cfg, exclude_groups=('noise',)):
@@ -136,11 +137,12 @@ def _select_sorting(cfg):
 def _read_oe_ttl_windows_source(scfg, fs, concat_offset_samples=0):
     """TTL [start, stop] windows for one source, on the (joint) spike timebase.
 
-    Consecutive events are paired into [start, stop] windows, zeroed to that
-    source's first sample, then shifted by concat_offset_samples/fs to place them
-    on the concatenated timebase (0 for the single-recording path).  probe_type
-    'neuropixels' reads the 'ProbeA-AP' event stream via sample_number; 'vprobe'
-    reads all events via their timestamps.  Returns (starts, stops) lists (s).
+    Windows are zeroed to that source's first sample, then shifted by
+    concat_offset_samples/fs to place them on the concatenated timebase (0 for the
+    single-recording path).  probe_type 'neuropixels' reads the 'ProbeA-AP' stream's
+    rising/falling edges by sample_number + state (events.np_ttl_edge_samples, robust
+    to bad synchronized timestamps); 'vprobe' pairs consecutive events via their
+    timestamps.  Returns (starts, stops) lists (s).
     """
     from open_ephys.analysis import Session
 
@@ -154,10 +156,12 @@ def _read_oe_ttl_windows_source(scfg, fs, concat_offset_samples=0):
 
     starts, stops = [], []
     if probe == 'np':
-        events_ap = events[events.stream_name == 'ProbeA-AP']
-        for i in range(0, len(events_ap) - 1, 2):
-            starts.append((events_ap.iloc[i]['sample_number'] - first_sample) / fs + shift)
-            stops.append((events_ap.iloc[i + 1]['sample_number'] - first_sample) / fs + shift)
+        # rising/falling by hardware sample_number + state (robust to bad synchronized
+        # timestamps / DataFrame order); same pairing as events.np_ttl_edge_samples.
+        rising_sn, falling_sn = events_mod.np_ttl_edge_samples(events)
+        for r, f in zip(rising_sn, falling_sn):
+            starts.append((int(r) - first_sample) / fs + shift)
+            stops.append((int(f) - first_sample) / fs + shift)
     else:
         for i in range(0, len(events) - 1, 2):
             starts.append(events.iloc[i]['timestamp'] - time_offset + shift)

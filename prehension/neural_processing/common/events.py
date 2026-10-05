@@ -214,11 +214,47 @@ def sorted_segment_first_sample(cfg):
     return int(rec.continuous[0].sample_numbers[0])
 
 
+def np_ttl_edge_samples(events_df):
+    """Neuropixels TTL rising / falling edges as hardware sample_numbers.
+
+    From a raw Open Ephys events DataFrame (open_ephys.analysis), keep the 'ProbeA-AP' stream,
+    sort by the hardware ``sample_number`` and split on the ``state`` field (1=rising, 0=falling).
+    This is robust to the *synchronized* ``timestamp`` some recordings write corrupt / out of order
+    (which the SpikeInterface event reader and the DataFrame row order otherwise inherit).  Returns
+    (rising_sample_numbers, falling_sample_numbers) as int64 arrays; place on the spike timebase as
+    (sample_number - first_continuous_sample) / fs.  Shared by export_nwb so both paths pair edges
+    identically.
+    """
+    ev = events_df[events_df['stream_name'] == 'ProbeA-AP'].sort_values('sample_number')
+    sn = ev['sample_number'].to_numpy()
+    state = ev['state'].to_numpy()
+    return sn[state == 1].astype(np.int64), sn[state == 0].astype(np.int64)
+
+
 def _extract_edge_times_source(scfg, verbose=False):
     """Read one source's TTL rising/falling edges (raw acquisition-clock times).
 
-    Returns the same dict shape as extract_ttl_edge_times for a single recording.
+    Returns the same dict shape as extract_ttl_edge_times for a single recording.  Neuropixels
+    edges are read from the hardware sample_number via open_ephys.analysis (np_ttl_edge_samples),
+    not the SpikeInterface event reader, because the latter exposes only the synchronized timestamp
+    -- written corrupt / out of order on some recordings -- and no rising/falling state; vprobe
+    keeps the SpikeInterface path.  Edge times are the raw sample_number / fs (non-first-zeroed, as
+    the merge shift in extract_ttl_edge_times and the figure's own t0 subtraction expect).
     """
+    if scfg.probe_type == 'neuropixels':
+        from open_ephys.analysis import Session
+        rec = openephys.oe_recording(Session(str(scfg.oe_folder)),
+                                     scfg.block_index, scfg.recording_index)
+        fs = float(rec.continuous[0].metadata.sample_rate)
+        rising_sn, falling_sn = np_ttl_edge_samples(rec.events)
+        if verbose:
+            print('TTL from ProbeA-AP sample_number: {} rising, {} falling'.format(
+                len(rising_sn), len(falling_sn)))
+        return dict(channel='ProbeA-AP', segment=int(scfg.recording_index),
+                    rising_times_s=rising_sn / fs, falling_times_s=falling_sn / fs,
+                    rising_event_sample_indices=rising_sn,
+                    falling_event_sample_indices=falling_sn)
+
     events = load_events(scfg)
     ttl_ch = resolve_ttl_channel(scfg, events)
     ttl_segment = _resolve_ttl_segment(scfg, events, ttl_ch, verbose=verbose)
