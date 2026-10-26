@@ -117,6 +117,30 @@ def binned_mean_rows(rows, coords, n_bins, lo=None, hi=None):
     return edges, means, counts
 
 
+def rank_fraction_masks(values, top_fraction, bottom_fraction):
+    '''Masks of the largest `top_fraction` and smallest `bottom_fraction` of `values` by rank.
+
+    Only finite values are ranked (non-finite ones are in neither mask).  Each group holds
+    round(fraction * n_finite) values -- at least one when the fraction is positive -- with
+    ties broken by order; the groups overlap only when the fractions sum to more than 1.
+    Returns (top_mask, bottom_mask), boolean arrays shaped like `values`.
+    '''
+    values = np.asarray(values, dtype=float)
+    finite = np.nonzero(np.isfinite(values))[0]
+    order = finite[np.argsort(values[finite], kind='stable')]   # ascending
+
+    def _count(fraction):
+        return max(1, int(round(fraction * order.size))) if fraction > 0 and order.size else 0
+
+    top = np.zeros(values.shape, dtype=bool)
+    bottom = np.zeros(values.shape, dtype=bool)
+    n_top, n_bottom = _count(top_fraction), _count(bottom_fraction)
+    if n_top:
+        top[order[-n_top:]] = True
+    bottom[order[:n_bottom]] = True
+    return top, bottom
+
+
 def normalize_rows_to_max(X):
     '''Scale each row of a 2-D array by its own maximum, so every row peaks at 1.
 

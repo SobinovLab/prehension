@@ -29,13 +29,15 @@ __all__ = [
     'figure_spaces_pooled', 'figure_spaces_dpca_pooled', 'figure_cross_correlation',
     'figure_classification_time', 'behavior_pooling', 'spaces_behavior', 'encoding',
     'encoding_scatter', 'encoding_summary', 'figure_umap', 'decoding', 'decode_force',
-    'neural_kinematic_alignment', 'figure_depth_activity']
+    'neural_kinematic_alignment', 'figure_depth_activity',
+    'figure_classification_depth']
 
 from . import figure_spaces_pooled
 from . import figure_spaces_dpca_pooled
 from . import figure_cross_correlation
 from . import figure_depth_activity
 from . import figure_classification_time
+from . import figure_classification_depth
 from . import behavior_pooling
 from . import spaces_behavior
 from . import encoding

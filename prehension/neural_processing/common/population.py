@@ -6,7 +6,8 @@ Population aggregation of pooled per-neuron activity (reusable across neural wor
 Pure transforms over the pooled ``entries`` / ``sessions_data`` structures produced
 by the plotting poolers: a light activity filter, the (condition x time, neuron)
 matrix used for PCA, the trial-averaged tensor used for demixed PCA (plus a thin
-matlab_dpca wrapper), and a condition-matched pseudo-population for decoding.  None
+matlab_dpca wrapper), a per-session split of the neurons by depth, and a
+condition-matched pseudo-population for decoding.  None
 of these need a NeuralConfig or behavioural meta, so they are shared by both neural
 processing and plotting.
 
@@ -29,6 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 
 from ...tools.logs import rs, ws
+from ...tools.stats import rank_fraction_masks
 
 MIN_RATE_HZ = 1.0   # light activity selection: keep neurons with mean rate above this
 
@@ -144,6 +146,41 @@ def run_dpca(R, n_components=10, combined_params=DPCA_COMBINED_PARAMS):
     W, V, which_marg = dpca(R, n_components, combined_params=combined_params)
     expl_var = explained_variance(R, W, V, combined_params=combined_params)
     return W, V, which_marg, expl_var
+
+
+def _select_session_neurons(session_data, mask):
+    """A copy of one sessions_data entry restricted to the neurons where `mask` is True."""
+    idx = np.nonzero(mask)[0]
+    return dict(session_data, X=session_data['X'][:, idx, :],
+                neuron_labels=[session_data['neuron_labels'][i] for i in idx],
+                depths=np.asarray(session_data['depths'], dtype=float)[idx])
+
+
+def split_by_depth(sessions_data, top_fraction=0.25, bottom_fraction=0.25):
+    """Split every session's neurons into its top and bottom fractions by depth.
+
+    `sessions_data` carries per-neuron 'depths' (pool_trials with with_depths=True).  The
+    depth increases from the electrode tip upward, so within each session the 'top' group
+    is the `top_fraction` of its neurons farthest from the tip and the 'bottom' group the
+    `bottom_fraction` nearest the tip (tools.stats.rank_fraction_masks).  Ranking is per
+    session, since each probe insertion has its own depth range.  Neurons without a depth
+    are in neither group, and sessions without any depth are skipped with a warning.
+    Returns {'top': [...], 'bottom': [...]}, each a sessions_data-shaped list restricted to
+    that group's neurons.
+    """
+    groups = {'top': [], 'bottom': []}
+    for sd in sessions_data:
+        depths = np.asarray(sd.get('depths', []), dtype=float)
+        if not np.isfinite(depths).any():
+            ws('Session {}: no unit depths; left out of the depth groups.'.format(sd['session']))
+            continue
+        top, bottom = rank_fraction_masks(depths, top_fraction, bottom_fraction)
+        for key, mask in (('top', top), ('bottom', bottom)):
+            if mask.any():
+                groups[key].append(_select_session_neurons(sd, mask))
+        rs('Session {}: {} top / {} bottom neuron(s) of {} by depth.'.format(
+            sd['session'], int(top.sum()), int(bottom.sum()), depths.size))
+    return groups
 
 
 def build_pooled_pseudopopulation(sessions_data, seed=None):

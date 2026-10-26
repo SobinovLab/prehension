@@ -10,10 +10,12 @@ Rate and force share the seconds-since-TTL frame, so no alignment timepoint is u
 the lag is explored from --pre_lag to --post_lag seconds, and the neuron window is
 widened by the lag range so every lag is evaluated over the full active span.
 Correlations are shown as r^2, so a neuron's peak lag is the lag of its strongest
-correlation regardless of sign.  Two figures are produced, each with one subplot per
-session (titled with region and burr hole from meta_neural.json): the per-neuron r^2
-curves with the median peak lag marked, and a density histogram of the per-neuron peak
-lag.  Per session, all units are used, or -- with --only_good -- the unit ids in that
+correlation regardless of sign.  Four figures are produced: the per-neuron r^2 curves
+with the median peak lag marked and a density histogram of the per-neuron peak lag (one
+subplot per session, titled with region and burr hole from meta_neural.json); the
+peak-normalized curves stacked by unit depth, the sessions side by side on a shared depth
+axis with a red tick at each curve's largest r^2; and a scatter of unit depth vs optimal
+(peak) lag, one colour per session.  Per session, all units are used, or -- with --only_good -- the unit ids in that
 session's meta_neural.json 'good_neurons'.  Recording / skip_ttl come from each
 session's meta_neural.json; there is no --units / --recording / --skip_ttl.
 

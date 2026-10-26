@@ -70,28 +70,17 @@ GROUP_STYLES = [
 ]
 
 
-def _pool_and_classify(server, processed_server, sessions, align_timepoint, group_column,
-                       before, after, bin_width, causal_sigma, avg_window, n_folds,
-                       shuffle_percentile, only_good, min_rate, processes, seed,
-                       drift_correct=True, use_threshold_crossings=False):
-    """Pool one set of sessions and classify it per session and as a pooled pseudo-population.
+def classify_sessions_data(sessions_data, bin_centers, n_folds, shuffle_percentile,
+                           processes, seed):
+    """Classify pooled per-trial data per session and as a pooled pseudo-population.
 
-    Runs the full pipeline for a single session set: pool_trials -> per-session k-fold
-    cross-validated LDA through time (each with its own shuffle-based chance level) ->
-    condition-matched pooled pseudo-population classification.  Returns a group dict
-    {'per_session_results', 'pooled_result', 'bin_centers', 'all_conditions'} (the last
-    being the set of conditions seen, for the theoretical chance level), or None when the
-    set has no usable neural data.
+    `sessions_data` is pool_trials' output (or a neuron subset of it, e.g. a depth group):
+    per-session k-fold cross-validated LDA through time (each with its own shuffle-based
+    chance level), then a condition-matched pooled pseudo-population classification.
+    Returns a group dict {'per_session_results', 'pooled_result', 'bin_centers',
+    'all_conditions'} (the last being the set of conditions seen, for the theoretical
+    chance level).
     """
-    sessions_data, bin_centers = pool_trials(
-        server, processed_server, sessions, align_key=align_timepoint,
-        group_column=group_column, before=before, after=after, bin_width=bin_width,
-        causal_sigma=causal_sigma, avg_window=avg_window, only_good=only_good,
-        min_rate=min_rate, use_threshold_crossings=use_threshold_crossings,
-        drift_correct=drift_correct)
-    if not sessions_data:
-        return None
-
     # per-session classification, each with its own shuffle-based chance level
     per_session_results = []
     for sd in sessions_data:
@@ -126,6 +115,51 @@ def _pool_and_classify(server, processed_server, sessions, align_timepoint, grou
 
     return {'per_session_results': per_session_results, 'pooled_result': pooled_result,
             'bin_centers': bin_centers, 'all_conditions': all_conditions}
+
+
+def _pool_and_classify(server, processed_server, sessions, align_timepoint, group_column,
+                       before, after, bin_width, causal_sigma, avg_window, n_folds,
+                       shuffle_percentile, only_good, min_rate, processes, seed,
+                       drift_correct=True, use_threshold_crossings=False):
+    """Pool one set of sessions and classify it per session and as a pooled pseudo-population.
+
+    Runs the full pipeline for a single session set: pool_trials -> classify_sessions_data.
+    Returns the group dict of classify_sessions_data, or None when the set has no usable
+    neural data.
+    """
+    sessions_data, bin_centers = pool_trials(
+        server, processed_server, sessions, align_key=align_timepoint,
+        group_column=group_column, before=before, after=after, bin_width=bin_width,
+        causal_sigma=causal_sigma, avg_window=avg_window, only_good=only_good,
+        min_rate=min_rate, use_threshold_crossings=use_threshold_crossings,
+        drift_correct=drift_correct)
+    if not sessions_data:
+        return None
+    return classify_sessions_data(sessions_data, bin_centers, n_folds, shuffle_percentile,
+                                  processes, seed)
+
+
+def report_sustained_above_chance(groups, sustained_duration):
+    """Log, per plotted group, the sessions that stay above their own shuffle chance
+    threshold for a contiguous stretch longer than `sustained_duration` (s)."""
+    for g in groups:
+        exceeding = [(r['session'], _sustained_above_chance(
+                          r['accuracy'], r.get('chance'), g['bin_centers']))
+                     for r in g['per_session_results']]
+        exceeding = [(s, d) for s, d in exceeding if d > sustained_duration]
+        if exceeding:
+            rs('[{}] {} session(s) above session shuffle chance for > {:.0f} ms: {}'.format(
+                g['label'], len(exceeding), sustained_duration * 1e3,
+                ', '.join('{} ({:.0f} ms)'.format(s, d * 1e3) for s, d in exceeding)))
+        else:
+            rs('[{}] no sessions above session shuffle chance for > {:.0f} ms.'.format(
+                g['label'], sustained_duration * 1e3))
+
+
+def theoretical_chance(groups):
+    """1 / n_conditions over the conditions seen across every plotted group (NaN if none)."""
+    all_conditions = set().union(*[g['all_conditions'] for g in groups])
+    return 1.0 / len(all_conditions) if all_conditions else np.nan
 
 
 def figure_classification_time(server, processed_server, sessions, sessions2=None,
@@ -192,28 +226,15 @@ def figure_classification_time(server, processed_server, sessions, sessions2=Non
 
     # Report, per set, which sessions stay above their own shuffle chance threshold
     # for a contiguous stretch longer than `sustained_duration`.
-    for g in groups:
-        exceeding = [(r['session'], _sustained_above_chance(
-                          r['accuracy'], r.get('chance'), g['bin_centers']))
-                     for r in g['per_session_results']]
-        exceeding = [(s, d) for s, d in exceeding if d > sustained_duration]
-        if exceeding:
-            rs('[{}] {} session(s) above session shuffle chance for > {:.0f} ms: {}'.format(
-                g['label'], len(exceeding), sustained_duration * 1e3,
-                ', '.join('{} ({:.0f} ms)'.format(s, d * 1e3) for s, d in exceeding)))
-        else:
-            rs('[{}] no sessions above session shuffle chance for > {:.0f} ms.'.format(
-                g['label'], sustained_duration * 1e3))
+    report_sustained_above_chance(groups, sustained_duration)
 
     # the bin grid is identical across sets (same before/after/bin_width); theoretical
     # chance = 1 / n_conditions over the conditions seen across every plotted set.
     bin_centers = groups[0]['bin_centers']
-    all_conditions = set().union(*[g['all_conditions'] for g in groups])
-    theoretical_chance = 1.0 / len(all_conditions) if all_conditions else np.nan
 
     save_dir = resolve_pooled_save_dir(
         processed_server, 'figure_classification_time', save, save_dir)
     name = name or sessions_name_stub(sessions, sessions2)
-    plot_classification_time(bin_centers, groups, theoretical_chance, shuffle_percentile,
-                             align_timepoint, group_column, name, save_dir)
+    plot_classification_time(bin_centers, groups, theoretical_chance(groups),
+                             shuffle_percentile, align_timepoint, group_column, name, save_dir)
     return groups

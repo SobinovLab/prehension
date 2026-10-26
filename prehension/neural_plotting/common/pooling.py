@@ -296,7 +296,8 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
 def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 group_column=GROUP_COLUMN, before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
                 causal_sigma=CAUSAL_SIGMA, avg_window=None, only_good=False,
-                min_rate=MIN_RATE_HZ, use_threshold_crossings=False, drift_correct=True):
+                min_rate=MIN_RATE_HZ, use_threshold_crossings=False, drift_correct=True,
+                with_depths=False):
     """Build the per-session, per-trial activity tensors used for classification.
 
     Mirrors pool_neurons' session-handling (probe type, skip_ttl, positional
@@ -312,8 +313,9 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
 
     Returns (sessions_data, bin_centers) where each entry of sessions_data is
     {'session': str, 'X': (n_trials, n_neurons, n_time) sqrt-rate activity,
-    'labels': (n_trials,) condition per trial, 'neuron_labels': [unit id, ...]}.
-    Sessions lacking neural data / meta / a matching pulse count / active neurons /
+    'labels': (n_trials,) condition per trial, 'neuron_labels': [unit id, ...]}; with
+    with_depths each entry also carries 'depths': (n_neurons,) unit depth along the probe
+    (um, NaN where the NWB has none).  Sessions lacking neural data / meta / a matching pulse count / active neurons /
     a valid alignment timepoint are skipped with a warning.  With use_threshold_crossings
     the threshold-crossing product is read instead of the sorted neural.nwb (also used
     automatically, with a warning, when the sorted file is missing).
@@ -376,12 +378,18 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                 session, min_rate))
             continue
 
-        sessions_data.append({
+        kept_labels = [neuron_labels[j] for j in keep]
+        entry = {
             'session': session,
             'X': activity[:, keep, :],
             'labels': labels,
-            'neuron_labels': [neuron_labels[j] for j in keep],
-        })
+            'neuron_labels': kept_labels,
+        }
+        if with_depths:
+            unit_depths = read_nwb_unit_depths(sdata['nwb_path'])
+            entry['depths'] = np.array([unit_depths.get(lbl, np.nan) for lbl in kept_labels],
+                                       dtype=float)
+        sessions_data.append(entry)
         rs('Session {}: {} trials, {} neurons, conditions {}.'.format(
             session, n_trials, len(keep), sorted(set(labels.tolist()))))
 
