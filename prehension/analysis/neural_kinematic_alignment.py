@@ -138,14 +138,11 @@ import scipy.ndimage
 
 from .. import meta_session
 from ..tools import io, plotting
-from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..tools.stats import run_pca
 from ..tools import space_similarity as ss
-from ..neural_processing.common.spikes import (
-    FILTER_SIGMA, read_nwb_spikes_and_ttl, get_trial_data_spike, fit_session_drift, drift_offset)
-from ..neural_plotting.common.pooling import session_neural_context, pair_pulses_to_trials
-from ..neural_plotting.common.behaviour import load_timepoints_into_msession
+from ..neural_processing.common.spikes import FILTER_SIGMA, fit_session_drift, drift_offset
+from ..neural_plotting.common.pooling import load_session_trials
 from .encoding import (
     _load_predictor, _component_exists, _trial_period_window, _suffix, _joint_group_suffix,
     JOINT_GROUPS, DEFAULT_JOINT_GROUP, PERIOD_ALL, PERIOD_ACTIVE_MOVEMENT)
@@ -528,48 +525,30 @@ def pool_alignment_trials(server, processed_server, session, signals, bin_width=
     (n_bins_i, n_units) and (n_bins_i, sum_channels); block_names is a list of (signal, channel
     names) and block_sizes the per-signal channel counts (the block structure of Y).
     """
-    nwb_path, meta_neural, rserv, pserv = session_neural_context(
-        server, processed_server, session, use_threshold_crossings)
-    spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
-    skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
-    skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
-    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
+    # the session's successful trials with their spikes (seconds since TTL), positionally
+    # paired to the TTL pulses; per-trial timepoints are only needed to crop to a sub-period
+    sdata = load_session_trials(
+        server, processed_server, session, load_timepoints=period != PERIOD_ALL,
+        use_threshold_crossings=use_threshold_crossings)
+    unit_ids = sdata['unit_ids']
+    n_units = len(unit_ids)
 
-    mstruct, _, _, msession = meta_session.load_meta_information(rserv, pserv)
-    if period != PERIOD_ALL:
-        load_timepoints_into_msession(msession, mstruct)
-
-    fps = float(mstruct.get('fps') or 0) or None
+    fps = float(sdata['mstruct'].get('fps') or 0) or None
     if bin_width is None:
         if not fps:
             raise ValueError("bin_width not given and no 'fps' in meta_structure for {}.".format(
                 session))
         bin_width = 1.0 / fps
 
-    # positional pulse<->trial pairing (as in neural_plotting.common.pooling): skip_ttl /
-    # skip_ttl_last offset, plus the meta_neural 'skip_ttl_intermediate' pulse drops and
-    # meta_structure 'skip_trials' trial drops.
-    events_time, msession = pair_pulses_to_trials(
-        events_time, msession, skip_ttl, skip_ttl_last,
-        skip_ttl_intermediate=skip_ttl_intermediate,
-        skip_trials=mstruct.get('skip_trials', []))
-    if len(events_time) != len(msession):
-        raise ValueError('{} TTL pulses vs {} trials (skip_ttl={}, skip_ttl_last={}).'.format(
-            len(events_time), len(msession), skip_ttl, skip_ttl_last))
-
-    session_spikes = get_trial_data_spike(spikes, events_time)
-    n_units = len(unit_ids)
-    for trial_spikes, ev in zip(session_spikes, events_time):
-        for i_n in range(n_units):
-            trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ev[0]
-    slopes, t_ref = fit_session_drift(spikes, events_time) if drift_correct else (None, 0.0)
+    slopes, t_ref = (fit_session_drift(sdata['spikes'], sdata['events_time'])
+                     if drift_correct else (None, 0.0))
 
     freq = 1.0 / bin_width
     sigma_bins = filter_sigma / bin_width
 
     trials_X, trials_Y, block_names, block_sizes = [], [], None, None
-    for trial, tspk, ev in zip(msession, session_spikes, events_time):
-        if not trial.success or not all(_signal_exists(trial, s) for s in signals):
+    for trial in sdata['trials']:
+        if not all(_signal_exists(trial, s) for s in signals):
             continue
         try:
             loaded = [_load_alignment_signal(trial, s, joint_group) for s in signals]
@@ -590,9 +569,9 @@ def pool_alignment_trials(server, processed_server, session, signals, bin_width=
 
         rate = np.zeros((centers.size, n_units))
         for i_n in range(n_units):
-            counts, _ = np.histogram(tspk[i_n], bins=bins)
+            counts, _ = np.histogram(trial.spikes[i_n], bins=bins)
             rate[:, i_n] = (scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
-                            - drift_offset(slopes, t_ref, i_n, float(ev[0])))
+                            - drift_offset(slopes, t_ref, i_n, trial.ttl_start))
 
         cols, names_this, sizes_this = [], [], []
         for (t_sig, names_sig, vals_sig), sig in zip(loaded, signals):

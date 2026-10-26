@@ -3,16 +3,19 @@
 """
 Cross-session pooling of neural activity for the pooled figure modules.
 
+load_session_trials --- one session's spikes paired to its trials (the shared loader).
 pool_neurons  --- per-neuron force-group PETH averages (mean +/- SEM), pooled.
 pool_trials   --- per-trial causally-smoothed sqrt-rate activity tensors, pooled.
+pool_cross_correlations --- per-neuron rate vs grasp-force cross-correlations.
+session_unit_rates --- one session's per-unit trial-averaged aligned firing rate.
 
-Both load each session's NWB + behavioural meta, apply the session's meta_neural
-skip_ttl / recording, pair TTL pulses to trials positionally (pair_pulses_to_trials,
-including the meta_neural 'skip_ttl_intermediate' / meta_structure 'skip_trials' drops),
-keep the successful trials with a valid alignment timepoint, and select neurons.  They construct a
-NeuralConfig and use the prehension behavioural helpers, so they live in
-neural_plotting rather than the reusable neural_processing.common layer; the pure
-downstream aggregation lives in neural_processing.common.population.
+Every per-session read goes through load_session_trials: it loads the session's NWB +
+behavioural meta, applies the meta_neural skip_ttl, pairs TTL pulses to trials
+positionally (pair_pulses_to_trials, including the meta_neural 'skip_ttl_intermediate' /
+meta_structure 'skip_trials' drops), keeps the (successful, optionally alignable) trials
+and selects neurons.  It reads the session meta and uses the prehension behavioural
+helpers, so it lives in neural_plotting rather than the reusable neural_processing.common
+layer; the pure downstream aggregation lives in neural_processing.common.population.
 
 Copyright (C) 2026 Anton Sobinov
 https://github.com/SobinovLab/prehension
@@ -46,7 +49,7 @@ from ...neural_processing.common import probe
 from ...neural_processing.import_kilosorted import resolve_neural_nwb_path
 from ...neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
-    read_nwb_spikes_and_ttl, read_nwb_unit_depths, get_trial_data_spike,
+    read_nwb_spikes_and_ttl, read_nwb_unit_depths, get_trial_data_spike, aligned_rate,
     resolve_neuron_selection, fit_session_drift, drift_offset)
 from ...neural_processing.common.population import MIN_RATE_HZ
 from .behaviour import load_timepoints_into_msession, get_timepoint, get_target_force
@@ -65,11 +68,12 @@ def session_neural_context(server, processed_server, session, use_threshold_cros
 
     The neural source is the sorted neural.nwb by default, or the threshold-crossing
     product when use_threshold_crossings is set (or when only that product exists) --
-    resolve_neural_nwb_path.  meta_neural comes from a NeuralConfig when the probe type is
-    known (V-probe / Neuropixels); for Utah-array sessions (no probe meta) it is read
-    directly from meta_neural.json, or {} when absent, so those sessions still pool.
-    Returns (nwb_path, meta_neural, rserv, pserv); raises for a probe session whose meta /
-    recording cannot be resolved, so the caller skips it exactly as before.
+    resolve_neural_nwb_path.  When the probe type is known (V-probe / Neuropixels),
+    meta_neural.json is required (config.load_meta_neural -- the same dict a NeuralConfig
+    holds, without its scan of the raw Open Ephys folders); for Utah-array sessions (no
+    probe meta) it is read when present, or {} when absent, so those sessions still pool.
+    Returns (nwb_path, meta_neural, rserv, pserv); raises for a probe session whose meta
+    cannot be resolved, so the caller skips it exactly as before.
     """
     nwb_path = resolve_neural_nwb_path(processed_server, session, use_threshold_crossings)
     rserv = os.path.join(server, session)
@@ -79,8 +83,7 @@ def session_neural_context(server, processed_server, session, use_threshold_cros
     except ValueError:
         probe_type = None
     if probe_type is not None:
-        meta_neural = config.NeuralConfig(
-            server, processed_server, session, probe_type).meta_neural
+        meta_neural = config.load_meta_neural(processed_server, session)
     else:
         meta_path = config.meta_neural_path(processed_server, session)
         meta_neural = io.load_json(meta_path) if os.path.exists(meta_path) else {}
@@ -126,6 +129,95 @@ def pair_pulses_to_trials(events_time, msession, skip_ttl=0, skip_ttl_last=0,
     return events_time, msession
 
 
+def load_session_trials(server, processed_server, session, align_key=None,
+                        successful_only=True, neuron_ids=None, only_good=False,
+                        skip_ttl=None, skip_ttl_last=None, load_timepoints=True, meta=None,
+                        use_threshold_crossings=False):
+    """Load one session's spikes paired to its trials: the shared per-session loader.
+
+    Resolves the neural source + meta_neural (session_neural_context), reads the spikes and
+    TTL windows from the NWB and the behavioural meta, pairs pulse i to trial i
+    (pair_pulses_to_trials: skip_ttl / skip_ttl_last offsets, meta_neural
+    'skip_ttl_intermediate' pulse drops, meta_structure 'skip_trials' trial drops), and
+    attaches to each kept trial its spikes per unit in seconds since its TTL pulse (the
+    frame of the timepoints) as ``trial.spikes`` and its pulse time as ``trial.ttl_start``.
+
+    Arguments:
+        align_key {str} --- When given, keep only the trials with a valid timepoint for it
+            (get_timepoint) and return those timepoints as 'tps'. None keeps every paired
+            trial ('tps' is None).
+        successful_only {bool} --- Keep only the trials flagged successful (default True).
+        neuron_ids {list} --- Unit ids to select; None/empty -> all units, or the
+            meta_neural 'good_neurons' with only_good.
+        only_good {bool} --- When neuron_ids is empty, select meta_neural 'good_neurons'.
+        skip_ttl, skip_ttl_last {int} --- Leading / trailing pairing offsets. None ->
+            meta_neural.json, then 0.
+        load_timepoints {bool} --- Attach timepoints.csv to the trials (default True); not
+            needed when neither align_key nor a sub-period comes from that file.  Ignored
+            when `meta` is given.
+        meta {tuple} --- Pre-loaded (mstruct, mobject, msession), so a caller that already
+            read the behavioural meta does not read it again. None -> read here.
+        use_threshold_crossings {bool} --- Read the threshold-crossing product instead of the
+            sorted neural.nwb.
+
+    Returns {'trials': [trial, ...], 'tps': [timepoint, ...] or None, 'spikes': per-unit
+    spike times (whole session), 'unit_ids': [unit id, ...], 'events_time': the paired TTL
+    windows, 'neuron_selection': [unit index, ...], 'neuron_labels': [unit id, ...],
+    'mstruct', 'mobject', 'meta_neural': dicts, 'nwb_path': str}.  'spikes' / 'events_time'
+    are what fit_session_drift needs.  Raises ValueError when the session cannot be used
+    (the poolers catch it and skip the session).
+    """
+    nwb_path, meta_neural, rserv, pserv = session_neural_context(
+        server, processed_server, session, use_threshold_crossings)
+
+    if only_good and not neuron_ids:
+        neuron_ids = meta_neural.get('good_neurons') or []
+        if not neuron_ids:
+            raise ValueError("only_good set but meta_neural.json 'good_neurons' is empty for "
+                             "session {}.".format(session))
+
+    skip_ttl = resolve_meta_arg(skip_ttl, meta_neural, 'skip_ttl', 0)
+    skip_ttl_last = resolve_meta_arg(skip_ttl_last, meta_neural, 'skip_ttl_last', 0)
+    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
+
+    if meta is None:
+        mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
+        if load_timepoints:
+            load_timepoints_into_msession(msession, mstruct)
+    else:
+        mstruct, mobject, msession = meta
+    spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
+
+    events_time, msession = pair_pulses_to_trials(
+        events_time, msession, skip_ttl, skip_ttl_last,
+        skip_ttl_intermediate=skip_ttl_intermediate,
+        skip_trials=mstruct.get('skip_trials', []))
+    if len(events_time) != len(msession):
+        raise ValueError('{} TTL pulses vs {} trials (after skip_ttl={}, skip_ttl_last={}); '
+                         'inspect with figure_ttl_alignment.'.format(
+                             len(events_time), len(msession), skip_ttl, skip_ttl_last))
+
+    trial_spikes = get_trial_data_spike(spikes, events_time, relative_to_start=True)
+    for trial, tspk, ev in zip(msession, trial_spikes, events_time):
+        trial.spikes = tspk
+        trial.ttl_start = float(ev[0])
+
+    trials = [t for t in msession if t.success or not successful_only]
+    tps = None
+    if align_key is not None:
+        timed = [(t, get_timepoint(t, align_key)) for t in trials]
+        timed = [(t, tp) for t, tp in timed if tp is not None]
+        if not timed:
+            raise ValueError("No trials with a valid '{}' timepoint.".format(align_key))
+        trials, tps = [t for t, _ in timed], [tp for _, tp in timed]
+
+    neuron_selection, neuron_labels = resolve_neuron_selection(unit_ids, neuron_ids)
+    return {'trials': trials, 'tps': tps, 'spikes': spikes, 'unit_ids': list(unit_ids),
+            'events_time': events_time, 'neuron_selection': neuron_selection,
+            'neuron_labels': neuron_labels, 'mstruct': mstruct, 'mobject': mobject,
+            'meta_neural': meta_neural, 'nwb_path': nwb_path}
+
+
 def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
                  group_column=GROUP_COLUMN, before=BEFORE, after=AFTER,
                  bin_width=BIN_WIDTH, filter_sigma=FILTER_SIGMA, only_good=False,
@@ -160,79 +252,20 @@ def pool_neurons(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     max_force = 0.0
     for session in found:
         try:
-            nwb_path, meta_neural, rserv, pserv = session_neural_context(
-                server, processed_server, session, use_threshold_crossings)
+            sdata = load_session_trials(
+                server, processed_server, session, align_key=align_key, only_good=only_good,
+                use_threshold_crossings=use_threshold_crossings)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
-
-        if only_good:
-            neuron_ids = meta_neural.get('good_neurons') or []
-            if not neuron_ids:
-                ws("Skipping session {}: only_good set but 'good_neurons' is empty.".format(
-                    session))
-                continue
-        else:
-            neuron_ids = None
-
-        skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
-        skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
-        skip_ttl_intermediate = resolve_meta_arg(
-            None, meta_neural, 'skip_ttl_intermediate', None)
-
-        try:
-            mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
-            load_timepoints_into_msession(msession, mstruct)
-            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
-        except Exception as e:  # noqa: BLE001
-            ws('Skipping session {}: {}'.format(session, e))
-            continue
-
-        # positional pulse<->trial pairing: skip_ttl / skip_ttl_last leading/trailing offset,
-        # plus the meta_neural 'skip_ttl_intermediate' pulse drops and meta_structure
-        # 'skip_trials' trial drops (pair_pulses_to_trials).
-        events_time, msession = pair_pulses_to_trials(
-            events_time, msession, skip_ttl, skip_ttl_last,
-            skip_ttl_intermediate=skip_ttl_intermediate,
-            skip_trials=mstruct.get('skip_trials', []))
-        if len(events_time) != len(msession):
-            ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}, '
-               'skip_ttl_last={}); inspect with figure_ttl_alignment.'.format(
-                   session, len(events_time), len(msession), skip_ttl, skip_ttl_last))
-            continue
-
-        session_spikes = get_trial_data_spike(spikes, events_time)
-        num_neurons = len(unit_ids)
-        for trial_spikes, trial_events in zip(session_spikes, events_time):
-            ttl_start = trial_events[0]
-            for i_n in range(num_neurons):
-                trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ttl_start
-        for i_trial, trial in zip(range(len(session_spikes)), msession):
-            trial.spikes = session_spikes[i_trial]
-            trial.ttl_start = float(events_time[i_trial][0])
-        used_msession = [t for t in msession[:len(session_spikes)]
-                         if t.success and hasattr(t, 'spikes')]
-
-        try:
-            neuron_selection, neuron_labels = resolve_neuron_selection(unit_ids, neuron_ids)
-        except ValueError as e:
-            ws('Skipping session {}: {}'.format(session, e))
-            continue
+        used, tps = sdata['trials'], sdata['tps']
+        neuron_selection, neuron_labels = sdata['neuron_selection'], sdata['neuron_labels']
 
         # per-unit linear session drift (subtracted from each trial's rate below)
-        slopes, t_ref = fit_session_drift(spikes, events_time) if drift_correct else (None, 0.0)
+        slopes, t_ref = (fit_session_drift(sdata['spikes'], sdata['events_time'])
+                         if drift_correct else (None, 0.0))
 
-        # trials with a valid alignment timepoint
-        trials = [(t, get_timepoint(t, align_key)) for t in used_msession]
-        trials = [(t, tp) for t, tp in trials if tp is not None]
-        if not trials:
-            ws("Skipping session {}: no trials with a valid '{}' timepoint.".format(
-                session, align_key))
-            continue
-        used = [t for t, _ in trials]
-        tps = [tp for _, tp in trials]
-
-        group = [get_target_force(mobject, t.object_id, group_column) for t in used]
+        group = [get_target_force(sdata['mobject'], t.object_id, group_column) for t in used]
         group_ids = sorted(set(group))
         if group:
             max_force = max(max_force, max(group))
@@ -300,78 +333,21 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
     sessions_data = []
     for session in found:
         try:
-            nwb_path, meta_neural, rserv, pserv = session_neural_context(
-                server, processed_server, session, use_threshold_crossings)
+            sdata = load_session_trials(
+                server, processed_server, session, align_key=align_key, only_good=only_good,
+                use_threshold_crossings=use_threshold_crossings)
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
-
-        if only_good:
-            neuron_ids = meta_neural.get('good_neurons') or []
-            if not neuron_ids:
-                ws("Skipping session {}: only_good set but 'good_neurons' is empty.".format(
-                    session))
-                continue
-        else:
-            neuron_ids = None
-
-        skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
-        skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
-        skip_ttl_intermediate = resolve_meta_arg(
-            None, meta_neural, 'skip_ttl_intermediate', None)
-
-        try:
-            mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
-            load_timepoints_into_msession(msession, mstruct)
-            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
-        except Exception as e:  # noqa: BLE001
-            ws('Skipping session {}: {}'.format(session, e))
-            continue
-
-        # positional pulse<->trial pairing: skip_ttl / skip_ttl_last leading/trailing offset,
-        # plus the meta_neural 'skip_ttl_intermediate' pulse drops and meta_structure
-        # 'skip_trials' trial drops (pair_pulses_to_trials).
-        events_time, msession = pair_pulses_to_trials(
-            events_time, msession, skip_ttl, skip_ttl_last,
-            skip_ttl_intermediate=skip_ttl_intermediate,
-            skip_trials=mstruct.get('skip_trials', []))
-        if len(events_time) != len(msession):
-            ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}, '
-               'skip_ttl_last={}); inspect with figure_ttl_alignment.'.format(
-                   session, len(events_time), len(msession), skip_ttl, skip_ttl_last))
-            continue
-
-        session_spikes = get_trial_data_spike(spikes, events_time)
-        num_neurons = len(unit_ids)
-        for trial_spikes, trial_events in zip(session_spikes, events_time):
-            ttl_start = trial_events[0]
-            for i_n in range(num_neurons):
-                trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ttl_start
-        for i_trial, trial in zip(range(len(session_spikes)), msession):
-            trial.spikes = session_spikes[i_trial]
-            trial.ttl_start = float(events_time[i_trial][0])
-        used_msession = [t for t in msession[:len(session_spikes)]
-                         if t.success and hasattr(t, 'spikes')]
-
-        try:
-            neuron_selection, neuron_labels = resolve_neuron_selection(unit_ids, neuron_ids)
-        except ValueError as e:
-            ws('Skipping session {}: {}'.format(session, e))
-            continue
+        used, tps = sdata['trials'], sdata['tps']
+        neuron_selection, neuron_labels = sdata['neuron_selection'], sdata['neuron_labels']
 
         # per-unit linear session drift (subtracted from each trial's rate below)
-        slopes, t_ref = fit_session_drift(spikes, events_time) if drift_correct else (None, 0.0)
+        slopes, t_ref = (fit_session_drift(sdata['spikes'], sdata['events_time'])
+                         if drift_correct else (None, 0.0))
 
-        # successful trials with a valid alignment timepoint
-        trials = [(t, get_timepoint(t, align_key)) for t in used_msession]
-        trials = [(t, tp) for t, tp in trials if tp is not None]
-        if not trials:
-            ws("Skipping session {}: no trials with a valid '{}' timepoint.".format(
-                session, align_key))
-            continue
-        used = [t for t, _ in trials]
-        tps = [tp for _, tp in trials]
-        labels = np.array([get_target_force(mobject, t.object_id, group_column) for t in used])
+        labels = np.array([get_target_force(sdata['mobject'], t.object_id, group_column)
+                           for t in used])
 
         # per-trial, per-neuron sqrt(causal-smoothed rate); mean rate kept for selection
         n_trials, n_sel = len(used), len(neuron_selection)
@@ -410,6 +386,31 @@ def pool_trials(server, processed_server, sessions, align_key=ALIGN_TIMEPOINT,
             session, n_trials, len(keep), sorted(set(labels.tolist()))))
 
     return sessions_data, bin_centers
+
+
+def session_unit_rates(session_data, before=BEFORE, after=AFTER, bin_width=BIN_WIDTH,
+                       filter_sigma=FILTER_SIGMA, drift_correct=True):
+    """Trial-averaged aligned firing rate of every selected unit in one session.
+
+    ``session_data`` is load_session_trials' output with an align_key (so it has 'tps').
+    For each unit and trial, the spikes around the trial's timepoint are turned into a
+    Gaussian-smoothed rate (spikes.aligned_rate) on the shared [-before, after] grid; when
+    drift_correct (default True) the unit's linear session drift (fit_session_drift) is
+    subtracted.  The rates are then averaged over trials.  Returns (rates (n_units, n_bins) Hz,
+    bin_centers (n_bins,) s).
+    """
+    bins = np.arange(-before - bin_width / 2, after + bin_width / 2, bin_width)
+    bin_centers = bins[:-1] + bin_width / 2
+    slopes, t_ref = (fit_session_drift(session_data['spikes'], session_data['events_time'])
+                     if drift_correct else (None, 0.0))
+
+    trials_tps = list(zip(session_data['trials'], session_data['tps']))
+    rates = np.zeros((len(session_data['neuron_selection']), len(bin_centers)))
+    for i_n, sel in enumerate(session_data['neuron_selection']):
+        rates[i_n] = np.mean(
+            [aligned_rate(t.spikes[sel], tp, bins, filter_sigma)
+             - drift_offset(slopes, t_ref, sel, t.ttl_start) for t, tp in trials_tps], axis=0)
+    return rates, bin_centers
 
 
 # Neuron-independent per-trial cross-correlation context, shared with the worker
@@ -518,64 +519,18 @@ def pool_cross_correlations(server, processed_server, sessions, bin_width=BIN_WI
 
     sessions_results = []
     for session in found:
+        # no alignment timepoint here, so the timepoints file is not needed
         try:
-            nwb_path, meta_neural, rserv, pserv = session_neural_context(
-                server, processed_server, session, use_threshold_crossings)
+            sdata = load_session_trials(
+                server, processed_server, session, only_good=only_good, load_timepoints=False,
+                use_threshold_crossings=use_threshold_crossings)
+            unit_depths = read_nwb_unit_depths(sdata['nwb_path'])
         except Exception as e:  # noqa: BLE001
             ws('Skipping session {}: {}'.format(session, e))
             continue
-
-        if only_good:
-            neuron_ids = meta_neural.get('good_neurons') or []
-            if not neuron_ids:
-                ws("Skipping session {}: only_good set but 'good_neurons' is empty.".format(
-                    session))
-                continue
-        else:
-            neuron_ids = None
-
-        skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
-        skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
-        skip_ttl_intermediate = resolve_meta_arg(
-            None, meta_neural, 'skip_ttl_intermediate', None)
-
-        try:
-            mstruct, _, _, msession = meta_session.load_meta_information(rserv, pserv)
-            spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
-            unit_depths = read_nwb_unit_depths(nwb_path)
-        except Exception as e:  # noqa: BLE001
-            ws('Skipping session {}: {}'.format(session, e))
-            continue
-
-        # positional pulse<->trial pairing: skip_ttl / skip_ttl_last leading/trailing offset,
-        # plus the meta_neural 'skip_ttl_intermediate' pulse drops and meta_structure
-        # 'skip_trials' trial drops (pair_pulses_to_trials).
-        events_time, msession = pair_pulses_to_trials(
-            events_time, msession, skip_ttl, skip_ttl_last,
-            skip_ttl_intermediate=skip_ttl_intermediate,
-            skip_trials=mstruct.get('skip_trials', []))
-        if len(events_time) != len(msession):
-            ws('Skipping session {}: {} TTL pulses vs {} trials (after skip_ttl={}, '
-               'skip_ttl_last={}); inspect with figure_ttl_alignment.'.format(
-                   session, len(events_time), len(msession), skip_ttl, skip_ttl_last))
-            continue
-
-        session_spikes = get_trial_data_spike(spikes, events_time)
-        num_neurons = len(unit_ids)
-        for trial_spikes, trial_events in zip(session_spikes, events_time):
-            ttl_start = trial_events[0]
-            for i_n in range(num_neurons):
-                trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ttl_start
-        for i_trial, trial in zip(range(len(session_spikes)), msession):
-            trial.spikes = session_spikes[i_trial]
-        used_msession = [t for t in msession[:len(session_spikes)]
-                         if t.success and hasattr(t, 'spikes')]
-
-        try:
-            neuron_selection, neuron_labels = resolve_neuron_selection(unit_ids, neuron_ids)
-        except ValueError as e:
-            ws('Skipping session {}: {}'.format(session, e))
-            continue
+        used_msession = sdata['trials']
+        neuron_selection, neuron_labels = sdata['neuron_selection'], sdata['neuron_labels']
+        meta_neural = sdata['meta_neural']
 
         # First pass (serial, cheap): the neuron-independent per-trial context over
         # each usable trial's active-grasp span -- grid edges and the force sampled on

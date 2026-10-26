@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Analysis of prehension neural and behavioural data: state spaces (PCA / demixed PCA),
-neuron-force cross-correlation, condition decoding, and Poisson GLM encoding models.
+neuron-force cross-correlation, activity by probe depth, condition decoding, and Poisson
+GLM encoding models.
 
 These orchestrators reuse the compute layers in tools (stats / decoding / encoding) and
 neural_processing.common.population, the cross-session pooling and drawers in
@@ -28,11 +29,12 @@ __all__ = [
     'figure_spaces_pooled', 'figure_spaces_dpca_pooled', 'figure_cross_correlation',
     'figure_classification_time', 'behavior_pooling', 'spaces_behavior', 'encoding',
     'encoding_scatter', 'encoding_summary', 'figure_umap', 'decoding', 'decode_force',
-    'neural_kinematic_alignment']
+    'neural_kinematic_alignment', 'figure_depth_activity']
 
 from . import figure_spaces_pooled
 from . import figure_spaces_dpca_pooled
 from . import figure_cross_correlation
+from . import figure_depth_activity
 from . import figure_classification_time
 from . import behavior_pooling
 from . import spaces_behavior

@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import copy
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -162,6 +163,24 @@ def stitch_traces_with_gaps(segments):
     if not xs:
         return np.array([]), np.array([])
     return np.concatenate(xs), np.concatenate(ys)
+
+
+def plot_binned_heatmap(ax, x, y_edges, values, cmap_name='viridis', vmin=0.0, vmax=1.0,
+                        empty_color='0.85'):
+    '''Draw `values` (n_rows, n_cols) as a heatmap: columns along x, rows on y-bins.
+
+    ``x`` (n_cols,) are the column centres on a uniform grid (e.g. time-bin centres) and
+    ``y_edges`` (n_rows + 1,) the row-bin edges (e.g. depth bins), so row 0 is drawn at
+    the bottom.  NaN cells (e.g. empty bins) are drawn in ``empty_color``.  The colour
+    scale spans [vmin, vmax].  Returns the QuadMesh (pass it to fig.colorbar).
+    '''
+    x = np.asarray(x, dtype=float)
+    dx = float(np.median(np.diff(x))) if x.size > 1 else 1.0
+    x_edges = np.concatenate([x - dx / 2, [x[-1] + dx / 2]])
+    cmap = copy.copy(plt.get_cmap(cmap_name))
+    cmap.set_bad(empty_color)
+    return ax.pcolormesh(x_edges, y_edges, np.ma.masked_invalid(values), cmap=cmap,
+                         vmin=vmin, vmax=vmax, shading='flat')
 
 
 ############# Arranging subplots

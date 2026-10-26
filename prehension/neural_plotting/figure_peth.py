@@ -35,18 +35,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy.ndimage
 
-from .. import meta_session
 from ..tools import plotting
 from ..tools.cmd_args import resolve_meta_arg
-from ..tools.logs import rs, ws
-from ..neural_processing import config as npconfig
-from .common.pooling import session_neural_context, pair_pulses_to_trials
+from ..tools.logs import rs
+from .common.pooling import load_session_trials
 from ..neural_processing.common.spikes import (
     ALIGN_TIMEPOINT, GROUP_COLUMN, BEFORE, AFTER, BIN_WIDTH, FILTER_SIGMA,
-    read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection,
     fit_session_drift, drift_offset)
-from .common.behaviour import (
-    load_timepoints_into_msession, get_timepoint, get_target_force)
+from .common.behaviour import get_timepoint, get_target_force
 from .common.traces import resolve_session_save_dir, figure_filename
 
 
@@ -287,7 +283,7 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         processed_server {str} --- Folder where the processed data is located.
         session {str} --- Session directory name.
         probe_type {str} --- 'neuropixels', 'vprobe', or 'utah'. Retained for a uniform
-            interface; the per-session NWB is read via session_neural_context regardless, so
+            interface; the per-session NWB is read via load_session_trials regardless, so
             for 'utah' (or None) the read falls back to meta_neural.json.
         neuron_ids {list} --- Unit ids to plot; None/empty -> all units.
         only_good {bool} --- When True and neuron_ids is empty, plot the unit ids
@@ -340,110 +336,32 @@ def plot_perievent_histograms(server, processed_server, session, probe_type,
         save_dir {str} --- Explicit output folder overriding the default
             <session>/prehension_plots location. None -> the default (see save).
     """
-    # Neural source (sorted neural.nwb, or threshold crossings) + meta_neural, resolved
-    # tolerantly: a Utah session (no Open Ephys probe) falls back to meta_neural.json
-    # instead of a NeuralConfig, so probe_type / recording are not needed to read the
-    # per-session product NWB.
-    nwb_path, meta_neural, rserv, pserv = session_neural_context(
-        server, processed_server, session, use_threshold_crossings)
-    # skip_ttl / skip_ttl_last: CLI kwarg > meta_neural.json > 0
-    skip_ttl = resolve_meta_arg(skip_ttl, meta_neural, 'skip_ttl', 0)
-    skip_ttl_last = resolve_meta_arg(
-        skip_ttl_last, meta_neural, 'skip_ttl_last', 0)
-    # spurious intermediate TTL pulses to drop, from meta_neural.json (no CLI override)
-    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
+    # The session's successful trials with their spikes (load_session_trials). Pulses carry no
+    # trial IDs: pulse i pairs to trial i by position (skip_ttl / skip_ttl_last: CLI kwarg >
+    # meta_neural.json > 0, after the meta 'skip_ttl_intermediate' / 'skip_trials' drops), so
+    # a remaining count mismatch raises -- it would misalign every later trial and flatten the
+    # PETH; inspect it with figure_ttl_alignment.
+    session_data = load_session_trials(
+        server, processed_server, session, neuron_ids=neuron_ids, only_good=only_good,
+        skip_ttl=skip_ttl, skip_ttl_last=skip_ttl_last,
+        use_threshold_crossings=use_threshold_crossings)
+    meta_neural = session_data['meta_neural']
     min_rate = resolve_meta_arg(min_rate, meta_neural, 'min_rate', None)
     modulation_alpha = resolve_meta_arg(
         modulation_alpha, meta_neural, 'modulation_alpha', None)
-
-    # --only_good: restrict to the good_neurons listed in meta_neural.json
+    msession, mobject = session_data['trials'], session_data['mobject']
+    neuron_selection, neuron_labels = (session_data['neuron_selection'],
+                                       session_data['neuron_labels'])
     if only_good and not neuron_ids:
-        neuron_ids = meta_neural.get('good_neurons') or []
-        if not neuron_ids:
-            raise ValueError(
-                "only_good=True but meta_neural.json 'good_neurons' is empty; fill it "
-                "in {} first.".format(npconfig.meta_neural_path(processed_server, session)))
         rs('only_good: plotting {} unit(s) from meta_neural.json good_neurons.'.format(
-            len(neuron_ids)))
-
-    # behavioural meta
-    mstruct, _, mobject, msession = meta_session.load_meta_information(rserv, pserv)
-    load_timepoints_into_msession(msession, mstruct)
-
-    # neural + TTL windows from the NWB.
-    # The pulses carry no trial IDs: pulse i is paired to trial i strictly by position, so
-    # msession MUST be in recording (chronological) order - which create_meta now guarantees,
-    # including for duplicate-recording trials. With duplicates preserved, the counts should match.
-    spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
-    # Drop the spurious intermediate TTL pulses (meta_neural 'skip_ttl_intermediate', by their
-    # original figure_ttl_alignment index) and the excluded trials (meta_structure 'skip_trials',
-    # by trial_number) before the leading/trailing offset below.
-    events_time, msession = pair_pulses_to_trials(
-        events_time, msession, skip_ttl_intermediate=skip_ttl_intermediate,
-        skip_trials=mstruct.get('skip_trials', []))
-    if skip_ttl > 0:
-        # drop leading TTL pulses: pulse skip_ttl pairs to trial 0
-        if skip_ttl >= len(events_time):
-            raise ValueError('skip_ttl={} but only {} TTL pulse(s) available.'.format(
-                skip_ttl, len(events_time)))
-        rs('Skipping the first {} TTL pulse(s): {} -> {}.'.format(
-            skip_ttl, len(events_time), len(events_time) - skip_ttl))
-        events_time = events_time[skip_ttl:]
-    elif skip_ttl < 0:
-        # drop leading behavioural trials: pulse 0 pairs to trial |skip_ttl|
-        n_drop = -skip_ttl
-        if n_drop >= len(msession):
-            raise ValueError(
-                'skip_ttl={} but only {} behavioural trial(s) available.'.format(
-                    skip_ttl, len(msession)))
-        rs('Skipping the first {} behavioural trial(s): {} -> {}.'.format(
-            n_drop, len(msession), len(msession) - n_drop))
-        msession = msession[n_drop:]
-    if skip_ttl_last > 0:
-        # drop trailing TTL pulses
-        if skip_ttl_last >= len(events_time):
-            raise ValueError('skip_ttl_last={} but only {} TTL pulse(s) available.'.format(
-                skip_ttl_last, len(events_time)))
-        rs('Skipping the last {} TTL pulse(s): {} -> {}.'.format(
-            skip_ttl_last, len(events_time), len(events_time) - skip_ttl_last))
-        events_time = events_time[:-skip_ttl_last]
-    elif skip_ttl_last < 0:
-        # drop trailing behavioural trials
-        n_drop = -skip_ttl_last
-        if n_drop >= len(msession):
-            raise ValueError(
-                'skip_ttl_last={} but only {} behavioural trial(s) available.'.format(
-                    skip_ttl_last, len(msession)))
-        rs('Skipping the last {} behavioural trial(s): {} -> {}.'.format(
-            n_drop, len(msession), len(msession) - n_drop))
-        msession = msession[:skip_ttl_last]
-    if len(events_time) != len(msession):
-        raise ValueError(
-            '{} TTL pulses but {} behavioural trials. Pulses are matched to trials strictly by '
-            'position, so a count mismatch misaligns every trial after the discrepancy and '
-            'flattens the PETH. Duplicate-recording trials are now preserved, so this indicates a '
-            'genuinely missed/extra pulse or an ordering problem. Inspect with figure_ttl_alignment '
-            'and fix the pulse<->trial correspondence before plotting.'.format(
-                len(events_time), len(msession)))
-
-    session_spikes = get_trial_data_spike(spikes, events_time)
-    num_neurons = len(unit_ids)
-    rs('Total {} trials with {} units.'.format(len(msession), num_neurons))
-    for trial_spikes, trial_events in zip(session_spikes, events_time):
-        ttl_start = trial_events[0]
-        for i_n in range(num_neurons):
-            trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ttl_start
-
-    for i_trial, trial in zip(range(len(session_spikes)), msession):
-        trial.spikes = session_spikes[i_trial]
-        trial.ttl_start = float(events_time[i_trial][0])
-    msession = [t for t in msession[:len(session_spikes)]
-                if t.success and hasattr(t, 'spikes')]
+            len(neuron_selection)))
+    rs('Total {} successful trials with {} units.'.format(
+        len(msession), len(session_data['unit_ids'])))
 
     # per-unit linear session drift, subtracted from every trial's rate below.
-    slopes, t_ref = fit_session_drift(spikes, events_time) if drift_correct else (None, 0.0)
+    slopes, t_ref = (fit_session_drift(session_data['spikes'], session_data['events_time'])
+                     if drift_correct else (None, 0.0))
 
-    neuron_selection, neuron_labels = resolve_neuron_selection(unit_ids, neuron_ids)
     if min_rate is not None:
         neuron_selection, neuron_labels = _filter_by_rate(
             msession, neuron_selection, neuron_labels, align_timepoint, before, after, min_rate,

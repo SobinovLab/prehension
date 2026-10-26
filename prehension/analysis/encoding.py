@@ -51,19 +51,14 @@ import os
 import numpy as np
 import scipy.ndimage
 
-from .. import meta_session
 from ..tools import io, filters
 from ..tools.constants import DISTAL_DOFS, PROXIMAL_DOFS, ALL_DOFS
-from ..tools.cmd_args import resolve_meta_arg
 from ..tools.logs import rs, ws
 from ..tools.stats import run_pca
 from ..tools.encoding import fit_glms_over_units
-from ..neural_processing.common.spikes import (
-    FILTER_SIGMA, read_nwb_spikes_and_ttl, get_trial_data_spike, resolve_neuron_selection)
-from ..neural_processing.import_kilosorted import resolve_neural_nwb_path
-from ..neural_processing.config import meta_neural_path
-from ..neural_plotting.common.behaviour import load_timepoints_into_msession, get_timepoint
-from ..neural_plotting.common.pooling import pair_pulses_to_trials
+from ..neural_processing.common.spikes import FILTER_SIGMA, resolve_neuron_selection
+from ..neural_plotting.common.behaviour import get_timepoint
+from ..neural_plotting.common.pooling import load_session_trials
 from . import behavior_pooling
 
 # Predictor signals the GLM supports.  joint_velocity is derived from the joint angles
@@ -184,12 +179,6 @@ def lag_json_path(processed_server, session, predictor, use_threshold_crossings=
                         '{}_lag{}{}{}.json'.format(
                             predictor, _period_suffix(period), _joint_group_suffix(joint_group),
                             _suffix(use_threshold_crossings)))
-
-
-def _load_meta_neural(processed_server, session):
-    """meta_neural.json for a session, or {} when absent (Utah sessions may lack it)."""
-    path = meta_neural_path(processed_server, session)
-    return io.load_json(path) if os.path.exists(path) else {}
 
 
 def _group_components(predictor):
@@ -318,52 +307,28 @@ def _pool_encoding_trials(server, processed_server, session, predictor, bin_widt
     (n_bins_i, n_channels) and trials_Y[i] is (n_bins_i, n_units); the caller applies the
     lag and concatenates.  bin_width defaults to 1/mstruct['fps'].
     """
-    nwb_path = resolve_neural_nwb_path(processed_server, session, use_threshold_crossings)
-    spikes, unit_ids, events_time = read_nwb_spikes_and_ttl(nwb_path)
-    meta_neural = _load_meta_neural(processed_server, session)
-    skip_ttl = resolve_meta_arg(None, meta_neural, 'skip_ttl', 0)
-    skip_ttl_last = resolve_meta_arg(None, meta_neural, 'skip_ttl_last', 0)
-    skip_ttl_intermediate = resolve_meta_arg(None, meta_neural, 'skip_ttl_intermediate', None)
+    # the session's successful trials with their spikes (seconds since TTL), positionally
+    # paired to the TTL pulses; per-trial timepoints are only needed to crop to a sub-period
+    sdata = load_session_trials(
+        server, processed_server, session, load_timepoints=period != PERIOD_ALL,
+        use_threshold_crossings=use_threshold_crossings)
+    unit_ids = sdata['unit_ids']
+    n_units = len(unit_ids)
 
-    mstruct, _, _, msession = meta_session.load_meta_information(
-        os.path.join(server, session), os.path.join(processed_server, session))
-
-    # per-trial timepoints are only needed to crop the trials to a sub-period
-    if period != PERIOD_ALL:
-        load_timepoints_into_msession(msession, mstruct)
-
-    fps = float(mstruct.get('fps') or 0) or None
+    fps = float(sdata['mstruct'].get('fps') or 0) or None
     if bin_width is None:
         if not fps:
             raise ValueError("bin_width not given and no 'fps' in meta_structure for {}.".format(
                 session))
         bin_width = 1.0 / fps
 
-    # positional pulse<->trial pairing (as in neural_plotting.common.pooling): skip_ttl /
-    # skip_ttl_last offset, plus the meta_neural 'skip_ttl_intermediate' pulse drops and
-    # meta_structure 'skip_trials' trial drops.
-    events_time, msession = pair_pulses_to_trials(
-        events_time, msession, skip_ttl, skip_ttl_last,
-        skip_ttl_intermediate=skip_ttl_intermediate,
-        skip_trials=mstruct.get('skip_trials', []))
-    if len(events_time) != len(msession):
-        raise ValueError('{} TTL pulses vs {} trials (skip_ttl={}, skip_ttl_last={}).'.format(
-            len(events_time), len(msession), skip_ttl, skip_ttl_last))
-
-    # spikes per trial, zeroed to each trial's TTL start -> seconds since TTL
-    session_spikes = get_trial_data_spike(spikes, events_time)
-    n_units = len(unit_ids)
-    for trial_spikes, ev in zip(session_spikes, events_time):
-        for i_n in range(n_units):
-            trial_spikes[i_n] = np.asarray(trial_spikes[i_n]) - ev[0]
-
     freq = 1.0 / bin_width
     sigma_bins = filter_sigma / bin_width
 
     components = _group_components(predictor)
     trials_X, trials_Y, names = [], [], None
-    for trial, tspk in zip(msession, session_spikes):
-        if not trial.success or not _predictor_exists(trial, predictor):
+    for trial in sdata['trials']:
+        if not _predictor_exists(trial, predictor):
             continue
         try:
             loaded = [_load_predictor(trial, c, joint_group) for c in components]
@@ -385,7 +350,7 @@ def _pool_encoding_trials(server, processed_server, session, predictor, bin_widt
 
         rate = np.zeros((centers.size, n_units))
         for i_n in range(n_units):
-            counts, _ = np.histogram(tspk[i_n], bins=bins)
+            counts, _ = np.histogram(trial.spikes[i_n], bins=bins)
             rate[:, i_n] = scipy.ndimage.gaussian_filter1d(counts * freq, sigma_bins)
 
         # concatenate every component's channels, each interpolated onto the shared centres;

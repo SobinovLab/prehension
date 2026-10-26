@@ -4,8 +4,8 @@
 Spike reading and per-trial slicing (reusable across neural work).
 
 Read per-unit spike times and TTL windows from the minimal neural NWB, slice each
-unit's spikes into per-trial windows, and resolve a requested set of unit ids to
-indices.  These operate only on arrays / an NWB path (no behavioural meta, no
+unit's spikes into per-trial windows, turn an aligned trial into a smoothed firing
+rate, and resolve a requested set of unit ids to indices.  These operate only on arrays / an NWB path (no behavioural meta, no
 NeuralConfig), so they are shared by both neural processing and plotting.  The
 shared default alignment/windowing constants live here as the single source of
 truth for every figure module.
@@ -27,6 +27,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import numpy as np
+import scipy.ndimage
 
 from ...tools.logs import rs, ws
 
@@ -90,16 +91,39 @@ def read_nwb_unit_depths(nwb_path):
     return depths
 
 
-def get_trial_data_spike(spike_per_unit, events_time):
-    """For each trial window [start, stop], extract per-unit spikes within it."""
-    trial_spike = []
-    for e in events_time:
-        temp = []
-        for spike in spike_per_unit:
-            idx = np.where((spike > e[0]) & (spike < e[1]))
-            temp.append(spike[idx])
-        trial_spike.append(temp)
+def get_trial_data_spike(spike_per_unit, events_time, relative_to_start=False):
+    """For each trial window (start, stop), extract per-unit spikes within it.
+
+    Returns trial_spike[i_trial][i_unit], the unit's spikes strictly inside the window;
+    with relative_to_start they are shifted to seconds since the window start (the TTL
+    pulse).  Each unit's spikes are sorted once and every window is located by binary
+    search (np.searchsorted over all windows at once), so the cost grows with
+    log(n_spikes) per window rather than a scan of the whole spike train.
+    """
+    starts = np.array([float(e[0]) for e in events_time])
+    stops = np.array([float(e[1]) for e in events_time])
+    trial_spike = [[] for _ in events_time]
+    for spike in spike_per_unit:
+        spike = np.sort(np.asarray(spike, dtype=float))
+        los = np.searchsorted(spike, starts, side='right')   # first spike > start
+        his = np.searchsorted(spike, stops, side='left')     # first spike >= stop
+        for i_t, (lo, hi) in enumerate(zip(los, his)):
+            s = spike[lo:hi]
+            trial_spike[i_t].append(s - starts[i_t] if relative_to_start else s)
     return trial_spike
+
+
+def aligned_rate(spike_times, tp, bins, filter_sigma=FILTER_SIGMA):
+    """Gaussian-smoothed firing rate (Hz) of one trial's spikes aligned to timepoint tp.
+
+    ``spike_times`` and ``tp`` share a time frame (s, e.g. seconds since the trial's TTL
+    pulse); ``bins`` are uniform bin edges relative to tp (e.g. from -before to after).
+    The spikes are histogrammed into the bins, turned into a rate and smoothed with a
+    Gaussian of SD ``filter_sigma`` (s).  Returns the rate per bin (len(bins) - 1,).
+    """
+    bin_width = float(bins[1] - bins[0])
+    counts, _ = np.histogram(np.asarray(spike_times, dtype=float) - tp, bins=bins)
+    return scipy.ndimage.gaussian_filter1d(counts / bin_width, filter_sigma / bin_width)
 
 
 def resolve_neuron_selection(unit_ids, neuron_ids):

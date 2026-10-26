@@ -85,6 +85,54 @@ def run_pca(X, n_components):
     return scores, evr
 
 
+def binned_mean_rows(rows, coords, n_bins, lo=None, hi=None):
+    '''Average the rows of a 2-D array within equal-width bins of a per-row coordinate.
+
+    `rows` is (n_rows, n_cols) and `coords` (n_rows,) holds each row's coordinate (e.g. a
+    unit's depth along the probe).  [lo, hi] (default: the finite coords' min..max) is
+    split into `n_bins` equal-width bins and the rows falling in each bin are averaged
+    column-wise; rows with a non-finite coordinate are ignored.  Returns
+    (edges (n_bins + 1,), means (n_bins, n_cols) with NaN rows for empty bins,
+    counts (n_bins,) the number of rows in each bin).
+    '''
+    rows = np.asarray(rows, dtype=float)
+    coords = np.asarray(coords, dtype=float)
+    finite = np.isfinite(coords)
+    if not finite.any():
+        raise ValueError('No finite coordinates to bin.')
+    rows, coords = rows[finite], coords[finite]
+
+    lo = float(np.min(coords)) if lo is None else float(lo)
+    hi = float(np.max(coords)) if hi is None else float(hi)
+    if hi <= lo:
+        hi = lo + 1.0   # a single coordinate value: one unit-wide range
+    edges = np.linspace(lo, hi, n_bins + 1)
+    # bin index per row; the top edge (coord == hi) belongs to the last bin
+    idx = np.clip(np.digitize(coords, edges) - 1, 0, n_bins - 1)
+
+    counts = np.bincount(idx, minlength=n_bins)
+    means = np.full((n_bins, rows.shape[1]), np.nan)
+    for b in np.nonzero(counts)[0]:
+        means[b] = np.mean(rows[idx == b], axis=0)
+    return edges, means, counts
+
+
+def normalize_rows_to_max(X):
+    '''Scale each row of a 2-D array by its own maximum, so every row peaks at 1.
+
+    All-NaN rows (e.g. empty bins) stay NaN; a row whose maximum is not positive (a silent
+    row) becomes all zeros.
+    '''
+    X = np.asarray(X, dtype=float)
+    out = np.full_like(X, np.nan)
+    for i, row in enumerate(X):
+        if not np.isfinite(row).any():
+            continue
+        peak = np.nanmax(row)
+        out[i] = row / peak if peak > 0 else np.zeros_like(row)
+    return out
+
+
 def format_p(p):
     '''Formats p-value according to recommendations with additional zero.
 
