@@ -90,5 +90,6 @@ def figure_spaces_dpca_pooled(server, processed_server, sessions,
 
     plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_timepoint, name, save_dir)
     plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
-                       bin_centers, align_timepoint, name, save_dir, n_show=N_SHOW)
+                       bin_centers, align_timepoint, name, save_dir, n_show=N_SHOW,
+                       group_column=group_column)
     return W, V, which_marg, expl_var, conditions

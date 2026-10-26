@@ -81,9 +81,11 @@ def spaces_behavior(server, processed_server, sessions, signal, method='dpca',
             len(labels), signal, len(conditions), numbins, k,
             ', '.join('{:.1f}%'.format(100 * v) for v in evr)))
         plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr,
-                              align_timepoint, name, save_dir)
-        plot_pc_2d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir)
-        plot_pc_3d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir)
+                              align_timepoint, name, save_dir, group_column=group_column)
+        plot_pc_2d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir,
+                   group_column=group_column)
+        plot_pc_3d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir,
+                   group_column=group_column)
         return scores3d, evr, conditions, labels
 
     R, R_sem, conditions, numbins = build_condition_tensors(entries)
@@ -93,5 +95,6 @@ def spaces_behavior(server, processed_server, sessions, signal, method='dpca',
     report_marginalization_variance(expl_var)
     plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_timepoint, name, save_dir)
     plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
-                       bin_centers, align_timepoint, name, save_dir, n_show=N_SHOW)
+                       bin_centers, align_timepoint, name, save_dir, n_show=N_SHOW,
+                       group_column=group_column)
     return W, V, which_marg, expl_var, conditions

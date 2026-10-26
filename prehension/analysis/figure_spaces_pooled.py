@@ -85,7 +85,9 @@ def figure_spaces_pooled(server, processed_server, sessions,
         ', '.join('{:.1f}%'.format(100 * v) for v in evr)))
 
     plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr,
-                          align_timepoint, name, save_dir)
-    plot_pc_2d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir)
-    plot_pc_3d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir)
+                          align_timepoint, name, save_dir, group_column=group_column)
+    plot_pc_2d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir,
+               group_column=group_column)
+    plot_pc_3d(scores3d, conditions, max_force, evr, align_timepoint, name, save_dir,
+               group_column=group_column)
     return scores3d, evr, conditions, labels

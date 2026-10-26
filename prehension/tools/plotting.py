@@ -47,14 +47,14 @@ def savefig(dirname, filename, fig=None, dpi=None, bbox_inches=None):
 
 
 ############ Colors
-def cmap_norm(values, vmax, cmap_name='autumn_r'):
-    '''Build a colormap + linear norm (0..vmax) and per-value colours.
+def cmap_norm(values, vmax, cmap_name='autumn_r', vmin=0):
+    '''Build a colormap + linear norm (vmin..vmax) and per-value colours.
 
-    Returns (cmap, norm, [cmap(norm(v)) for v in values]).  vmax <= 0 falls back to
+    Returns (cmap, norm, [cmap(norm(v)) for v in values]).  vmax <= vmin falls back to
     a range of 1 so the norm stays valid.
     '''
     cmap = plt.get_cmap(cmap_name)
-    norm = mpl.colors.Normalize(vmin=0, vmax=vmax if vmax > 0 else 1)
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax if vmax > vmin else vmin + 1)
     return cmap, norm, [cmap(norm(v)) for v in values]
 
 

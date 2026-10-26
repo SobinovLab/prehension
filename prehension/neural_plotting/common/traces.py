@@ -96,15 +96,23 @@ def _save(fig, save_dir, name):
     rs('Saved {}'.format(out))
 
 
+def _condition_cmap(conditions, max_force):
+    """Colour scale over the conditions: 0..max_force, extended down to the smallest
+    condition when the group column has negative values (e.g. pos_tilt(deg)), so those
+    conditions are not all clipped to the bottom colour."""
+    vmin = min(0.0, min(conditions)) if len(conditions) else 0.0
+    return plotting.cmap_norm(conditions, max_force, vmin=vmin)
+
+
 # ---------------------------------------------------------------------------
 # PCA state-space traces
 # ---------------------------------------------------------------------------
 def plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr, align_key, name,
-                          save_dir):
+                          save_dir, group_column=GROUP_COLUMN):
     """First min(k,10) PCs vs time, one trace per condition, one subplot per PC."""
     n_cond, numbins, k = scores3d.shape
     n = min(k, 10)
-    cmap, norm, cond_colors = plotting.cmap_norm(conditions, max_force)
+    cmap, norm, cond_colors = _condition_cmap(conditions, max_force)
     sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 
     xn, yn = plotting.xy_numsubplots(n)
@@ -121,19 +129,20 @@ def plot_pcs_through_time(scores3d, bin_centers, conditions, max_force, evr, ali
         ax.tick_params(labelsize=6)
     fig.suptitle('Population PCs through time, aligned to {}'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.94, 0.96))
-    fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
+    fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
     _save(fig, save_dir, figure_filename(name, 'pcs_time'))
     return fig
 
 
-def plot_pc_2d(scores3d, conditions, max_force, evr, align_key, name, save_dir):
+def plot_pc_2d(scores3d, conditions, max_force, evr, align_key, name, save_dir,
+               group_column=GROUP_COLUMN):
     """2D trajectories PC1 vs PC2 and (if available) PC1 vs PC3; o=start, s=end."""
     k = scores3d.shape[2]
     if k < 2:
         ws('Fewer than 2 PCs available; skipping 2D plots.')
         return None
     pairs = [(0, 1)] + ([(0, 2)] if k >= 3 else [])
-    cmap, norm, cond_colors = plotting.cmap_norm(conditions, max_force)
+    cmap, norm, cond_colors = _condition_cmap(conditions, max_force)
     sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 
     fig, axs = plt.subplots(1, len(pairs), figsize=(7 * len(pairs), 6))
@@ -149,17 +158,18 @@ def plot_pc_2d(scores3d, conditions, max_force, evr, align_key, name, save_dir):
         ax.set_title('PC{} vs PC{}'.format(px + 1, py + 1))
     fig.suptitle('Population trajectories (2D), aligned to {} (o=start, s=end)'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.92, 0.95))
-    fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
+    fig.colorbar(sm, ax=axs.tolist(), fraction=0.02, pad=0.01).set_label(group_column)
     _save(fig, save_dir, figure_filename(name, 'pc2d'))
     return fig
 
 
-def plot_pc_3d(scores3d, conditions, max_force, evr, align_key, name, save_dir):
+def plot_pc_3d(scores3d, conditions, max_force, evr, align_key, name, save_dir,
+               group_column=GROUP_COLUMN):
     """3D trajectory PC1 vs PC2 vs PC3; o=start, s=end."""
     if scores3d.shape[2] < 3:
         ws('Fewer than 3 PCs available; skipping 3D plot.')
         return None
-    cmap, norm, cond_colors = plotting.cmap_norm(conditions, max_force)
+    cmap, norm, cond_colors = _condition_cmap(conditions, max_force)
     sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 
     fig = plt.figure(figsize=(9, 8))
@@ -173,7 +183,7 @@ def plot_pc_3d(scores3d, conditions, max_force, evr, align_key, name, save_dir):
     ax.set_ylabel('PC2 ({:.1f}%)'.format(100 * evr[1]))
     ax.set_zlabel('PC3 ({:.1f}%)'.format(100 * evr[2]))
     ax.set_title('Population trajectory (3D), aligned to {} (o=start, s=end)'.format(align_key))
-    fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.1).set_label(GROUP_COLUMN)
+    fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.1).set_label(group_column)
     _save(fig, save_dir, figure_filename(name, 'pc3d'))
     return fig
 
@@ -222,11 +232,12 @@ def plot_dpca_summary(R, W, V, which_marg, expl_var, bin_centers, align_key, nam
 
 
 def plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
-                       bin_centers, align_key, name, save_dir, cd_marg=CD_MARG, n_show=N_SHOW):
+                       bin_centers, align_key, name, save_dir, cd_marg=CD_MARG, n_show=N_SHOW,
+                       group_column=GROUP_COLUMN):
     """Leading condition-dependent demixed components through time (plotDPcaTraces.m style).
 
     Projects the per-condition average activity onto the top condition-dependent
-    decoder axes (W) and draws one trace per condition (coloured by force) with
+    decoder axes (W) and draws one trace per condition (coloured by group_column) with
     +/- s.e.m. bands.  The band for a projected component is the decoder-weighted
     combination of the per-neuron s.e.m.: sqrt(sum_n (W[n, comp] * sem[n, c, t])^2),
     the pooled-pseudo-population analogue of the single-trial spread that
@@ -237,7 +248,7 @@ def plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
         ws('No condition-dependent components among the kept dPCs; skipping trace plot.')
         return None
 
-    cmap, norm, cond_colors = plotting.cmap_norm(conditions, max_force)
+    cmap, norm, cond_colors = _condition_cmap(conditions, max_force)
     sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 
     Wc = W[:, components]                                   # (N, k)
@@ -259,7 +270,7 @@ def plot_cd_dpc_traces(R, R_sem, W, which_marg, expl_var, conditions, max_force,
     fig.suptitle('Condition-dependent dPCs (per-condition average +/- s.e.m.), '
                  'aligned to {}'.format(align_key))
     fig.tight_layout(rect=(0, 0, 0.94, 0.96))
-    fig.colorbar(sm, ax=axs.ravel().tolist(), fraction=0.02, pad=0.01).set_label(GROUP_COLUMN)
+    fig.colorbar(sm, ax=axs.ravel().tolist(), fraction=0.02, pad=0.01).set_label(group_column)
     _save(fig, save_dir, figure_filename(name, 'cd_traces'))
     return fig
 
